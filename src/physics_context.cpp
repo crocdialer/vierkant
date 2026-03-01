@@ -48,67 +48,67 @@ namespace std
 template<>
 struct hash<vierkant::collision::none_t>
 {
-    size_t operator()(vierkant::collision::none_t const &) const { return 0; };
+    size_t operator()(vierkant::collision::none_t const &) const noexcept { return 0; };
 };
 
 template<>
 struct hash<vierkant::collision::plane_t>
 {
-    size_t operator()(vierkant::collision::plane_t const &) const;
+    size_t operator()(vierkant::collision::plane_t const &) const noexcept;
 };
 
 template<>
 struct hash<vierkant::collision::sphere_t>
 {
-    size_t operator()(vierkant::collision::sphere_t const &) const;
+    size_t operator()(vierkant::collision::sphere_t const &) const noexcept;
 };
 
 template<>
 struct hash<vierkant::collision::box_t>
 {
-    size_t operator()(vierkant::collision::box_t const &) const;
+    size_t operator()(vierkant::collision::box_t const &) const noexcept;
 };
 
 template<>
 struct hash<vierkant::collision::cylinder_t>
 {
-    size_t operator()(vierkant::collision::cylinder_t const &) const;
+    size_t operator()(vierkant::collision::cylinder_t const &) const noexcept;
 };
 
 template<>
 struct hash<vierkant::collision::capsule_t>
 {
-    size_t operator()(vierkant::collision::capsule_t const &) const;
+    size_t operator()(vierkant::collision::capsule_t const &) const noexcept;
 };
 
 template<>
 struct hash<vierkant::collision::mesh_t>
 {
-    size_t operator()(vierkant::collision::mesh_t const &) const;
+    size_t operator()(vierkant::collision::mesh_t const &) const noexcept;
 };
 
 template<>
 struct hash<vierkant::constraint::spring_settings_t>
 {
-    size_t operator()(vierkant::constraint::spring_settings_t const &) const;
+    size_t operator()(vierkant::constraint::spring_settings_t const &) const noexcept;
 };
 
 template<>
 struct hash<vierkant::constraint::none_t>
 {
-    size_t operator()(vierkant::constraint::none_t const &) const { return 0; };
+    size_t operator()(vierkant::constraint::none_t const &) const noexcept { return 0; };
 };
 
 template<>
 struct hash<vierkant::constraint::point_t>
 {
-    size_t operator()(vierkant::constraint::point_t const &) const;
+    size_t operator()(vierkant::constraint::point_t const &) const noexcept;
 };
 
 template<>
 struct hash<vierkant::constraint::distance_t>
 {
-    size_t operator()(vierkant::constraint::distance_t const &) const;
+    size_t operator()(vierkant::constraint::distance_t const &) const noexcept;
 };
 
 }// namespace std
@@ -673,6 +673,10 @@ public:
     //! lookup of constraint-ids
     std::unordered_map<uint32_t, std::unordered_set<vierkant::ConstraintId>> constraint_id_map;
 
+    //! map object-ids to a set of connected objects
+    std::unordered_map<uint32_t, std::unordered_set<uint32_t>> constraint_dependencies;
+    std::unordered_set<uint32_t> dirty_contraint_objects;
+
     //! lookup of body-ids
     std::unordered_map<uint32_t, body_id_struct_t> body_id_map;
     std::unordered_map<vierkant::BodyId, uint32_t> body_id_rev_map;
@@ -1051,6 +1055,7 @@ bool PhysicsContext::add_constraints(uint32_t objectId, const vierkant::constrai
                 m_engine->jolt.physics_system.AddConstraint(new_constraint);
 
                 if(obj_id1) { m_engine->jolt.constraint_id_map[obj_id1].insert(constraint_id); }
+                if(obj_id2) { m_engine->jolt.constraint_dependencies[obj_id2].insert(obj_id1); }
             }
         }
     }
@@ -1061,8 +1066,15 @@ bool PhysicsContext::add_constraints(uint32_t objectId, const vierkant::constrai
 void PhysicsContext::remove_constraints(uint32_t object_id)
 {
     std::unique_lock lock(m_engine->jolt.mutex);
-    auto constraint_id_it = m_engine->jolt.constraint_id_map.find(object_id);
-    if(constraint_id_it != m_engine->jolt.constraint_id_map.end())
+    if(auto dependency_it = m_engine->jolt.constraint_dependencies.find(object_id);
+       dependency_it != m_engine->jolt.constraint_dependencies.end())
+    {
+        for(uint32_t obj_id: dependency_it->second) { m_engine->jolt.dirty_contraint_objects.insert(obj_id); }
+        m_engine->jolt.constraint_dependencies.erase(dependency_it);
+    }
+
+    if(auto constraint_id_it = m_engine->jolt.constraint_id_map.find(object_id);
+       constraint_id_it != m_engine->jolt.constraint_id_map.end())
     {
         const auto &constraint_id_set = constraint_id_it->second;
         for(const auto &constraint_id: constraint_id_set)
@@ -1412,6 +1424,9 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
     return constraint_id;
 }
 
+std::unordered_set<uint32_t> PhysicsContext::dirty_contraint_objects()
+{ return std::move(m_engine->jolt.dirty_contraint_objects); }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void PhysicsContext::set_threadpool(crocore::ThreadPool &pool)
@@ -1546,10 +1561,20 @@ void PhysicsScene::update(double time_delta)
         if(is_movable(*phys_cmp))
         {
             // object -> physics
-            m_context.body_interface().set_transform(static_cast<uint32_t>(obj->id()), obj->global_transform());
+            m_context.body_interface().set_transform(obj->id(), obj->global_transform());
         }
     }
 
+    for(const uint32_t obj_id: m_context.dirty_contraint_objects())
+    {
+        auto *dirty_obj = object_by_id(obj_id);
+        if(auto *phys_cmp = dirty_obj->get_component_ptr<vierkant::physics_component_t>())
+        {
+            phys_cmp->mode = physics_component_t::CONSTRAINT_UPDATE;
+        }
+    }
+
+    // constraint iteration
     for(auto *obj: visitor.objects)
     {
         auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>();
@@ -1590,7 +1615,7 @@ PhysicsScene::PhysicsScene(const std::shared_ptr<vierkant::ObjectStore> &object_
 
 }//namespace vierkant
 
-size_t std::hash<vierkant::collision::plane_t>::operator()(const vierkant::collision::plane_t &s) const
+size_t std::hash<vierkant::collision::plane_t>::operator()(const vierkant::collision::plane_t &s) const noexcept
 {
     size_t h = 0;
     vierkant::hash_combine(h, s.coefficients);
@@ -1598,13 +1623,13 @@ size_t std::hash<vierkant::collision::plane_t>::operator()(const vierkant::colli
     return h;
 }
 
-size_t std::hash<vierkant::collision::box_t>::operator()(const vierkant::collision::box_t &s) const
+size_t std::hash<vierkant::collision::box_t>::operator()(const vierkant::collision::box_t &s) const noexcept
 { return std::hash<glm::vec3>()(s.half_extents); }
 
-size_t std::hash<vierkant::collision::sphere_t>::operator()(const vierkant::collision::sphere_t &s) const
+size_t std::hash<vierkant::collision::sphere_t>::operator()(const vierkant::collision::sphere_t &s) const noexcept
 { return std::hash<float>()(s.radius); }
 
-size_t std::hash<vierkant::collision::cylinder_t>::operator()(const vierkant::collision::cylinder_t &s) const
+size_t std::hash<vierkant::collision::cylinder_t>::operator()(const vierkant::collision::cylinder_t &s) const noexcept
 {
     size_t h = 0;
     vierkant::hash_combine(h, s.radius);
@@ -1612,7 +1637,7 @@ size_t std::hash<vierkant::collision::cylinder_t>::operator()(const vierkant::co
     return h;
 }
 
-size_t std::hash<vierkant::collision::capsule_t>::operator()(const vierkant::collision::capsule_t &s) const
+size_t std::hash<vierkant::collision::capsule_t>::operator()(const vierkant::collision::capsule_t &s) const noexcept
 {
     size_t h = 0;
     vierkant::hash_combine(h, s.radius);
@@ -1620,7 +1645,7 @@ size_t std::hash<vierkant::collision::capsule_t>::operator()(const vierkant::col
     return h;
 }
 
-size_t std::hash<vierkant::collision::mesh_t>::operator()(const vierkant::collision::mesh_t &s) const
+size_t std::hash<vierkant::collision::mesh_t>::operator()(const vierkant::collision::mesh_t &s) const noexcept
 {
     size_t h = 0;
     vierkant::hash_combine(h, s.mesh_id);
@@ -1634,8 +1659,8 @@ size_t std::hash<vierkant::collision::mesh_t>::operator()(const vierkant::collis
     return h;
 }
 
-size_t
-std::hash<vierkant::constraint::spring_settings_t>::operator()(const vierkant::constraint::spring_settings_t &s) const
+size_t std::hash<vierkant::constraint::spring_settings_t>::operator()(
+        const vierkant::constraint::spring_settings_t &s) const noexcept
 {
     size_t h = 0;
     vierkant::hash_combine(h, s.mode);
@@ -1644,7 +1669,7 @@ std::hash<vierkant::constraint::spring_settings_t>::operator()(const vierkant::c
     return h;
 }
 
-size_t std::hash<vierkant::constraint::point_t>::operator()(const vierkant::constraint::point_t &c) const
+size_t std::hash<vierkant::constraint::point_t>::operator()(const vierkant::constraint::point_t &c) const noexcept
 {
     size_t h = 0;
     vierkant::hash_combine(h, c.space);
@@ -1653,7 +1678,7 @@ size_t std::hash<vierkant::constraint::point_t>::operator()(const vierkant::cons
     return h;
 }
 
-size_t std::hash<vierkant::constraint::distance_t>::operator()(const vierkant::constraint::distance_t &c) const
+size_t std::hash<vierkant::constraint::distance_t>::operator()(const vierkant::constraint::distance_t &c) const noexcept
 {
     size_t h = 0;
     vierkant::hash_combine(h, c.space);

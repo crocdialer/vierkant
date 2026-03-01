@@ -365,6 +365,7 @@ public:
     class BodyInterface
     {
     public:
+        virtual ~BodyInterface() = default;
         virtual bool get_transform(uint32_t objectId, vierkant::transform_t &t) const = 0;
         virtual void set_transform(uint32_t objectId, const vierkant::transform_t &t) const = 0;
         virtual void add_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) = 0;
@@ -414,6 +415,8 @@ public:
 
     vierkant::ConstraintId create_constraint(const constraint::constraint_t &constraint, uint32_t objectId1,
                                              uint32_t objectId2);
+
+    std::unordered_set<uint32_t> dirty_contraint_objects();
 
     collision::mesh_provider_fn mesh_provider;
 
