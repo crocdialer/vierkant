@@ -430,7 +430,11 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
         }
 
         const auto &acceleration_assets = context->entity_assets.at(object->id());
-        assert(mesh->entries.size() == acceleration_assets.size());
+        if(mesh->entries.size() != acceleration_assets.size())
+        {
+            spdlog::warn("bottom-lvl structure is missing data, skipping ...");
+            continue;
+        }
 
         auto vertex_attrib_it = mesh->vertex_attribs.find(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
         if(vertex_attrib_it == mesh->vertex_attribs.end())
@@ -864,9 +868,10 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             vertex_buffer = mesh_compute_result.result_buffer;
             vertex_buffer_offset = mesh_compute_result.vertex_buffer_offsets.at(object->id());
             build_key = mesh_compute_entities.at(object->id());
-            if(previous_builds.contains(build_key))
+
+            if(auto prev_it = previous_builds.find(build_key); prev_it != previous_builds.end())
             {
-                context->build_results[build_key] = std::move(previous_builds.at(build_key));
+                context->entity_assets[object->id()] = prev_it->second.acceleration_assets;
             }
         }
         else
