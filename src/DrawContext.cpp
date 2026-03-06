@@ -20,7 +20,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     // rect/image
     {
         // create plane-geometry
-        auto plane = Geometry::Plane();
+        auto plane = Geometry::Plane(1.f, 1.f, 1, 1, true);
         plane->normals.clear();
         plane->tangents.clear();
 

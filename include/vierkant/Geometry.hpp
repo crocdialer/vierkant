@@ -105,16 +105,17 @@ public:
     static GeometryPtr create();
 
     /**
-    * @brief   Factory to create an indexed plane-geometry with positions in the XY-plane
+    * @brief   Factory to create an indexed plane-geometry with positions in the XZ-plane
     *
     * @param   width            the desired width
     * @param   height           the desired height
     * @param   numSegments_W    number of width subdivisions
     * @param   numSegments_H    number of height subdivisions
+    * @param   xy_plane         whether to create the plane in the XY-plane (instead of XZ-plane)
     * @return  the newly created Geometry for a plane
     */
     static GeometryPtr Plane(float width = 1.f, float height = 1.f, uint32_t numSegments_W = 1,
-                             uint32_t numSegments_H = 1);
+                             uint32_t numSegments_H = 1, bool xy_plane = false);
 
     /**
     * @brief   Factory to create a grid of lines in the XZ plane

@@ -2,9 +2,10 @@
 #include <numbers>
 #include <unordered_map>
 
-#include <vierkant/intersection.hpp>
-#include <glm/gtx/polar_coordinates.hpp>
 #include <vierkant/Geometry.hpp>
+#include <vierkant/intersection.hpp>
+
+#include <glm/gtx/polar_coordinates.hpp>
 
 namespace vierkant
 {
@@ -309,7 +310,7 @@ GeometryPtr Geometry::Grid(float width, float depth, uint32_t numSegments_W, uin
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-GeometryPtr Geometry::Plane(float width, float height, uint32_t numSegments_W, uint32_t numSegments_H)
+GeometryPtr Geometry::Plane(float width, float height, uint32_t numSegments_W, uint32_t numSegments_H, bool xy_plane)
 {
     auto geom = Geometry::create();
 
@@ -324,7 +325,7 @@ GeometryPtr Geometry::Plane(float width, float height, uint32_t numSegments_W, u
 
     uint32_t gridX = numSegments_W, gridZ = numSegments_H, gridX1 = gridX + 1, gridZ1 = gridZ + 1;
 
-    glm::vec3 normal(0, 0, 1);
+    glm::vec3 normal = xy_plane ? glm::vec3(0, 1, 0) : glm::vec3(0, 0, 1);
 
     // create positions
     for(uint32_t iz = 0; iz < gridZ1; ++iz)
@@ -333,7 +334,12 @@ GeometryPtr Geometry::Plane(float width, float height, uint32_t numSegments_W, u
         {
             float x = ix * segment_width - width_half;
             float y = iz * segment_height - height_half;
-            vertices.emplace_back(x, -y, 0);
+
+            if(xy_plane) { vertices.emplace_back(x, -y, 0); }
+            else
+            {
+                vertices.emplace_back(x, 0, y);
+            }
             normals.push_back(normal);
             tex_coords.emplace_back(ix / (float) gridX, iz / (float) gridZ);
         }
@@ -768,7 +774,7 @@ GeometryPtr Geometry::Cylinder(float height, float radius, size_t num_segments)
 
             *t = glm::clamp(glm::vec2(1 - static_cast<float>(s) * S, 1 - static_cast<float>(r) * R), glm::vec2(0),
                             glm::vec2(1));
-            *v = glm::vec3(x *radius, offset_y, z* radius) ;
+            *v = glm::vec3(x * radius, offset_y, z * radius);
 
             *n = glm::vec3(x, 0.f, z);
         }
