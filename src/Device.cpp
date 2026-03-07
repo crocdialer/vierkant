@@ -274,7 +274,12 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     device_features_13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     device_features_12.pNext = &device_features_13;
 
-    void **pNext = &device_features_13.pNext;
+    // query Vulkan 1.4 features
+    VkPhysicalDeviceVulkan14Features device_features_14 = {};
+    device_features_14.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES;
+    device_features_13.pNext = &device_features_14;
+
+    void **pNext = &device_features_14.pNext;
     auto update_pnext = [&pNext, &extensions](const auto &feature_struct, std::string_view ext_name = {}) {
         if(ext_name.empty() || crocore::contains(extensions, ext_name))
         {

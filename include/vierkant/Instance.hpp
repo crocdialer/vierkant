@@ -71,7 +71,7 @@ public:
     /**
      * @brief the vulkan-api version used
      */
-    static constexpr int api_version = VK_API_VERSION_1_3;
+    static constexpr int api_version = VK_API_VERSION_1_4;
 
     struct create_info_t
     {

@@ -90,14 +90,14 @@ mesh_compute_context_handle create_mesh_compute_context(const vierkant::DevicePt
     ret->staging_buffer = vierkant::Buffer::create(staging_buffer_info);
 
     // skin compute
-    auto skin_shader_stage = vierkant::create_shader_module(device, vierkant::shaders::pbr::mesh_skin_comp,
-                                                            &ret->skin_compute_local_size);
+    auto skin_shader_stage = vierkant::create_shader_module(vierkant::shaders::pbr::mesh_skin_comp);
     ret->skin_computable.pipeline_info.shader_stage = skin_shader_stage;
+    ret->skin_compute_local_size = *skin_shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT).group_count;
 
     // morph compute
-    auto morph_shader_stage = vierkant::create_shader_module(device, vierkant::shaders::pbr::mesh_morph_comp,
-                                                             &ret->morph_compute_local_size);
+    auto morph_shader_stage = vierkant::create_shader_module(vierkant::shaders::pbr::mesh_morph_comp);
     ret->morph_computable.pipeline_info.shader_stage = morph_shader_stage;
+    ret->morph_compute_local_size = *morph_shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT).group_count;
 
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.pipeline_cache = ret->pipeline_cache;

@@ -390,7 +390,7 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     // pipeline format
     vierkant::graphics_pipeline_info_t pipeline_fmt = {};
     pipeline_fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    pipeline_fmt.shader_stages = vierkant::create_shader_stages(device, vierkant::ShaderType::UNLIT_TEXTURE);
+    pipeline_fmt.shader_stages = vierkant::create_shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
     pipeline_fmt.attribute_descriptions = vierkant::create_attribute_descriptions(mesh->vertex_attribs);
     pipeline_fmt.binding_descriptions = vierkant::create_binding_descriptions(mesh->vertex_attribs);
     pipeline_fmt.depth_write = false;

@@ -1,8 +1,8 @@
 #include "test_context.hpp"
 #include <unordered_map>
 
-#include "vierkant/vierkant.hpp"
 #include "vierkant/PipelineCache.hpp"
+#include "vierkant/vierkant.hpp"
 
 TEST(TestPipeline, Format)
 {
@@ -91,10 +91,10 @@ TEST(TestPipeline, PipelineCache)
     fmt.viewport.width = static_cast<float>(framebuffer.extent().width);
     fmt.viewport.height = static_cast<float>(framebuffer.extent().height);
     fmt.renderpass = framebuffer.renderpass().get();
-    fmt.shader_stages = vierkant::create_shader_stages(test_context.device, vierkant::ShaderType::UNLIT_TEXTURE);
+    fmt.shader_stages = vierkant::create_shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
 
     // TODO: we expected errors here already, but Mesa/radv 25 just crashes instead of returning an error :(
-    
+
     // auto cache = vierkant::PipelineCache::create(test_context.device);
     // auto pipeline = cache->pipeline(fmt);
     // EXPECT_TRUE(pipeline);

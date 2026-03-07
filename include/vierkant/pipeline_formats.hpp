@@ -6,38 +6,56 @@
 
 #include <array>
 #include <optional>
+#include <span>
 #include <vierkant/Device.hpp>
 #include <vierkant/math.hpp>
 
 namespace vierkant
 {
 
-//! shared handle for a VkShaderModule
-using ShaderModulePtr = std::shared_ptr<VkShaderModule_T>;
+// don't wrap VkShaderModule, provide original&derived data
+struct shader_module_t
+{
+    //! spirv-words
+    std::span<const uint32_t> spirv;
 
-using shader_stage_map_t = std::map<VkShaderStageFlagBits, ShaderModulePtr>;
+    //! used to inline as pNext
+    VkShaderModuleCreateInfo create_info = {};
+
+    struct entry_point_t
+    {
+        std::string name;
+        std::optional<glm::uvec3> group_count;
+        bool operator==(const entry_point_t &) const = default;
+    };
+
+    std::map<VkShaderStageFlags, entry_point_t> entry_points;
+
+    bool operator==(const shader_module_t &other) const
+    {
+        return spirv.data() == other.spirv.data() && spirv.size() == other.spirv.size();
+    };
+};
+
+using shader_stage_map_t = std::map<VkShaderStageFlagBits, shader_module_t>;
 
 //! raytracing pipelines can provide multiple shaders per stage
-using raytracing_shader_map_t = std::multimap<VkShaderStageFlagBits, ShaderModulePtr>;
+using raytracing_shader_map_t = std::multimap<VkShaderStageFlagBits, shader_module_t>;
 
 /**
  * @brief   Helper function to create a shared VkShaderModule
  *
- * @param   device      handle for the vk::Device to create the VkShaderModule
  * @param   spirv_code  the SPIR-V bytecode for the shader
  * @param   num_bytes   number of bytes in @ref spirv_code
- * @param   group_count optional pointer to a writable uvec3.
- *                      can be used to extract the thread-group-counts of a compute-shader-module.
  *
  * @return  a newly constructed, shared VkShaderModule
  */
-ShaderModulePtr create_shader_module(const DevicePtr &device, const void *spirv_code, size_t num_bytes,
-                                     glm::uvec3 *group_count);
+shader_module_t create_shader_module(const void *spirv_code, size_t num_bytes);
 
 template<typename T>
-ShaderModulePtr create_shader_module(const DevicePtr &device, const T &array, glm::uvec3 *group_count = nullptr)
+shader_module_t create_shader_module(const T &array)
 {
-    return create_shader_module(device, array.data(), sizeof(typename T::value_type) * array.size(), group_count);
+    return create_shader_module(array.data(), sizeof(typename T::value_type) * array.size());
 }
 
 std::vector<VkRayTracingShaderGroupCreateInfoKHR>
@@ -63,11 +81,10 @@ enum class ShaderType
 /**
  * @brief   Get a map with shader-stages for a given Shadertype.
  *
- * @param   device  handle for the vk::Device to create the VkShaderModules
  * @param   t       the Shadertype to return the shader-stages for
  * @return  the newly constructed map containing the VkShaderModules
  */
-shader_stage_map_t create_shader_stages(const DevicePtr &device, ShaderType t);
+shader_stage_map_t create_shader_stages(ShaderType t);
 
 /**
  * @brief   pipeline_specialization is used to handle shader/pipeline specialization-constants.
@@ -250,7 +267,7 @@ struct raytracing_pipeline_info_t
  */
 struct compute_pipeline_info_t
 {
-    vierkant::ShaderModulePtr shader_stage;
+    vierkant::shader_module_t shader_stage;
 
     //! descriptor set layouts / push-constants
     std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
@@ -270,26 +287,32 @@ struct compute_pipeline_info_t
 namespace std
 {
 template<>
+struct hash<vierkant::shader_module_t>
+{
+    size_t operator()(vierkant::shader_module_t const &sm) const noexcept;
+};
+
+template<>
 struct hash<vierkant::pipeline_specialization>
 {
-    size_t operator()(vierkant::pipeline_specialization const &ps) const;
+    size_t operator()(vierkant::pipeline_specialization const &ps) const noexcept;
 };
 
 template<>
 struct hash<vierkant::graphics_pipeline_info_t>
 {
-    size_t operator()(vierkant::graphics_pipeline_info_t const &fmt) const;
+    size_t operator()(vierkant::graphics_pipeline_info_t const &fmt) const noexcept;
 };
 
 template<>
 struct hash<vierkant::raytracing_pipeline_info_t>
 {
-    size_t operator()(vierkant::raytracing_pipeline_info_t const &fmt) const;
+    size_t operator()(vierkant::raytracing_pipeline_info_t const &fmt) const noexcept;
 };
 
 template<>
 struct hash<vierkant::compute_pipeline_info_t>
 {
-    size_t operator()(vierkant::compute_pipeline_info_t const &fmt) const;
+    size_t operator()(vierkant::compute_pipeline_info_t const &fmt) const noexcept;
 };
 }// namespace std

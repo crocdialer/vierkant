@@ -71,9 +71,9 @@ ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::D
     ret->param_buffer = vierkant::Buffer::create(param_buffer_info);
 
     // ssao drawable
-    auto ssao_vert = vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
-    auto ssao_frag = vierkant::create_shader_module(device, vierkant::shaders::fullscreen::ao_screenspace_frag);
-    auto ray_ao_frag = vierkant::create_shader_module(device, vierkant::shaders::fullscreen::ao_rayquery_frag);
+    auto ssao_vert = vierkant::create_shader_module(vierkant::shaders::fullscreen::texture_vert);
+    auto ssao_frag = vierkant::create_shader_module(vierkant::shaders::fullscreen::ao_screenspace_frag);
+    auto ray_ao_frag = vierkant::create_shader_module(vierkant::shaders::fullscreen::ao_rayquery_frag);
 
     ret->drawable_ssao.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] = ssao_vert;
     ret->drawable_ssao.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] = ssao_frag;

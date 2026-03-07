@@ -68,9 +68,9 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
     ret->mask_compute = vierkant::Compute(device, compute_info);
 
     // overlay-compute
-    auto shader_stage = vierkant::create_shader_module(device, vierkant::shaders::renderer::object_overlay_comp,
-                                                       &ret->mask_compute_local_size);
+    auto shader_stage = vierkant::create_shader_module(vierkant::shaders::renderer::object_overlay_comp);
     ret->mask_computable.pipeline_info.shader_stage = shader_stage;
+    ret->mask_compute_local_size = *shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT).group_count;
 
     vierkant::Image::Format img_fmt = {};
     img_fmt.extent = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};

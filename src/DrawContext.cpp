@@ -7,7 +7,6 @@
 #include "vierkant/DrawContext.hpp"
 #include <glm/gtx/color_space.hpp>
 #include <vierkant/color_cast.hpp>
-#include <vierkant/shaders.hpp>
 
 namespace vierkant
 {

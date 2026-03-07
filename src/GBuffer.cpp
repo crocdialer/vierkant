@@ -78,28 +78,26 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device, const V
     return ret;
 }
 
-g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr &device)
+g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr & /*device*/)
 {
     g_buffer_stage_map_t ret;
 
     // vertex
-    auto pbr_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_vert);
-    auto pbr_tangent_morph_vert =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_tangent_morph_vert);
-    auto pbr_tangent_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_tangent_vert);
-    auto pbr_tangent_skin_vert =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_tangent_skin_vert);
+    auto pbr_vert = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_vert);
+    auto pbr_tangent_morph_vert = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_tangent_morph_vert);
+    auto pbr_tangent_vert = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_tangent_vert);
+    auto pbr_tangent_skin_vert = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_tangent_skin_vert);
 
     //    auto pbr_tangent_tess_vert =
-    //            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_tangent_tess_vert);
-    auto tess_control = vierkant::create_shader_module(device, vierkant::shaders::pbr::tess_pn_triangle_tesc);
-    auto tess_eval = vierkant::create_shader_module(device, vierkant::shaders::pbr::tess_pn_triangle_tese);
+    //            vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_tangent_tess_vert);
+    auto tess_control = vierkant::create_shader_module(vierkant::shaders::pbr::tess_pn_triangle_tesc);
+    auto tess_eval = vierkant::create_shader_module(vierkant::shaders::pbr::tess_pn_triangle_tese);
 
-    auto pbr_tangent_task = vierkant::create_shader_module(device, vierkant::shaders::pbr::cull_meshlets_task);
-    auto pbr_tangent_mesh = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_mesh);
+    auto pbr_tangent_task = vierkant::create_shader_module(vierkant::shaders::pbr::cull_meshlets_task);
+    auto pbr_tangent_mesh = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_mesh);
 
     // fragment
-    auto pbr_g_buffer_uber_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_uber_frag);
+    auto pbr_g_buffer_uber_frag = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_uber_frag);
 
     auto &stages_default = ret[PROP_DEFAULT];
     stages_default[VK_SHADER_STAGE_VERTEX_BIT] = pbr_vert;
