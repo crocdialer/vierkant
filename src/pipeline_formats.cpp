@@ -59,20 +59,14 @@ namespace vierkant
 
 shader_module_t create_shader_module(const void *spirv_code, size_t num_bytes)
 {
-    // VkShaderModuleCreateInfo create_info = {};
-    // create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    // create_info.codeSize = num_bytes;
-    // create_info.pCode = reinterpret_cast<const uint32_t *>(spirv_code);
-
-    // VkShaderModule shader_module;
-    // vkCheck(vkCreateShaderModule(device->handle(), &create_info, nullptr, &shader_module),
-    //         "failed to create shader module!");
+    shader_module_t ret{};
+    ret.create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    ret.create_info.codeSize = num_bytes;
+    ret.create_info.pCode = static_cast<const uint32_t *>(spirv_code);
 
     auto *data_end = static_cast<const uint8_t *>(spirv_code) + num_bytes;
-    shader_module_t ret{};
     ret.spirv = {static_cast<const uint32_t *>(spirv_code), reinterpret_cast<const uint32_t *>(data_end)};
 
-    // if(group_count)
     SpvReflectShaderModule spv_shader_module;
     spvReflectCreateShaderModule(num_bytes, spirv_code, &spv_shader_module);
 
@@ -85,6 +79,7 @@ shader_module_t create_shader_module(const void *spirv_code, size_t num_bytes)
             {SpvExecutionModelGLCompute, VK_SHADER_STAGE_COMPUTE_BIT},
             {SpvExecutionModelRayGenerationKHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR},
             {SpvExecutionModelClosestHitKHR, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
+            {SpvExecutionModelAnyHitKHR, VK_SHADER_STAGE_ANY_HIT_BIT_KHR},
             {SpvExecutionModelMissKHR, VK_SHADER_STAGE_MISS_BIT_KHR},
             {SpvExecutionModelCallableKHR, VK_SHADER_STAGE_CALLABLE_BIT_KHR},
             {SpvExecutionModelMeshEXT, VK_SHADER_STAGE_MESH_BIT_EXT},
@@ -101,7 +96,6 @@ shader_module_t create_shader_module(const void *spirv_code, size_t num_bytes)
         entry_point.group_count = {spv_entry_point.local_size.x, spv_entry_point.local_size.y,
                                    spv_entry_point.local_size.z};
     }
-
     spvReflectDestroyShaderModule(&spv_shader_module);
     return ret;
 }
@@ -173,8 +167,8 @@ std::map<VkShaderStageFlagBits, shader_module_t> create_shader_stages(ShaderType
             break;
 
         case ShaderType::UNLIT_TEXTURE:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(slang_shaders::slang::texture_slang);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(slang_shaders::slang::texture_slang);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::unlit::texture_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::unlit::texture_frag);
             break;
 
         case ShaderType::FULLSCREEN_GRID:

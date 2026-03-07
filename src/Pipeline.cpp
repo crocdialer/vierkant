@@ -15,8 +15,9 @@ shader_stage_create_infos(const ShaderMap_T &shader_stages, const VkSpecializati
         VkPipelineShaderStageCreateInfo stage_info = {};
         stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         stage_info.stage = stage;
-        // stage_info.module = shader_module.get();
-        // TODO: squeeze into pNext: ShaderModuleCreateinfo
+
+        // no module, pNext contains ShaderModuleCreateinfo
+        stage_info.pNext = &shader_module.create_info;
 
         stage_info.pName = shader_module.entry_points.at(stage).name.c_str();
         stage_info.pSpecializationInfo = specialization_info;

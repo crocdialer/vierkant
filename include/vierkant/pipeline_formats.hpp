@@ -18,7 +18,11 @@ namespace vierkant
 // don't wrap VkShaderModule, provide original&derived data
 struct shader_module_t
 {
+    //! spirv-words
     std::span<const uint32_t> spirv;
+
+    //! used to inline as pNext
+    VkShaderModuleCreateInfo create_info = {};
 
     struct entry_point_t
     {
