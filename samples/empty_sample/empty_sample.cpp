@@ -112,7 +112,7 @@ void HelloTriangleApplication::load_model()
 
     m_drawable = vierkant::create_drawables({m_mesh}, drawable_params).front();
     m_drawable.pipeline_format.shader_stages =
-            vierkant::create_shader_stages(m_device, vierkant::ShaderType::UNLIT_COLOR);
+            vierkant::create_shader_stages(vierkant::ShaderType::UNLIT_COLOR);
 }
 
 void HelloTriangleApplication::update(double time_delta)
