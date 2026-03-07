@@ -45,10 +45,16 @@ function(GET_SLANG_RECURSIVE RESULT SLANG_FOLDER)
 endfunction(GET_SLANG_RECURSIVE)
 
 # similar to STRINGIFY_SHADERS but uses slangc and produces a separate header/source pair
-function(STRINGIFY_SLANG_SHADERS SLANG_FOLDER TARGET_NAME SLANG_COMPILER SPIRV_OUT_DIR SOURCE_OUT_DIR)
+function(STRINGIFY_SLANG_SHADERS SLANG_FOLDER TARGET_NAME SLANG_COMPILER SPIRV_OUT_DIR SOURCE_OUT_DIR SPIRV_DEBUG_SYMBOLS)
 
     # SPIR-V generation with Slang
     set(SLANG_TARGET "spirv")
+
+    # use VK_KHR_shader_non_semantic_info
+    message("SPIRV_DEBUG_SYMBOLS: ${SPIRV_DEBUG_SYMBOLS}")
+    if (SPIRV_DEBUG_SYMBOLS)
+        set(SLANG_EXTRA_PARAMS "-g")
+    endif ()
 
     # the top-level namespace for slang-generated blobs
     set(TOP_NAMESPACE "vierkant::slang_shaders")
@@ -110,7 +116,7 @@ function(STRINGIFY_SLANG_SHADERS SLANG_FOLDER TARGET_NAME SLANG_COMPILER SPIRV_O
 
             execute_process(
                     COMMAND ${CMAKE_COMMAND} -E make_directory "${SPIRV_OUT_DIR}/${SLANG_FOLDER}/"
-                    COMMAND ${SLANG_COMPILER} -target ${SLANG_TARGET} ${SLANG} -o ${SPIRV}
+                    COMMAND ${SLANG_COMPILER} -target ${SLANG_TARGET} ${SLANG_EXTRA_PARAMS} ${SLANG} -o ${SPIRV}
                     OUTPUT_VARIABLE slang_std_out
                     ERROR_VARIABLE slang_std_err
                     RESULT_VARIABLE ret

@@ -20,4 +20,4 @@ endif ()
 # set slang compiler
 find_program(SLANG_COMPILER "slangc" REQUIRED)
 
-stringify_slang_shaders(${SLANG_SOURCE_ROOT} ${TARGET_NAME} ${SLANG_COMPILER} ${SPIRV_OUTPUT_DIR} ${SOURCE_OUTPUT_DIR})
+stringify_slang_shaders(${SLANG_SOURCE_ROOT} ${TARGET_NAME} ${SLANG_COMPILER} ${SPIRV_OUTPUT_DIR} ${SOURCE_OUTPUT_DIR} ${SPIRV_DEBUG_SYMBOLS})
