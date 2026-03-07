@@ -6,14 +6,12 @@
 
 #include <array>
 #include <optional>
+#include <span>
 #include <vierkant/Device.hpp>
 #include <vierkant/math.hpp>
 
 namespace vierkant
 {
-
-//! shared handle for a VkShaderModule
-// using ShaderModulePtr = std::shared_ptr<VkShaderModule_T>;
 
 // don't wrap VkShaderModule, provide original&derived data
 struct shader_module_t
@@ -36,7 +34,6 @@ struct shader_module_t
     bool operator==(const shader_module_t &other) const
     {
         return spirv.data() == other.spirv.data() && spirv.size() == other.spirv.size();
-        //&& entry_points == other.entry_points;
     };
 };
 
@@ -57,7 +54,9 @@ shader_module_t create_shader_module(const void *spirv_code, size_t num_bytes);
 
 template<typename T>
 shader_module_t create_shader_module(const T &array)
-{ return create_shader_module(array.data(), sizeof(typename T::value_type) * array.size()); }
+{
+    return create_shader_module(array.data(), sizeof(typename T::value_type) * array.size());
+}
 
 std::vector<VkRayTracingShaderGroupCreateInfoKHR>
 raytracing_shader_groups(const raytracing_shader_map_t &shader_stages);
@@ -127,7 +126,9 @@ public:
     }
 
     inline bool operator==(const pipeline_specialization &other) const
-    { return constant_blobs == other.constant_blobs; }
+    {
+        return constant_blobs == other.constant_blobs;
+    }
 
 private:
     VkSpecializationInfo m_info;
