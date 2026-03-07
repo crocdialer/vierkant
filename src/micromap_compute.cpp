@@ -63,9 +63,9 @@ micromap_compute_context_handle create_micromap_compute_context(const DevicePtr 
     compute_create_info.pipeline_cache = pipeline_cache;
     ret->compute = vierkant::Compute(device, compute_create_info);
 
-    auto shader_stage = vierkant::create_shader_module(device, vierkant::shaders::ray::micromap_comp,
-                                                       &ret->micromap_compute_local_size);
+    auto shader_stage = vierkant::create_shader_module(vierkant::shaders::ray::micromap_comp);
     ret->micromap_computable.pipeline_info.shader_stage = shader_stage;
+    ret->micromap_compute_local_size = *shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT).group_count;
 
     vierkant::Buffer::create_info_t staging_buffer_info = {};
     staging_buffer_info.device = device;

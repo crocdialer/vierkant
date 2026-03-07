@@ -1,4 +1,5 @@
 #include "vierkant/shaders.hpp"
+#include "vierkant/shaders_slang.hpp"
 #include <vierkant/hash.hpp>
 #include <vierkant/pipeline_formats.hpp>
 
@@ -56,31 +57,53 @@ static inline bool operator==(const VkPushConstantRange &lhs, const VkPushConsta
 namespace vierkant
 {
 
-ShaderModulePtr create_shader_module(const DevicePtr &device, const void *spirv_code, size_t num_bytes,
-                                     glm::uvec3 *group_count)
+shader_module_t create_shader_module(const void *spirv_code, size_t num_bytes)
 {
-    VkShaderModuleCreateInfo create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    create_info.codeSize = num_bytes;
-    create_info.pCode = reinterpret_cast<const uint32_t *>(spirv_code);
+    // VkShaderModuleCreateInfo create_info = {};
+    // create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    // create_info.codeSize = num_bytes;
+    // create_info.pCode = reinterpret_cast<const uint32_t *>(spirv_code);
 
-    VkShaderModule shader_module;
-    vkCheck(vkCreateShaderModule(device->handle(), &create_info, nullptr, &shader_module),
-            "failed to create shader module!");
+    // VkShaderModule shader_module;
+    // vkCheck(vkCreateShaderModule(device->handle(), &create_info, nullptr, &shader_module),
+    //         "failed to create shader module!");
 
-    if(group_count)
+    auto *data_end = static_cast<const uint8_t *>(spirv_code) + num_bytes;
+    shader_module_t ret{};
+    ret.spirv = {static_cast<const uint32_t *>(spirv_code), reinterpret_cast<const uint32_t *>(data_end)};
+
+    // if(group_count)
+    SpvReflectShaderModule spv_shader_module;
+    spvReflectCreateShaderModule(num_bytes, spirv_code, &spv_shader_module);
+
+    const std::unordered_map<SpvExecutionModel, VkShaderStageFlags> stage_lut = {
+            {SpvExecutionModelVertex, VK_SHADER_STAGE_VERTEX_BIT},
+            {SpvExecutionModelTessellationControl, VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT},
+            {SpvExecutionModelTessellationEvaluation, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT},
+            {SpvExecutionModelGeometry, VK_SHADER_STAGE_GEOMETRY_BIT},
+            {SpvExecutionModelFragment, VK_SHADER_STAGE_FRAGMENT_BIT},
+            {SpvExecutionModelGLCompute, VK_SHADER_STAGE_COMPUTE_BIT},
+            {SpvExecutionModelRayGenerationKHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR},
+            {SpvExecutionModelClosestHitKHR, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
+            {SpvExecutionModelMissKHR, VK_SHADER_STAGE_MISS_BIT_KHR},
+            {SpvExecutionModelCallableKHR, VK_SHADER_STAGE_CALLABLE_BIT_KHR},
+            {SpvExecutionModelMeshEXT, VK_SHADER_STAGE_MESH_BIT_EXT},
+            {SpvExecutionModelTaskEXT, VK_SHADER_STAGE_TASK_BIT_EXT}};
+
+    for(uint32_t i = 0; i < spv_shader_module.entry_point_count; ++i)
     {
-        SpvReflectShaderModule spv_shader_module;
-        spvReflectCreateShaderModule(num_bytes, spirv_code, &spv_shader_module);
+        const auto &spv_entry_point = spv_shader_module.entry_points[i];
+        assert(stage_lut.contains(spv_entry_point.spirv_execution_model));
 
-        if(spv_shader_module.spirv_execution_model == SpvExecutionModelGLCompute)
-        {
-            auto entry_point = spvReflectGetEntryPoint(&spv_shader_module, spv_shader_module.entry_point_name);
-            *group_count = {entry_point->local_size.x, entry_point->local_size.y, entry_point->local_size.z};
-        }
-        spvReflectDestroyShaderModule(&spv_shader_module);
+        // insert entry-point
+        auto &entry_point = ret.entry_points[stage_lut.at(spv_entry_point.spirv_execution_model)];
+        entry_point.name = spv_entry_point.name;
+        entry_point.group_count = {spv_entry_point.local_size.x, spv_entry_point.local_size.y,
+                                   spv_entry_point.local_size.z};
     }
-    return {shader_module, [device](VkShaderModule s) { vkDestroyShaderModule(device->handle(), s, nullptr); }};
+
+    spvReflectDestroyShaderModule(&spv_shader_module);
+    return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,55 +156,55 @@ std::vector<VkRayTracingShaderGroupCreateInfoKHR> raytracing_shader_groups(const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::map<VkShaderStageFlagBits, ShaderModulePtr> create_shader_stages(const DevicePtr &device, ShaderType t)
+std::map<VkShaderStageFlagBits, shader_module_t> create_shader_stages(ShaderType t)
 {
-    std::map<VkShaderStageFlagBits, ShaderModulePtr> ret;
+    std::map<VkShaderStageFlagBits, shader_module_t> ret;
 
     switch(t)
     {
         case ShaderType::UNLIT:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit::unlit_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::unlit_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(slang_shaders::slang::unlit_slang);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(slang_shaders::slang::unlit_slang);
             break;
 
         case ShaderType::UNLIT_COLOR:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit::color_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::color_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::unlit::color_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::unlit::color_frag);
             break;
 
         case ShaderType::UNLIT_TEXTURE:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit::texture_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::texture_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(slang_shaders::slang::texture_slang);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(slang_shaders::slang::texture_slang);
             break;
 
         case ShaderType::FULLSCREEN_GRID:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::fullscreen::texture_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::fullscreen::grid_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::fullscreen::texture_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::fullscreen::grid_frag);
             break;
 
         case ShaderType::FULLSCREEN_TEXTURE:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::fullscreen::texture_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::fullscreen::texture_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::fullscreen::texture_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::fullscreen::texture_frag);
             break;
 
         case ShaderType::FULLSCREEN_TEXTURE_DEPTH:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::fullscreen::texture_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::fullscreen::texture_depth_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::fullscreen::texture_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::fullscreen::texture_depth_frag);
             break;
 
         case ShaderType::UNLIT_COLOR_SKIN:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit::skin_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::color_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::unlit::skin_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::unlit::color_frag);
             break;
 
         case ShaderType::UNLIT_TEXTURE_SKIN:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit::skin_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::texture_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::unlit::skin_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::unlit::texture_frag);
             break;
 
         case ShaderType::UNLIT_CUBE:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit::cube_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::cube_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::unlit::cube_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::unlit::cube_frag);
             break;
 
         default: break;
@@ -202,10 +225,7 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
         try
         {
             if(other.shader_stages.at(pair.first) != pair.second) { return false; }
-        } catch(std::out_of_range &e)
-        {
-            return false;
-        }
+        } catch(std::out_of_range &e) { return false; }
     }
 
     if(binding_descriptions != other.binding_descriptions) { return false; }
@@ -337,7 +357,16 @@ struct hash<VkPushConstantRange>
 
 }// namespace std
 
-size_t std::hash<vierkant::pipeline_specialization>::operator()(vierkant::pipeline_specialization const &ps) const
+size_t std::hash<vierkant::shader_module_t>::operator()(vierkant::shader_module_t const &sm) const noexcept
+{
+    size_t h = 0;
+    hash_combine(h, sm.spirv.data());
+    hash_combine(h, sm.spirv.size());
+    return h;
+}
+
+size_t
+std::hash<vierkant::pipeline_specialization>::operator()(vierkant::pipeline_specialization const &ps) const noexcept
 {
     size_t h = 0;
     for(const auto &[constant_id, blob]: ps.constant_blobs)
@@ -348,7 +377,8 @@ size_t std::hash<vierkant::pipeline_specialization>::operator()(vierkant::pipeli
     return h;
 }
 
-size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graphics_pipeline_info_t const &fmt) const
+size_t
+std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graphics_pipeline_info_t const &fmt) const noexcept
 {
     size_t h = 0;
 
@@ -432,8 +462,8 @@ size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graph
     return h;
 }
 
-size_t
-std::hash<vierkant::raytracing_pipeline_info_t>::operator()(vierkant::raytracing_pipeline_info_t const &fmt) const
+size_t std::hash<vierkant::raytracing_pipeline_info_t>::operator()(
+        vierkant::raytracing_pipeline_info_t const &fmt) const noexcept
 {
     size_t h = 0;
     for(const auto &[stage, shader]: fmt.shader_stages)
@@ -449,7 +479,8 @@ std::hash<vierkant::raytracing_pipeline_info_t>::operator()(vierkant::raytracing
     return h;
 }
 
-size_t std::hash<vierkant::compute_pipeline_info_t>::operator()(vierkant::compute_pipeline_info_t const &fmt) const
+size_t
+std::hash<vierkant::compute_pipeline_info_t>::operator()(vierkant::compute_pipeline_info_t const &fmt) const noexcept
 {
     size_t h = 0;
     hash_combine(h, fmt.shader_stage);

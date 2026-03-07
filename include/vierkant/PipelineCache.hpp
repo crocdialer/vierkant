@@ -115,7 +115,7 @@ public:
         }
 
         // not found -> create pipeline
-        auto new_shader_stages = vierkant::create_shader_stages(m_device, shader_type);
+        auto new_shader_stages = vierkant::create_shader_stages(shader_type);
 
         std::unique_lock lock(m_shader_stage_mutex);
         auto shader_stage_it = m_shader_stages.insert(std::make_pair(shader_type, std::move(new_shader_stages))).first;

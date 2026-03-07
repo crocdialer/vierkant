@@ -80,7 +80,7 @@ vierkant::ImagePtr cubemap_neutral_environment(const vierkant::DevicePtr &device
 
     // set a fragment stage
     cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::unlit::environment_white_frag);
+            vierkant::create_shader_module(vierkant::shaders::unlit::environment_white_frag);
 
     // stage cube-drawable
     cube.renderer.stage_drawable(cube.drawable);
@@ -116,7 +116,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::DevicePtr &device, cons
 
     // set a fragment stage
     cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::unlit::panorama_frag);
+            vierkant::create_shader_module(vierkant::shaders::unlit::panorama_frag);
 
     vierkant::descriptor_t desc_image = {};
     desc_image.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -156,7 +156,7 @@ vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const Ima
                                                VK_IMAGE_USAGE_SAMPLED_BIT);
 
     cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr::convolve_lambert_frag);
+            vierkant::create_shader_module(vierkant::shaders::pbr::convolve_lambert_frag);
 
     vierkant::descriptor_t desc_image = {};
     desc_image.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -213,7 +213,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
     // collect fences for all operations
     std::vector<VkFence> fences;
 
-    auto frag_module = vierkant::create_shader_module(device, vierkant::shaders::pbr::convolve_ggx_frag);
+    auto frag_module = vierkant::create_shader_module(vierkant::shaders::pbr::convolve_ggx_frag);
 
     for(uint32_t lvl = 0; lvl < num_mips; ++lvl)
     {
@@ -328,7 +328,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, const vi
     // create a drawable
     vierkant::drawable_t drawable = {};
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::cube::cube_vert);
+            vierkant::create_shader_module(vierkant::shaders::cube::cube_vert);
     drawable.num_instances = 6;
     drawable.num_vertices = 36;
     drawable.pipeline_format.blend_state.blendEnable = false;
@@ -377,7 +377,7 @@ vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue qu
     img_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     img_fmt.format = VK_FORMAT_R16G16_SFLOAT;
     img_fmt.name = "brdf_lut";
-    
+
     // create framebuffer
     vierkant::Framebuffer::create_info_t fb_create_info = {};
     fb_create_info.size = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};
@@ -397,9 +397,9 @@ vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue qu
     // create a drawable
     vierkant::drawable_t drawable = {};
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
+            vierkant::create_shader_module(vierkant::shaders::fullscreen::texture_vert);
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr::brdf_lut_frag);
+            vierkant::create_shader_module(vierkant::shaders::pbr::brdf_lut_frag);
 
     drawable.num_vertices = 3;
 

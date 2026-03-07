@@ -8,9 +8,7 @@ namespace vierkant
 template<uint32_t NUM_TAPS>
 std::unique_ptr<GaussianBlur_<NUM_TAPS>> GaussianBlur_<NUM_TAPS>::create(const DevicePtr &device,
                                                                          const create_info_t &create_info)
-{
-    return std::unique_ptr<GaussianBlur_<NUM_TAPS>>(new GaussianBlur_<NUM_TAPS>(device, create_info));
-}
+{ return std::unique_ptr<GaussianBlur_<NUM_TAPS>>(new GaussianBlur_<NUM_TAPS>(device, create_info)); }
 
 template<uint32_t NUM_TAPS>
 GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_info_t &create_info)
@@ -130,9 +128,9 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
         fmt.depth_write = false;
 
         fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
+                vierkant::create_shader_module(vierkant::shaders::fullscreen::texture_vert);
         fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::gaussian_blur_frag);
+                vierkant::create_shader_module(vierkant::shaders::fullscreen::gaussian_blur_frag);
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // set the specialization info

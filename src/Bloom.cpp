@@ -5,9 +5,7 @@ namespace vierkant
 {
 
 BloomUPtr Bloom::create(const DevicePtr &device, const Bloom::create_info_t &create_info)
-{
-    return vierkant::BloomUPtr(new Bloom(device, create_info));
-}
+{ return vierkant::BloomUPtr(new Bloom(device, create_info)); }
 
 Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info)
     : m_device(device), m_brightness_thresh(create_info.brightness_thresh)
@@ -55,9 +53,9 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info)
     m_drawable.pipeline_format.depth_write = false;
 
     m_drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
+            vierkant::create_shader_module(vierkant::shaders::fullscreen::texture_vert);
     m_drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::fullscreen::bloom_thresh_frag);
+            vierkant::create_shader_module(vierkant::shaders::fullscreen::bloom_thresh_frag);
     m_drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     // set the specialization info

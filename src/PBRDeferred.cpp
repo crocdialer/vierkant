@@ -172,9 +172,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         fmt.blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
 
         fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
+                vierkant::create_shader_module(vierkant::shaders::fullscreen::texture_vert);
         fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::pbr::lighting_environment_frag);
+                vierkant::create_shader_module(vierkant::shaders::pbr::lighting_environment_frag);
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // descriptors
@@ -211,7 +211,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         // same for all fullscreen passes
         fullscreen_drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
+                vierkant::create_shader_module(vierkant::shaders::fullscreen::texture_vert);
         fullscreen_drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // descriptor
@@ -221,7 +221,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         // TAA
         m_drawable_taa = fullscreen_drawable;
         m_drawable_taa.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::taa_frag);
+                vierkant::create_shader_module(vierkant::shaders::fullscreen::taa_frag);
 
         // TAA settings uniform-buffer
         vierkant::descriptor_t &desc_taa_ubo = m_drawable_taa.descriptors[1];
@@ -231,12 +231,12 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         // fxaa
         m_drawable_fxaa = fullscreen_drawable;
         m_drawable_fxaa.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::fxaa_frag);
+                vierkant::create_shader_module(vierkant::shaders::fullscreen::fxaa_frag);
 
         // dof
         m_drawable_dof = fullscreen_drawable;
         m_drawable_dof.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::dof_frag);
+                vierkant::create_shader_module(vierkant::shaders::fullscreen::dof_frag);
 
         // depth-of-field settings uniform-buffer
         vierkant::descriptor_t &desc_dof_ubo = m_drawable_dof.descriptors[1];
@@ -249,7 +249,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         // bloom
         m_drawable_bloom = fullscreen_drawable;
         m_drawable_bloom.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::bloom_composition_frag);
+                vierkant::create_shader_module(vierkant::shaders::fullscreen::bloom_composition_frag);
 
         // composition ubo
         m_drawable_bloom.descriptors[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;

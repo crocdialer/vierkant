@@ -70,7 +70,10 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     vierkant::Compute::computable_t denoise_computable = {};
     glm::uvec3 group_count;
     denoise_computable.pipeline_info.shader_stage =
-            vierkant::create_shader_module(m_device, vierkant::shaders::ray::denoise_comp, &group_count);
+            vierkant::create_shader_module(vierkant::shaders::ray::denoise_comp);
+    group_count =
+            *denoise_computable.pipeline_info.shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT).group_count;
+
     denoise_computable.extent = size;
     denoise_computable.extent.width = vierkant::group_count(size.width, group_count.x);
     denoise_computable.extent.height = vierkant::group_count(size.height, group_count.y);
@@ -120,11 +123,11 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                 vierkant::create_query_pool(m_device, 2 * SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
     }
 
-    auto raygen = vierkant::create_shader_module(m_device, vierkant::shaders::ray::raygen_rgen);
-    auto ray_closest_hit = vierkant::create_shader_module(m_device, vierkant::shaders::ray::closesthit_rchit);
-    auto ray_any_hit = vierkant::create_shader_module(m_device, vierkant::shaders::ray::anyhit_rahit);
-    auto ray_miss = vierkant::create_shader_module(m_device, vierkant::shaders::ray::miss_rmiss);
-    auto ray_miss_env = vierkant::create_shader_module(m_device, vierkant::shaders::ray::miss_environment_rmiss);
+    auto raygen = vierkant::create_shader_module(vierkant::shaders::ray::raygen_rgen);
+    auto ray_closest_hit = vierkant::create_shader_module(vierkant::shaders::ray::closesthit_rchit);
+    auto ray_any_hit = vierkant::create_shader_module(vierkant::shaders::ray::anyhit_rahit);
+    auto ray_miss = vierkant::create_shader_module(vierkant::shaders::ray::miss_rmiss);
+    auto ray_miss_env = vierkant::create_shader_module(vierkant::shaders::ray::miss_environment_rmiss);
 
     m_shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, raygen},
                        {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss},
@@ -148,9 +151,9 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
         // composition/fullscreen pass
         m_drawable_tonemap.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
+                vierkant::create_shader_module(vierkant::shaders::fullscreen::texture_vert);
         m_drawable_tonemap.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::bloom_composition_frag);
+                vierkant::create_shader_module(vierkant::shaders::fullscreen::bloom_composition_frag);
 
         // descriptors
         m_drawable_tonemap.descriptors[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
