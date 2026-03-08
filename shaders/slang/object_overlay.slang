@@ -1,38 +1,8 @@
-import "utils/hash.slang";
-
-struct hashmap_item_t<T>
-{
-    T key;
-    T value;
-};
-
-uint hash(uint v) { return utils::xxhash32(v, 0); }
-
-struct hashmap_t
-{
-    hashmap_item_t<uint> *storage;
-    uint size;
-    uint capacity;
-
-    uint get(uint key)
-    {
-        if(key == 0 || capacity == 0) { return 0; }
-
-        for(uint idx = hash(key);; idx++)
-        {
-            idx &= capacity - 1;
-            hashmap_item_t<uint> *item = storage + idx;
-            if(item->key == 0) { return 0; }
-            else if(key == item->key && item->value != 0) { return item->value; }
-        }
-    }
-
-    bool contains(uint object_id) { return get(object_id) != 0; }
-};
+import "utils/hashmap.slang";
 
 struct object_overlay_params_t
 {
-    hashmap_t object_id_map;
+    utils::hashmap_t<uint, uint> object_id_map;
     bool silhouette;
 };
 
@@ -45,7 +15,7 @@ RWTexture2D<float4> out_mask_img;
 [[vk::binding(2, 0)]]
 ConstantBuffer<object_overlay_params_t> params;
 
-float sobel_edge(hashmap_t object_id_map, int2 coord)
+float sobel_edge(utils::hashmap_t<uint, uint> object_id_map, int2 coord)
 {
     // sobel
     float n[9];
