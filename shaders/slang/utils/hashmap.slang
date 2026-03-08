@@ -1,7 +1,5 @@
 module hashmap;
 
-import "hash.slang";
-
 namespace utils
 {
 
@@ -20,35 +18,9 @@ public interface IHashable
     uint hash();
 }
 
-public interface IHashKey : INullable,
-                            IComparable,
-                            IHashable
-{};
-
-interface IHashValue : INullable,
-                       IComparable
-{};
-
-// Implement for uint
-extension uint : INullable
-{
-    static uint zero() { return 0u; }
-}
-
-extension uint : IComparable
-{
-    bool equals(uint other) { return this == other; }
-}
-
-extension uint : IHashable
-{
-    uint hash() { return utils::xxhash32(this, 0); }
-}
-
-extension uint : IHashKey {};
-extension uint : IHashValue {};
-
-public struct hashmap_t<K : IHashKey, V : IHashValue>
+public struct hashmap_t<K, V>
+        where K : INullable, IComparable, IHashable, IAtomicable
+        where V : INullable, IComparable
 {
     struct item_t
     {
@@ -60,7 +32,7 @@ public struct hashmap_t<K : IHashKey, V : IHashValue>
     uint size;
     uint capacity;
 
-    public V get(K key)
+    public V get(const K key)
     {
         if(key.equals(K.zero()) || capacity == 0) { return V.zero(); }
 
@@ -71,6 +43,37 @@ public struct hashmap_t<K : IHashKey, V : IHashValue>
 
             if(item->key.equals(K.zero())) { return V.zero(); }
             else if(key.equals(item->key)) { return item->value; }
+        }
+    }
+
+    [mutating]
+    void put(const K key, const V value)
+    {
+        if(key.equals(K.zero()) || capacity == 0) { return; }
+
+        for(uint idx = key.hash();; idx++)
+        {
+            idx &= capacity - 1;
+            item_t *item = storage + idx;
+            K probed_key = item->key;
+
+            if(!probed_key.equals(key))
+            {
+                // hit another valid entry, keep probing
+                if(!probed_key.equals(K.zero()) && !item->value.equals(V.zero())) { continue; }
+
+                // try to insert atomically
+                InterlockedCompareExchange<K>(item->key, probed_key, key, probed_key);
+                if(!probed_key.equals(K.zero()) && !probed_key.equals(key))
+                {
+                    // another thread just stole it
+                    continue;
+                }
+                // atomically increase size
+                InterlockedAdd<uint>(size, 1u);
+            }
+            item->value = value;
+            return;
         }
     }
 

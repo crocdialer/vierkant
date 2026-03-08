@@ -1,4 +1,21 @@
 import "utils/hashmap.slang";
+import "utils/hash.slang";
+
+// implement some basic interfaces for uint to be used in hashmap
+extension uint : utils::INullable
+{
+    static uint zero() { return 0u; }
+}
+
+extension uint : utils::IComparable
+{
+    bool equals(uint other) { return this == other; }
+}
+
+extension uint : utils::IHashable
+{
+    uint hash() { return utils::xxhash32(this, 0); }
+}
 
 struct object_overlay_params_t
 {
