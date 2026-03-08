@@ -5,32 +5,48 @@ import "hash.slang";
 namespace utils
 {
 
-public interface IHashKey
+public interface INullable
 {
     static This zero();
+}
+
+public interface IComparable
+{
     bool equals(This other);
+}
+
+public interface IHashable
+{
     uint hash();
 }
 
-interface IHashValue
-{
-    static This zero();
-    bool equals(This other);
-}
+public interface IHashKey : INullable,
+                            IComparable,
+                            IHashable
+{};
+
+interface IHashValue : INullable,
+                       IComparable
+{};
 
 // Implement for uint
-extension uint : IHashKey
+extension uint : INullable
 {
     static uint zero() { return 0u; }
+}
+
+extension uint : IComparable
+{
     bool equals(uint other) { return this == other; }
+}
+
+extension uint : IHashable
+{
     uint hash() { return utils::xxhash32(this, 0); }
 }
 
-extension uint : IHashValue
-{
-    static uint zero() { return 0u; }
-    bool equals(uint other) { return this == other; }
-}
+extension uint : IHashKey {};
+extension uint : IHashValue {};
 
 public struct hashmap_t<K : IHashKey, V : IHashValue>
 {
