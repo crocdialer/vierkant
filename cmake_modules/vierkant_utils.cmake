@@ -33,8 +33,8 @@ endfunction(GET_SHADERS_RECURSIVE)
 function(GET_SLANG_RECURSIVE RESULT SLANG_FOLDER)
 
     # search subdirs
-    # subdirlist(SUBDIRS ${SLANG_FOLDER})
-    set(SUBDIRS "${SLANG_FOLDER}")
+    subdirlist(SUBDIRS ${SLANG_FOLDER})
+    # set(SUBDIRS "${SLANG_FOLDER}")
 
     foreach (SUBDIR ${SUBDIRS})
         file(GLOB SLANG_FOLDER_FILES "${SUBDIR}/*.slang")
@@ -82,14 +82,6 @@ function(STRINGIFY_SLANG_SHADERS SLANG_FOLDER TARGET_NAME SLANG_COMPILER SPIRV_O
             "/* Generated file, do not edit! */\n\n"
             "#include \"${TARGET_NAME}/shaders_slang.hpp\"\n\n"
             "namespace ${TOP_NAMESPACE}\n{\n")
-
-    # # compile any files directly in the top-level folder
-    # file(GLOB ROOT_SLANG_FILES "${SLANG_FOLDER}/*.slang")
-    # if (ROOT_SLANG_FILES)
-    #     message(STATUS "compiling slang shaders: <root>")
-    #     list(APPEND ALL_SLANG_SOURCES ${ROOT_SLANG_FILES})
-    #     # no extra namespace for root; definitions go into vierkant::slang_shaders
-    # endif()
 
     # explore subdirectories under the given folder
     # subdirlist(SUBDIRS ${SLANG_FOLDER})

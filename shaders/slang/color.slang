@@ -18,7 +18,7 @@ struct VertexData
 [[shader("vertex")]]
 VertexData vertex_main(
         float3 a_position: Position, float4 a_color: Color, float2 uv: UV, uint instanceID: SV_StartInstanceLocation,
-        [[vk::location(renderer::VertexLocation::IndexBundle)]] nointerpolation out renderer::index_bundle_t indices,
+        nointerpolation out renderer::index_bundle_t indices,
         out float4 sv_position: SV_Position)
 {
     VertexData vertex_out;
