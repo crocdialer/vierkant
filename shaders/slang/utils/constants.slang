@@ -1,0 +1,6 @@
+module constants;
+
+namespace utils
+{
+    
+}

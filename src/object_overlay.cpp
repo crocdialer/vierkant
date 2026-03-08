@@ -1,7 +1,7 @@
 #include <vierkant/Compute.hpp>
 #include <vierkant/linear_hashmap.hpp>
 #include <vierkant/object_overlay.hpp>
-#include <vierkant/shaders.hpp>
+#include <vierkant/shaders_slang.hpp>
 #include <vierkant/staging_copy.hpp>
 
 namespace vierkant
@@ -68,7 +68,7 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
     ret->mask_compute = vierkant::Compute(device, compute_info);
 
     // overlay-compute
-    auto shader_stage = vierkant::create_shader_module(vierkant::shaders::renderer::object_overlay_comp);
+    auto shader_stage = vierkant::create_shader_module(vierkant::slang_shaders::slang::object_overlay_slang);
     ret->mask_computable.pipeline_info.shader_stage = shader_stage;
     ret->mask_compute_local_size = *shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT).group_count;
 

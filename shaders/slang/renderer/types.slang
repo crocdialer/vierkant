@@ -60,13 +60,6 @@ public struct index_bundle_t
     public uint lod_count;
 };
 
-// Vertex output location mapping
-public enum VertexLocation : uint
-{
-    IndexBundle = 0,
-    VertexBundle = 5,
-};
-
 // Vertex attribute location mapping
 public enum VertexAttrib : uint
 {
@@ -222,14 +215,18 @@ public struct meshlet_t
     uint vertex_offset;
     uint triangle_offset;
 
-    uint vertex_count;
-    uint triangle_count;
+    uint8_t vertex_count;
+    uint8_t triangle_count;
 
+    //! normal cone, useful for backface culling (packed as snorm8)
+    int8_t cone_axis[3];
+    int8_t cone_cutoff;
+
+    uint8_t padding[2];
+
+    //! bounding sphere (center, radius), useful for frustum and occlusion culling
     float3 sphere_center;
     float sphere_radius;
-
-    float3 cone_axis;
-    float cone_cutoff;
 };
 
-}// namespace renderer
+} // namespace renderer
