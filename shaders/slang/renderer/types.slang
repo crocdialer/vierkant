@@ -56,8 +56,8 @@ public struct index_bundle_t
     public uint mesh_draw_index;
     public uint material_index;
     public uint meshlet_index;
-    public uint16_t lod_index;
-    public uint16_t lod_count;
+    public uint lod_index;
+    public uint lod_count;
 };
 
 // Vertex output location mapping
@@ -126,9 +126,9 @@ public struct material_t
     public float iridescence_factor;
     public float iridescence_ior;
     public float2 iridescence_thickness_range;
-    public uint base_texture_index;
-    public uint texture_type_flags;
     public bool two_sided;
+    public uint texture_type_flags;
+    public uint base_texture_index;
 };
 
 public enum DebugFlagBits

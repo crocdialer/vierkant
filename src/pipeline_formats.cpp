@@ -167,9 +167,12 @@ std::map<VkShaderStageFlagBits, shader_module_t> create_shader_stages(ShaderType
             break;
 
         case ShaderType::UNLIT_TEXTURE:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::unlit::texture_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::unlit::texture_frag);
-            break;
+        {
+            const auto shader_module = create_shader_module(slang_shaders::slang::texture_slang);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = shader_module;
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = shader_module;
+        }
+        break;
 
         case ShaderType::FULLSCREEN_GRID:
             ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::fullscreen::texture_vert);
