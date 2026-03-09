@@ -43,8 +43,6 @@ extension uint16_t : utils::INullable, utils::IHashable
 extension int64_t : utils::INullable, utils::IHashable
 {
     static int64_t zero() { return int64_t(0); }
-    bool equals(int64_t other) { return this == other; }
-    // fold the two halves together
     uint hash() { return utils::xxhash32(uint(this >> 32), utils::xxhash32(uint(this & 0xFFFFFFFF), 0)); }
 }
 
