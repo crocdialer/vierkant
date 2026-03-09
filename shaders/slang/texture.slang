@@ -41,7 +41,7 @@ VertexData vertex_main(
 float4 fragment_main(nointerpolation in renderer::index_bundle_t indices,
                      in VertexData vertex_in)
 {
-    // note: this is no an oversight, just something stupid with how data is passed for simple unlit shaders
+    // note: this is not an oversight, just something stupid with how data is passed for simple unlit shaders
     uint material_index = indices.mesh_draw_index;
 
     uint texture_index = materials[material_index].base_texture_index;
