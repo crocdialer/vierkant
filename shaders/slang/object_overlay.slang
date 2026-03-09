@@ -23,7 +23,6 @@ float sobel_edge(utils::hashmap_t<uint, uint> object_id_map, int2 coord)
     float n  = float(object_id_map.contains(in_object_id_img[coord + int2(0, -1)]));
     float ne = float(object_id_map.contains(in_object_id_img[coord + int2(1, -1)]));
     float w  = float(object_id_map.contains(in_object_id_img[coord + int2(-1, 0)]));
-    float c  = float(object_id_map.contains(in_object_id_img[coord + int2(0, 0)]));
     float e  = float(object_id_map.contains(in_object_id_img[coord + int2(1, 0)]));
     float sw = float(object_id_map.contains(in_object_id_img[coord + int2(-1, 1)]));
     float s  = float(object_id_map.contains(in_object_id_img[coord + int2(0, 1)]));
