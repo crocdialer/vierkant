@@ -10,11 +10,9 @@ struct skin_compute_params_t
     uint num_vertices;
 };
 
-ConstantBuffer<skin_compute_params_t> params;
-
 [shader("compute")]
 [numthreads(64, 1, 1)]
-void main(uint3 dispatchThreadID: SV_DispatchThreadID)
+void main(uint3 dispatchThreadID: SV_DispatchThreadID, ConstantBuffer<skin_compute_params_t> params)
 {
     uint gid = dispatchThreadID.x;
     if(gid >= params.num_vertices) { return; }

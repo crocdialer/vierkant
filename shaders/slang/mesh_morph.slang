@@ -11,14 +11,12 @@ struct morph_compute_params_t
     float weights[64];
 };
 
-ConstantBuffer<morph_compute_params_t> params;
-
 [shader("compute")]
 [numthreads(64, 1, 1)]
-void main(uint3 dispatchThreadID: SV_DispatchThreadID)
+void main(uint3 dispatchThreadID: SV_DispatchThreadID, ConstantBuffer<morph_compute_params_t> params)
 {
     uint gid = dispatchThreadID.x;
-    if(gid >= params.num_vertices){ return; }
+    if(gid >= params.num_vertices) { return; }
 
     utils::Vertex v = utils::unpack(params.vertex_in[gid]);
     float3 new_normal = float3(0);
