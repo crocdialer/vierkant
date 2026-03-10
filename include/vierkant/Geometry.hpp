@@ -146,7 +146,7 @@ public:
      * @param   tesselation_count   number of tessellation-iterations
      * @return  the newly created Geometry for an ico-sphere
      */
-    static GeometryPtr IcoSphere(float radius = 1.f, size_t tesselation_count = 0);
+    static GeometryPtr IcoSphere(float radius = .5f, size_t tesselation_count = 0);
 
     /**
      * @brief   Factory for a sphere with equi-rectangular mapping, a.k.a. UV-sphere
@@ -155,7 +155,7 @@ public:
      * @param   tesselation_count   number of num_segments
      * @return  the newly created Geometry for a UV-sphere
      */
-    static GeometryPtr UVSphere(float radius = 1.f, size_t num_segments = 16);
+    static GeometryPtr UVSphere(float radius = .5f, size_t num_segments = 16);
 
     /**
      * @brief   Factory to create the outlines of a box
