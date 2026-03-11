@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <set>
 #include <optional>
 #include <span>
 #include <vierkant/Device.hpp>
@@ -13,10 +14,10 @@
 namespace vierkant
 {
 
-// don't wrap VkShaderModule, provide original&derived data
+// aggregate to group spirv-code and data gathered from shader-reflection
 struct shader_module_t
 {
-    // optional pattern to select a specific entry-point in the shader module
+    //! optional pattern to select a specific entry-point in the shader module
     std::string entry_point_name;
 
     //! used to inline as pNext
@@ -26,6 +27,7 @@ struct shader_module_t
     {
         std::string name;
         std::optional<glm::uvec3> group_count;
+        std::set<uint32_t> bindings;
         bool operator==(const entry_point_t &) const = default;
     };
 

@@ -92,6 +92,16 @@ shader_module_t create_shader_module(const void *spirv_code, size_t num_bytes)
         entry_point.name = spv_entry_point.name;
         entry_point.group_count = {spv_entry_point.local_size.x, spv_entry_point.local_size.y,
                                    spv_entry_point.local_size.z};
+
+        for(uint32_t j = 0; j < spv_entry_point.descriptor_set_count; ++j)
+        {
+            const auto &spv_descriptor_set = spv_entry_point.descriptor_sets[j];
+            for(uint32_t k = 0; k < spv_descriptor_set.binding_count; ++k)
+            {
+                const auto &spv_descriptor_binding = spv_descriptor_set.bindings[k];
+                entry_point.bindings.insert(spv_descriptor_binding->binding);
+            }
+        }
     }
     spvReflectDestroyShaderModule(&spv_shader_module);
     return ret;

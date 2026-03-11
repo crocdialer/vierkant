@@ -14,6 +14,7 @@ struct mesh_compute_context_t
     vierkant::CommandBuffer cmd_buffer;
 
     vierkant::Compute compute;
+    uint32_t skin_param_binding{}, morph_param_binding{};
     glm::uvec3 skin_compute_local_size{}, morph_compute_local_size{};
     vierkant::Compute::computable_t skin_computable, morph_computable;
     vierkant::BufferPtr staging_buffer, skin_param_buffer, bone_buffer, morph_param_buffer;
@@ -89,15 +90,31 @@ mesh_compute_context_handle create_mesh_compute_context(const vierkant::DevicePt
     staging_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_ONLY;
     ret->staging_buffer = vierkant::Buffer::create(staging_buffer_info);
 
-    // skin compute
-    auto skin_shader_stage = vierkant::create_shader_module(vierkant::slang_shaders::slang::mesh_skin_slang);
-    ret->skin_computable.pipeline_info.shader_stage = skin_shader_stage;
-    ret->skin_compute_local_size = *skin_shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT)[0].group_count;
+    auto shader_module = vierkant::create_shader_module(vierkant::slang_shaders::slang::mesh_compute_slang);
+    assert(shader_module.entry_points.contains(VK_SHADER_STAGE_COMPUTE_BIT));
+    assert(shader_module.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT).size() > 1);
 
-    // morph compute
-    auto morph_shader_stage = vierkant::create_shader_module(vierkant::slang_shaders::slang::mesh_morph_slang);
-    ret->morph_computable.pipeline_info.shader_stage = morph_shader_stage;
-    ret->morph_compute_local_size = *morph_shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT)[0].group_count;
+    // skin&morph compute-entries are in the same shader-module
+    ret->skin_computable.pipeline_info.shader_stage = shader_module;
+    ret->morph_computable.pipeline_info.shader_stage = shader_module;
+
+    for(const auto &entry_point: shader_module.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT))
+    {
+        assert(!entry_point.bindings.empty());
+
+        if(entry_point.name.find("skin") != std::string::npos)
+        {
+            ret->skin_computable.pipeline_info.shader_stage.entry_point_name = entry_point.name;
+            ret->skin_compute_local_size = *entry_point.group_count;
+            ret->skin_param_binding = *entry_point.bindings.begin();
+        }
+        else if(entry_point.name.find("morph") != std::string::npos)
+        {
+            ret->morph_computable.pipeline_info.shader_stage.entry_point_name = entry_point.name;
+            ret->morph_compute_local_size = *entry_point.group_count;
+            ret->morph_param_binding = *entry_point.bindings.begin();
+        }
+    }
 
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.pipeline_cache = ret->pipeline_cache;
@@ -198,7 +215,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
                 computable.extent = {vierkant::group_count(num_mesh_vertices, context->skin_compute_local_size.x), 1,
                                      1};
 
-                auto &desc_params = computable.descriptors[0];
+                auto &desc_params = computable.descriptors[context->skin_param_binding];
                 desc_params.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_params.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
                 desc_params.buffers = {context->skin_param_buffer};
@@ -242,7 +259,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
                     computable.extent = {vierkant::group_count(entry.num_vertices, context->morph_compute_local_size.x),
                                          1, 1};
 
-                    auto &desc_params = computable.descriptors[0];
+                    auto &desc_params = computable.descriptors[context->morph_param_binding];
                     desc_params.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                     desc_params.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
                     desc_params.buffers = {context->morph_param_buffer};
