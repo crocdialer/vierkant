@@ -64,9 +64,6 @@ shader_module_t create_shader_module(const void *spirv_code, size_t num_bytes)
     ret.create_info.codeSize = num_bytes;
     ret.create_info.pCode = static_cast<const uint32_t *>(spirv_code);
 
-    auto *data_end = static_cast<const uint8_t *>(spirv_code) + num_bytes;
-    ret.spirv = {static_cast<const uint32_t *>(spirv_code), reinterpret_cast<const uint32_t *>(data_end)};
-
     SpvReflectShaderModule spv_shader_module;
     spvReflectCreateShaderModule(num_bytes, spirv_code, &spv_shader_module);
 
@@ -91,7 +88,7 @@ shader_module_t create_shader_module(const void *spirv_code, size_t num_bytes)
         assert(stage_lut.contains(spv_entry_point.spirv_execution_model));
 
         // insert entry-point
-        auto &entry_point = ret.entry_points[stage_lut.at(spv_entry_point.spirv_execution_model)];
+        auto &entry_point = ret.entry_points[stage_lut.at(spv_entry_point.spirv_execution_model)].emplace_back();
         entry_point.name = spv_entry_point.name;
         entry_point.group_count = {spv_entry_point.local_size.x, spv_entry_point.local_size.y,
                                    spv_entry_point.local_size.z};
@@ -357,8 +354,8 @@ struct hash<VkPushConstantRange>
 size_t std::hash<vierkant::shader_module_t>::operator()(vierkant::shader_module_t const &sm) const noexcept
 {
     size_t h = 0;
-    hash_combine(h, sm.spirv.data());
-    hash_combine(h, sm.spirv.size());
+    hash_combine(h, sm.create_info.pCode);
+    hash_combine(h, sm.create_info.codeSize);
     return h;
 }
 
