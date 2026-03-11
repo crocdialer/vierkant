@@ -335,7 +335,7 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const glm:
     auto cull_shader_stage = vierkant::create_shader_module(vierkant::shaders::pbr::indirect_cull_comp);
     ret->cull_computable.pipeline_info.shader_stage = cull_shader_stage;
     assert(cull_shader_stage.entry_points.contains(VK_SHADER_STAGE_COMPUTE_BIT));
-    ret->cull_local_size = *cull_shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT).group_count;
+    ret->cull_local_size = *cull_shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT)[0].group_count;
 
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.pipeline_cache = ret->pipeline_cache;
@@ -345,7 +345,7 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const glm:
     // depth pyramid compute
     auto shader_stage = vierkant::create_shader_module(vierkant::shaders::pbr::depth_min_reduce_comp);
     ret->depth_pyramid_computable.pipeline_info.shader_stage = shader_stage;
-    ret->depth_pyramid_local_size = *shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT).group_count;
+    ret->depth_pyramid_local_size = *shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT)[0].group_count;
 
     constexpr size_t max_num_mips = 128;
     auto min_alignment = device->properties().core.limits.minUniformBufferOffsetAlignment;

@@ -19,7 +19,26 @@ shader_stage_create_infos(const ShaderMap_T &shader_stages, const VkSpecializati
         // no module, pNext contains ShaderModuleCreateinfo
         stage_info.pNext = &shader_module.create_info;
 
-        stage_info.pName = shader_module.entry_points.at(stage).name.c_str();
+        if(!shader_module.entry_point_name.empty())
+        {
+            if(auto entry_it = shader_module.entry_points.find(stage); entry_it != shader_module.entry_points.end())
+            {
+                // iterate over entry-points for the current stage
+                assert(!entry_it->second.empty());
+                for(const auto &entry_point: entry_it->second)
+                {
+                    if(entry_point.name.find(shader_module.entry_point_name) != std::string::npos)
+                    {
+                        stage_info.pName = entry_point.name.c_str();
+                    }
+                }
+            }
+        }
+        else
+        {
+            stage_info.pName = shader_module.entry_points.at(stage).front().name.c_str();
+        }
+
         stage_info.pSpecializationInfo = specialization_info;
         ret.push_back(stage_info);
     }

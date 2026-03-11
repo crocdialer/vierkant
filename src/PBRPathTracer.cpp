@@ -72,7 +72,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     denoise_computable.pipeline_info.shader_stage =
             vierkant::create_shader_module(vierkant::shaders::ray::denoise_comp);
     group_count =
-            *denoise_computable.pipeline_info.shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT).group_count;
+            *denoise_computable.pipeline_info.shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT)[0].group_count;
 
     denoise_computable.extent = size;
     denoise_computable.extent.width = vierkant::group_count(size.width, group_count.x);
