@@ -215,7 +215,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
                 computable.extent = {vierkant::group_count(num_mesh_vertices, context->skin_compute_local_size.x), 1,
                                      1};
 
-                auto &desc_params = computable.descriptors[0];
+                auto &desc_params = computable.descriptors[context->skin_param_binding];
                 desc_params.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_params.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
                 desc_params.buffers = {context->skin_param_buffer};
@@ -259,7 +259,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
                     computable.extent = {vierkant::group_count(entry.num_vertices, context->morph_compute_local_size.x),
                                          1, 1};
 
-                    auto &desc_params = computable.descriptors[0];
+                    auto &desc_params = computable.descriptors[context->morph_param_binding];
                     desc_params.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                     desc_params.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
                     desc_params.buffers = {context->morph_param_buffer};
