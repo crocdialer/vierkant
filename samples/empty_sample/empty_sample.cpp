@@ -47,7 +47,8 @@ void HelloTriangleApplication::create_context_and_window()
     window_delegate.draw_fn = [this](const vierkant::WindowPtr &w) { return draw(w); };
     window_delegate.resize_fn = [this](uint32_t w, uint32_t h) {
         create_graphics_pipeline();
-        m_camera->params.aspect = m_window->aspect_ratio();
+        auto &camera_params = std::get<vierkant::physical_camera_params_t>(m_camera->params());
+        camera_params.aspect = m_window->aspect_ratio();
     };
     window_delegate.close_fn = [this]() { running = false; };
     m_window->window_delegates[name()] = window_delegate;
@@ -111,8 +112,7 @@ void HelloTriangleApplication::load_model()
     vierkant::create_drawables_params_t drawable_params = {};
 
     m_drawable = vierkant::create_drawables({m_mesh}, drawable_params).front();
-    m_drawable.pipeline_format.shader_stages =
-            vierkant::create_shader_stages(vierkant::ShaderType::UNLIT_COLOR);
+    m_drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(vierkant::ShaderType::UNLIT_COLOR);
 }
 
 void HelloTriangleApplication::update(double time_delta)
@@ -155,6 +155,9 @@ vierkant::window_delegate_t::draw_result_t HelloTriangleApplication::draw(const 
         // get values from completed futures
         for(auto &f: cmd_futures) { ret.command_buffers.push_back(f.get()); }
     }
-    else { ret.command_buffers = {render_mesh(), render_gui()}; }
+    else
+    {
+        ret.command_buffers = {render_mesh(), render_gui()};
+    }
     return ret;
 }
