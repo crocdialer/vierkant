@@ -18,7 +18,7 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
 
 void draw_images_ui(const std::vector<vierkant::ImagePtr> &images);
 
-void draw_scene_ui(const vierkant::ScenePtr &scene, CameraPtr &cam,
+void draw_scene_ui(const vierkant::ScenePtr &scene, Object3DPtr &cam,
                    std::set<vierkant::Object3DPtr> *selection = nullptr);
 
 void draw_scene_renderer_settings_ui(const vierkant::SceneRendererPtr &scene_renderer);
@@ -37,12 +37,12 @@ enum class GuizmoType
     SCALE
 };
 
-bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::CameraConstPtr &camera, GuizmoType type);
+bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Object3DConstPtr &camera, GuizmoType type);
 
-void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::CameraConstPtr &camera,
+void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::Object3DConstPtr &camera,
                            GuizmoType type);
 
-void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, const vierkant::CameraConstPtr &camera,
+void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, const vierkant::Object3DConstPtr &camera,
                            GuizmoType type);
 
 bool draw_material_ui(vierkant::material_t &material,

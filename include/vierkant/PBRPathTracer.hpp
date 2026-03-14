@@ -126,7 +126,7 @@ public:
      * @return  a render_result_t object.
      */
     render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
-                                 const CameraPtr &cam, const std::set<std::string> &tags) override;
+                                 const Object3DPtr &cam, const std::set<std::string> &tags) override;
 
     std::vector<uint16_t> pick(const glm::vec2 &normalized_coord, const glm::vec2 &normalized_size) override;
 
@@ -283,9 +283,9 @@ private:
     void update_acceleration_structures(frame_context_t &frame_context, const SceneConstPtr &scene,
                                         const std::set<std::string> &tags);
 
-    void update_trace_descriptors(frame_context_t &frame_context, const CameraPtr &cam);
+    void update_trace_descriptors(frame_context_t &frame_context, const Object3DPtr &cam);
 
-    void path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene, const CameraPtr &cam);
+    void path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene, const Object3DPtr &cam);
 
     void denoise_pass(frame_context_t &frame_context);
 

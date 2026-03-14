@@ -43,9 +43,8 @@ public:
      * @param   renderer    a provided vierkant::Renderer.
      * @param   area        the desired area to cover.
      */
-    void draw_rect(vierkant::Rasterizer &renderer,
-                    const crocore::Area_<int> &area,
-                     const glm::vec4 &color = glm::vec4(1.f));
+    void draw_rect(vierkant::Rasterizer &renderer, const crocore::Area_<int> &area,
+                   const glm::vec4 &color = glm::vec4(1.f));
 
     /**
      * @brief   Draws an image in a 2D context.
@@ -56,7 +55,7 @@ public:
      */
     void draw_image(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
                     const crocore::Area_<int> &area = {}, const glm::vec4 &color = glm::vec4(1.f));
-    
+
     /**
      * @brief   Draws a set of lines.
      *
@@ -144,7 +143,7 @@ public:
      * @param   cam         a vierkant::Camera
      */
     void draw_skybox(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &environment,
-                     const vierkant::CameraPtr &cam);
+                     const vierkant::Object3DPtr &cam);
 
 private:
     vierkant::DevicePtr m_device;

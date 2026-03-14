@@ -540,7 +540,7 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
     return ret;
 }
 
-void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::Object3DPtr> *selection)
+void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant::Object3DPtr> *selection)
 {
     ImGui::BeginTabBar("scene_tabs");
     if(ImGui::BeginTabItem("scenegraph"))
@@ -630,7 +630,12 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::
     }
     if(ImGui::BeginTabItem("cameras"))
     {
-        if(ImGui::Button("add camera")) { scene->add_object(vierkant::PerspectiveCamera::create(scene->registry())); }
+        if(ImGui::Button("add camera"))
+        {
+            // TODO: cough something up for sane object-creation
+
+            //scene->add_object(vierkant::PerspectiveCamera::create(scene->registry()));
+        }
 
         auto visit_fn = [&camera](Object3D &obj) {
             bool is_camera = obj.has_component<camera_component_t>();
@@ -1520,7 +1525,7 @@ void draw_object_ui(const Object3DPtr &object)
     }
 }
 
-bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::CameraConstPtr &camera, GuizmoType type)
+bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Object3DConstPtr &camera, GuizmoType type)
 {
     bool changed = false;
 
@@ -1536,15 +1541,17 @@ bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Cam
             default: break;
         }
         glm::mat4 m = vierkant::mat4_cast(transform);
-        // auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(camera).get();
 
-        auto *ortho_params = std::get_if<ortho_camera_params_t>(&camera->params());
-        auto *perspective_params = std::get_if<physical_camera_params_t>(&camera->params());
+        auto *cam_cmp = camera->get_component_ptr<vierkant::camera_component_t>();
+        assert(cam_cmp);
+
+        auto *ortho_params = std::get_if<ortho_camera_params_t>(&cam_cmp->params);
+        auto *perspective_params = std::get_if<physical_camera_params_t>(&cam_cmp->params);
 
         ImGuizmo::SetOrthographic(ortho_params);
 
         auto sz = ImGui::GetIO().DisplaySize;
-        auto view = vierkant::mat4_cast(camera->view_transform());
+        auto view = vierkant::mat4_cast(camera::view_transform(camera.get()));
 
         if(ortho_params)
         {
@@ -1555,7 +1562,9 @@ bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Cam
         }
         else if(perspective_params)
         {
-            auto proj = glm::perspectiveRH(perspective_params->fovy(), sz.x / sz.y, camera->near(), camera->far());
+            auto proj = glm::perspectiveRH(perspective_params->fovy(), sz.x / sz.y,
+                                           perspective_params->clipping_distances.x,
+                                           perspective_params->clipping_distances.y);
             changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
                                            ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(m));
         }
@@ -1564,7 +1573,8 @@ bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Cam
     return changed;
 }
 
-void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::CameraConstPtr &camera, GuizmoType type)
+void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::Object3DConstPtr &camera,
+                           GuizmoType type)
 {
     if(camera && type != GuizmoType::INACTIVE)
     {
@@ -1573,7 +1583,7 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
     }
 }
 
-void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, const vierkant::CameraConstPtr &camera,
+void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, const vierkant::Object3DConstPtr &camera,
                            GuizmoType type)
 {
     if(object_set.size() > 1)

@@ -46,7 +46,7 @@ public:
      * @return  a render_result_t object.
      */
     virtual render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
-                                         const CameraPtr &cam, const std::set<std::string> &tags) = 0;
+                                         const Object3DPtr &cam, const std::set<std::string> &tags) = 0;
 
     /**
      * @brief   Pick or select draw-ids from provided normalized rendering-coords.

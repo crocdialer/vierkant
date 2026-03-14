@@ -52,7 +52,7 @@ struct gpu_cull_params_t
     vierkant::BufferPtr draws_counts_out_pre;
     vierkant::BufferPtr draws_counts_out_post;
 
-    vierkant::CameraConstPtr camera;
+    vierkant::Object3DConstPtr camera;
     vierkant::ImagePtr depth_pyramid;
 
     vierkant::QueryPoolPtr query_pool;
@@ -87,8 +87,7 @@ struct create_depth_pyramid_params_t
  * @param   pipeline_cache  an optional pipeline_cache.
  * @return  an opaque pointer, owning a gpu_cull_context.
  */
-gpu_cull_context_ptr create_gpu_cull_context(const vierkant::DevicePtr &device,
-                                             const glm::vec2 &size,
+gpu_cull_context_ptr create_gpu_cull_context(const vierkant::DevicePtr &device, const glm::vec2 &size,
                                              const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
 
 /**

@@ -408,6 +408,8 @@ struct Frustum
     //};
     Plane planes[6];
 
+    Frustum() = default;
+
     explicit Frustum(const glm::mat4 &view_projection);
 
     Frustum(float aspect, float fov, float near, float far);

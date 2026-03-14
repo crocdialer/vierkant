@@ -51,10 +51,8 @@ public:
             for(Object3DPtr &child: object.children) { child->accept(*this); }
         }
     }
-    virtual void visit(vierkant::Camera &camera) { visit(static_cast<Object3D &>(camera)); };
-    virtual void visit(vierkant::PerspectiveCamera &camera) { visit(static_cast<Camera &>(camera)); };
-    virtual void visit(vierkant::OrthoCamera &camera) { visit(static_cast<Camera &>(camera)); };
-    virtual bool should_visit(vierkant::Object3D &) const { return true; };
+    virtual void visit(vierkant::Camera &camera) { visit(static_cast<Object3D &>(camera)); }
+    virtual bool should_visit(vierkant::Object3D &) const { return true; }
 };
 
 template<typename T>
@@ -74,9 +72,7 @@ public:
     };
 
     bool should_visit(vierkant::Object3D &object) const override
-    {
-        return (object.enabled || !select_only_enabled) && check_tags(tags, object.tags);
-    }
+    { return (object.enabled || !select_only_enabled) && check_tags(tags, object.tags); }
 
     std::vector<T *> objects = {};
 
