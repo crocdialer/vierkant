@@ -647,9 +647,9 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::
             ImGui::PopID();
             ImGui::SameLine();
 
-            if(ImGui::TreeNode((void *) ((uint64_t) cam->id()), "%s", cam->name.c_str()))
+            if(ImGui::TreeNode((void *) (uint64_t) cam->id(), "%s", cam->name.c_str()))
             {
-                vierkant::gui::draw_camera_param_ui(cam->perspective_params);
+                vierkant::gui::draw_camera_param_ui(std::get<physical_camera_params_t>(cam->params()));
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::TreePop();
@@ -1536,7 +1536,7 @@ bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Cam
 
         if(ortho_cam)
         {
-            const auto &cam_params = ortho_cam->ortho_params;
+            const auto &cam_params = std::get<ortho_camera_params_t>(camera->params());
             auto proj = glm::orthoRH(cam_params.left, cam_params.right, cam_params.bottom, cam_params.top,
                                      cam_params.near_, cam_params.far_);
             changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
@@ -1544,7 +1544,7 @@ bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Cam
         }
         else if(perspective_cam)
         {
-            const auto &cam_params = perspective_cam->perspective_params;
+            const auto &cam_params = std::get<vierkant::physical_camera_params_t>(camera->params());
             auto proj = glm::perspectiveRH(cam_params.fovy(), sz.x / sz.y, camera->near(), camera->far());
             changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
                                            ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(m));

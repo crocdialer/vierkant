@@ -615,9 +615,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     }
     else if(auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(cull_result.camera))
     {
+        const auto &ortho_params = std::get<ortho_camera_params_t>(cull_result.camera->params());
         frame_context.camera_params.ortho = true;
-        frame_context.camera_params.frustum = {ortho_cam->ortho_params.left, ortho_cam->ortho_params.right,
-                                               ortho_cam->ortho_params.bottom, ortho_cam->ortho_params.top};
+        frame_context.camera_params.frustum = {ortho_params.left, ortho_params.right, ortho_params.bottom,
+                                               ortho_params.top};
     }
     camera_params_t cameras[2] = {frame_context.camera_params, last_frame_context.camera_params};
     frame_context.g_buffer_camera_ubo->set_data(&cameras, sizeof(cameras));
@@ -1226,7 +1227,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
 
         if(perspective_cam && !drawable.descriptors[1].buffers.empty())
         {
-            const auto &cam_params = perspective_cam->perspective_params;
+            const auto &cam_params = std::get<physical_camera_params_t>(cam->params());
             depth_of_field_params_t dof_params = {};
             dof_params.focal_distance = cam_params.focal_distance;
             dof_params.focal_length = cam_params.focal_length;

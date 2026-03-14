@@ -337,7 +337,9 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, const vi
     drawable.pipeline_format.cull_mode = VK_CULL_MODE_FRONT_BIT;
     drawable.use_own_buffers = true;
 
-    auto cube_cam = vierkant::CubeCamera::create(.1f, 10.f);
+    // stupid hack. all we need are vanilla view/projection matrices for 6 directions
+    entt::registry tmp_registry;
+    auto cube_cam = vierkant::CubeCamera::create(&tmp_registry, .1f, 10.f);
 
     struct geom_shader_ubo_t
     {

@@ -231,8 +231,8 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     else if(auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(params.camera))
     {
         draw_cull_data.ortho = true;
-        draw_cull_data.frustum = {ortho_cam->ortho_params.left, ortho_cam->ortho_params.right,
-                                  ortho_cam->ortho_params.bottom, ortho_cam->ortho_params.top};
+        const auto &ortho_params = std::get<ortho_camera_params_t>(ortho_cam->params());
+        draw_cull_data.frustum = {ortho_params.left, ortho_params.right, ortho_params.bottom, ortho_params.top};
     }
     draw_cull_data.view = vierkant::mat4_cast(params.camera->view_transform());
     draw_cull_data.lod_base = params.lod_base;

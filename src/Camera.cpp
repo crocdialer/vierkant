@@ -27,29 +27,43 @@ vierkant::transform_t Camera::view_transform() const { return vierkant::inverse(
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-OrthoCamera::OrthoCamera(entt::registry *registry) : Object3D(registry, "OrthoCamera") {}
+OrthoCamera::OrthoCamera(entt::registry *registry) : Object3D(registry, "OrthoCamera"), Camera() {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 glm::mat4 OrthoCamera::projection_matrix() const
 {
-    auto m = ortho_reverse_RH_ZO(ortho_params.left, ortho_params.right, ortho_params.bottom, ortho_params.top,
-                                 ortho_params.near_, ortho_params.far_);
-    return m;
+    const auto &ortho_params = std::get<ortho_camera_params_t>(params());
+    return ortho_reverse_RH_ZO(ortho_params.left, ortho_params.right, ortho_params.bottom, ortho_params.top,
+                               ortho_params.near_, ortho_params.far_);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::Frustum OrthoCamera::frustum() const
 {
+    const auto &ortho_params = std::get<ortho_camera_params_t>(params());
     return {ortho_params.left, ortho_params.right, ortho_params.bottom,
             ortho_params.top,  ortho_params.near_, ortho_params.far_};
+}
+
+float OrthoCamera::near() const
+{
+    const auto &ortho_params = std::get<ortho_camera_params_t>(params());
+    return ortho_params.near_;
+}
+
+float OrthoCamera::far() const
+{
+    const auto &ortho_params = std::get<ortho_camera_params_t>(params());
+    return ortho_params.far_;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::Ray OrthoCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const
 {
+    const auto &ortho_params = std::get<ortho_camera_params_t>(params());
     const glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, ortho_params.left, ortho_params.right),
                           crocore::map_value<float>(pos.y, extent.y, 0, ortho_params.bottom, ortho_params.top));
 
@@ -63,12 +77,13 @@ vierkant::Ray OrthoCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-PerspectiveCamera::PerspectiveCamera(entt::registry *registry) : Object3D(registry, "PerspectiveCamera") {}
+PerspectiveCamera::PerspectiveCamera(entt::registry *registry) : Object3D(registry, "PerspectiveCamera"), Camera() {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 glm::mat4 PerspectiveCamera::projection_matrix() const
 {
+    const auto &perspective_params = std::get<physical_camera_params_t>(params());
     return perspective_infinite_reverse_RH_ZO(perspective_params.fovy(), perspective_params.aspect,
                                               perspective_params.clipping_distances.x);
 }
@@ -77,14 +92,29 @@ glm::mat4 PerspectiveCamera::projection_matrix() const
 
 vierkant::Frustum PerspectiveCamera::frustum() const
 {
+    const auto &perspective_params = std::get<physical_camera_params_t>(params());
     return {perspective_params.aspect, perspective_params.fovx(), perspective_params.clipping_distances.x,
             perspective_params.clipping_distances.y};
+}
+
+float PerspectiveCamera::near() const
+{
+    const auto &perspective_params = std::get<physical_camera_params_t>(params());
+    return perspective_params.clipping_distances.x;
+}
+
+float PerspectiveCamera::far() const
+{
+    const auto &perspective_params = std::get<physical_camera_params_t>(params());
+    return perspective_params.clipping_distances.y;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const
 {
+    const auto &perspective_params = std::get<physical_camera_params_t>(params());
+
     // bring click_pos to range -1, 1
     glm::vec2 click_2D(pos);
     glm::vec2 offset(extent / 2.0f);
@@ -93,10 +123,10 @@ vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::
     click_2D.y = -click_2D.y;
 
     // convert fovy to radians
-    float rad = perspective_params.fovx();
-    float near = perspective_params.clipping_distances.x;
-    float hLength = std::tan(rad / 2) * near;
-    float vLength = hLength / perspective_params.aspect;
+    const float rad = perspective_params.fovx();
+    const float near = perspective_params.clipping_distances.x;
+    const float hLength = std::tan(rad / 2) * near;
+    const float vLength = hLength / perspective_params.aspect;
 
     auto t = global_transform();
     glm::mat3 m = glm::mat3_cast(t.rotation);
@@ -108,14 +138,14 @@ vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO: Fix, no registry
-CubeCamera::CubeCamera(float the_near, float the_far) : Object3D({}, "CubeCamera"), m_near(the_near), m_far(the_far) {}
+CubeCamera::CubeCamera(entt::registry *registry) : Object3D(registry, "CubeCamera"), Camera() {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 glm::mat4 CubeCamera::projection_matrix() const
 {
-    return perspective_infinite_reverse_RH_ZO(glm::radians(90.f), 1.f, m_near);
+    const auto &perspective_params = std::get<physical_camera_params_t>(params());
+    return perspective_infinite_reverse_RH_ZO(glm::radians(90.f), 1.f, perspective_params.clipping_distances.x);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,14 +157,26 @@ vierkant::Frustum CubeCamera::frustum() const
     return {p.x - far(), p.x + far(), p.y - far(), p.y + far(), p.z - far(), p.z + far()};
 }
 
+float CubeCamera::near() const
+{
+    const auto &perspective_params = std::get<physical_camera_params_t>(params());
+    return perspective_params.clipping_distances.x;
+}
+
+float CubeCamera::far() const
+{
+    const auto &perspective_params = std::get<physical_camera_params_t>(params());
+    return perspective_params.clipping_distances.y;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 glm::mat4 CubeCamera::view_matrix(uint32_t the_face) const
 {
-    const glm::vec3 X_AXIS(1.f, 0.f, 0.f), Y_AXIS(0.f, 1.f, 0.f), Z_AXIS(0.f, 0.f, 1.f);
+    constexpr glm::vec3 X_AXIS(1.f, 0.f, 0.f), Y_AXIS(0.f, 1.f, 0.f), Z_AXIS(0.f, 0.f, 1.f);
 
-    const glm::vec3 vals[12] = {X_AXIS, -Y_AXIS, -X_AXIS, -Y_AXIS, -Y_AXIS, -Z_AXIS,
-                                Y_AXIS, Z_AXIS,  Z_AXIS,  -Y_AXIS, -Z_AXIS, -Y_AXIS};
+    constexpr glm::vec3 vals[12] = {X_AXIS, -Y_AXIS, -X_AXIS, -Y_AXIS, -Y_AXIS, -Z_AXIS,
+                                    Y_AXIS, Z_AXIS,  Z_AXIS,  -Y_AXIS, -Z_AXIS, -Y_AXIS};
     glm::vec3 p = global_transform().translation;
     the_face = crocore::clamp<uint32_t>(the_face, 0, 5);
     return glm::lookAt(p, p + vals[2 * the_face], vals[2 * the_face + 1]);
@@ -143,9 +185,7 @@ glm::mat4 CubeCamera::view_matrix(uint32_t the_face) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::Ray CubeCamera::calculate_ray(const glm::vec2 & /*pos*/, const glm::vec2 & /*extent*/) const
-{
-    return {global_transform().translation, glm::vec3(0, 0, 1)};
-}
+{ return {global_transform().translation, glm::vec3(0, 0, 1)}; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
