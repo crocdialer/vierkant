@@ -175,39 +175,14 @@ vierkant::Ray calculate_ray(const vierkant::Object3D *camera, const glm::vec2 &p
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::transform_t Camera::view_transform() const { return vierkant::inverse(global_transform()); }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-CubeCamera::CubeCamera(entt::registry *registry) : Object3D(registry, "CubeCamera"), Camera() {}
+CubeCamera::CubeCamera(entt::registry *registry) : Object3D(registry, "CubeCamera") {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 glm::mat4 CubeCamera::projection_matrix() const
 {
-    const auto &perspective_params = std::get<physical_camera_params_t>(params());
+    const auto &perspective_params = std::get<physical_camera_params_t>(get_component<camera_component_t>().params);
     return perspective_infinite_reverse_RH_ZO(glm::radians(90.f), 1.f, perspective_params.clipping_distances.x);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-vierkant::Frustum CubeCamera::frustum() const
-{
-    auto t = global_transform();
-    glm::vec3 p = t.translation;
-    return {p.x - far(), p.x + far(), p.y - far(), p.y + far(), p.z - far(), p.z + far()};
-}
-
-float CubeCamera::near() const
-{
-    const auto &perspective_params = std::get<physical_camera_params_t>(params());
-    return perspective_params.clipping_distances.x;
-}
-
-float CubeCamera::far() const
-{
-    const auto &perspective_params = std::get<physical_camera_params_t>(params());
-    return perspective_params.clipping_distances.y;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -225,11 +200,6 @@ glm::mat4 CubeCamera::view_matrix(uint32_t the_face) const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::Ray CubeCamera::calculate_ray(const glm::vec2 & /*pos*/, const glm::vec2 & /*extent*/) const
-{ return {global_transform().translation, glm::vec3(0, 0, 1)}; }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 std::vector<glm::mat4> CubeCamera::view_matrices() const
 {
     std::vector<glm::mat4> out_matrices(6);
@@ -237,11 +207,5 @@ std::vector<glm::mat4> CubeCamera::view_matrices() const
     for(uint32_t i = 0; i < 6; ++i) { out_matrices[i] = view_matrix(i); }
     return out_matrices;
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Camera::accept(Visitor &v) { v.visit(*this); }
-// void OrthoCamera::accept(Visitor &v) { v.visit(*this); }
-// void PerspectiveCamera::accept(Visitor &v) { v.visit(*this); }
 
 }// namespace vierkant

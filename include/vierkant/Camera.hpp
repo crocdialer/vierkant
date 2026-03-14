@@ -37,29 +37,7 @@ vierkant::Ray calculate_ray(const vierkant::Object3D *camera, const glm::vec2 &p
 
 }// namespace camera
 
-class Camera : virtual public Object3D
-{
-public:
-    vierkant::transform_t view_transform() const;
-
-    virtual glm::mat4 projection_matrix() const = 0;
-
-    virtual vierkant::Frustum frustum() const = 0;
-
-    virtual float near() const = 0;
-
-    virtual float far() const = 0;
-
-    virtual vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const = 0;
-
-    vierkant::camera_params_variant_t &params() { return get_component<camera_component_t>().params; }
-
-    const vierkant::camera_params_variant_t &params() const { return get_component<camera_component_t>().params; }
-
-    void accept(class Visitor &v) override;
-};
-
-class CubeCamera : public Camera
+class CubeCamera : public Object3D
 {
 public:
     static CubeCameraPtr create(entt::registry *registry, float near, float far)
@@ -71,15 +49,7 @@ public:
         return ret;
     };
 
-    glm::mat4 projection_matrix() const override;
-
-    vierkant::Frustum frustum() const override;
-
-    float near() const override;
-
-    float far() const override;
-
-    vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
+    glm::mat4 projection_matrix() const;
 
     glm::mat4 view_matrix(uint32_t the_face) const;
 

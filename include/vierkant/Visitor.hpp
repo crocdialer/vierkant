@@ -51,7 +51,6 @@ public:
             for(Object3DPtr &child: object.children) { child->accept(*this); }
         }
     }
-    virtual void visit(vierkant::Camera &camera) { visit(static_cast<Object3D &>(camera)); }
     virtual bool should_visit(vierkant::Object3D &) const { return true; }
 };
 
