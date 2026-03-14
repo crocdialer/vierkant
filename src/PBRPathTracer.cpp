@@ -470,14 +470,13 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     camera_params.view_inverse = vierkant::mat4_cast(cam->global_transform());
     camera_params.ortho = true;
 
-    if(auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam))
+    if(const auto *perspective_params = std::get_if<physical_camera_params_t>(&cam->params()))
     {
         camera_params.ortho = false;
-        const auto &perspective_params = std::get<physical_camera_params_t>(perspective_cam->params());
-        camera_params.fov = perspective_params.fovy();
+        camera_params.fov = perspective_params->fovy();
         camera_params.aperture =
-                frame_context.settings.depth_of_field ? static_cast<float>(perspective_params.aperture_size()) : 0.f;
-        camera_params.focal_distance = perspective_params.focal_distance;
+                frame_context.settings.depth_of_field ? static_cast<float>(perspective_params->aperture_size()) : 0.f;
+        camera_params.focal_distance = perspective_params->focal_distance;
     }
 
     trace_data_t trace_data = {};

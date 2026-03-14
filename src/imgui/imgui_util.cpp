@@ -631,31 +631,41 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::
     if(ImGui::BeginTabItem("cameras"))
     {
         if(ImGui::Button("add camera")) { scene->add_object(vierkant::PerspectiveCamera::create(scene->registry())); }
-        vierkant::SelectVisitor<vierkant::PerspectiveCamera> camera_filter({}, false);
-        scene->root()->accept(camera_filter);
 
-        for(const auto &cam: camera_filter.objects)
-        {
-            bool enabled = cam == camera.get();
+        auto visit_fn = [&camera](Object3D &obj) {
+            bool is_camera = obj.has_component<camera_component_t>();
+
+            if(!is_camera) { return true; }
+
+            bool enabled = &obj == camera.get();
 
             // push object id
-            ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D *>()(cam)));
+            ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D *>()(&obj)));
             if(ImGui::Checkbox("", &enabled) && enabled)
             {
-                camera = std::dynamic_pointer_cast<Camera>(cam->shared_from_this());
+                // TODO: no RTTI
+                if(auto ret = std::dynamic_pointer_cast<Camera>(obj.shared_from_this())) { camera = ret; }
+                else
+                {
+                    spdlog::error("RTTI failed for camera-cast. fix this");
+                }
             }
             ImGui::PopID();
             ImGui::SameLine();
 
-            if(ImGui::TreeNode((void *) (uint64_t) cam->id(), "%s", cam->name.c_str()))
+            if(ImGui::TreeNode((void *) (uint64_t) obj.id(), "%s", obj.name.c_str()))
             {
-                vierkant::gui::draw_camera_param_ui(std::get<physical_camera_params_t>(cam->params()));
+                vierkant::gui::draw_camera_param_ui(
+                        std::get<physical_camera_params_t>(obj.get_component<camera_component_t>().params));
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::TreePop();
             }
-        }
+            return true;
+        };
 
+        vierkant::LambdaVisitor visitor;
+        visitor.traverse(*scene->root(), visit_fn);
         ImGui::EndTabItem();
     }
     ImGui::EndTabBar();
@@ -1526,26 +1536,26 @@ bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Cam
             default: break;
         }
         glm::mat4 m = vierkant::mat4_cast(transform);
-        auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(camera).get();
-        ImGuizmo::SetOrthographic(ortho_cam);
+        // auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(camera).get();
 
-        auto perspective_cam = std::dynamic_pointer_cast<const vierkant::PerspectiveCamera>(camera);
+        auto *ortho_params = std::get_if<ortho_camera_params_t>(&camera->params());
+        auto *perspective_params = std::get_if<physical_camera_params_t>(&camera->params());
+
+        ImGuizmo::SetOrthographic(ortho_params);
 
         auto sz = ImGui::GetIO().DisplaySize;
         auto view = vierkant::mat4_cast(camera->view_transform());
 
-        if(ortho_cam)
+        if(ortho_params)
         {
-            const auto &cam_params = std::get<ortho_camera_params_t>(camera->params());
-            auto proj = glm::orthoRH(cam_params.left, cam_params.right, cam_params.bottom, cam_params.top,
-                                     cam_params.near_, cam_params.far_);
+            auto proj = glm::orthoRH(ortho_params->left, ortho_params->right, ortho_params->bottom, ortho_params->top,
+                                     ortho_params->near_, ortho_params->far_);
             changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
                                            ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(m));
         }
-        else if(perspective_cam)
+        else if(perspective_params)
         {
-            const auto &cam_params = std::get<vierkant::physical_camera_params_t>(camera->params());
-            auto proj = glm::perspectiveRH(cam_params.fovy(), sz.x / sz.y, camera->near(), camera->far());
+            auto proj = glm::perspectiveRH(perspective_params->fovy(), sz.x / sz.y, camera->near(), camera->far());
             changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
                                            ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(m));
         }

@@ -41,6 +41,7 @@ inline static bool check_tags(const std::set<std::string> &whitelist, const std:
 class Visitor
 {
 public:
+    virtual ~Visitor() = default;
     Visitor() = default;
 
     virtual void visit(vierkant::Object3D &object)

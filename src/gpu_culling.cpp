@@ -219,7 +219,8 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_cull_data.P11 = projection[1][1];
     draw_cull_data.znear = params.camera->near();
     draw_cull_data.zfar = params.camera->far();
-    if(auto perspective_cam = std::dynamic_pointer_cast<const vierkant::PerspectiveCamera>(params.camera))
+
+    if(std::get_if<physical_camera_params_t>(&params.camera->params()))
     {
         glm::mat4 projectionT = transpose(projection);
         glm::vec4 frustumX = projectionT[3] + projectionT[0];// x + w < 0
@@ -228,11 +229,10 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
         frustumY /= glm::length(frustumY.xyz());
         draw_cull_data.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
     }
-    else if(auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(params.camera))
+    else if(const auto *ortho_params = std::get_if<ortho_camera_params_t>(&params.camera->params()))
     {
         draw_cull_data.ortho = true;
-        const auto &ortho_params = std::get<ortho_camera_params_t>(ortho_cam->params());
-        draw_cull_data.frustum = {ortho_params.left, ortho_params.right, ortho_params.bottom, ortho_params.top};
+        draw_cull_data.frustum = {ortho_params->left, ortho_params->right, ortho_params->bottom, ortho_params->top};
     }
     draw_cull_data.view = vierkant::mat4_cast(params.camera->view_transform());
     draw_cull_data.lod_base = params.lod_base;
