@@ -13,9 +13,9 @@ struct range_item_t
     inline bool operator<(const range_item_t &other) const { return distance < other.distance; }
 };
 
-vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_component) const
+vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_component)
 {
-    auto object = m_object_store->create_object();
+    auto object = create_object();
 
     // add a transform
     object->transform.emplace();
@@ -48,11 +48,16 @@ vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_com
     return object;
 }
 
-vierkant::Object3DPtr Scene::create_object() const { return m_object_store->create_object(); }
-
-vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_params_variant_t &params) const
+vierkant::Object3DPtr Scene::create_object()
 {
-    auto cam = m_object_store->create_object();
+    auto obj = m_object_store->create_object();
+    add_object(obj);
+    return obj;
+}
+
+vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_params_variant_t &params)
+{
+    auto cam = create_object();
     cam->add_component<vierkant::camera_component_t>({params});
     return cam;
 }

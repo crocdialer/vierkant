@@ -630,31 +630,16 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
     }
     if(ImGui::BeginTabItem("cameras"))
     {
-        if(ImGui::Button("add camera"))
-        {
-            // TODO: cough something up for sane object-creation
-
-            //scene->add_object(vierkant::PerspectiveCamera::create(scene->registry()));
-        }
+        if(ImGui::Button("add camera")) { scene->create_camera(); }
 
         auto visit_fn = [&camera](Object3D &obj) {
-            bool is_camera = obj.has_component<camera_component_t>();
-
-            if(!is_camera) { return true; }
+            if(!obj.has_component<camera_component_t>()) { return true; }
 
             bool enabled = &obj == camera.get();
 
             // push object id
             ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D *>()(&obj)));
-            if(ImGui::Checkbox("", &enabled) && enabled)
-            {
-                // TODO: no RTTI
-                if(auto ret = std::dynamic_pointer_cast<Camera>(obj.shared_from_this())) { camera = ret; }
-                else
-                {
-                    spdlog::error("RTTI failed for camera-cast. fix this");
-                }
-            }
+            if(ImGui::Checkbox("", &enabled) && enabled) { camera = obj.shared_from_this(); }
             ImGui::PopID();
             ImGui::SameLine();
 
