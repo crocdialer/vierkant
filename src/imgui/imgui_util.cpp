@@ -540,7 +540,7 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
     return ret;
 }
 
-void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::Object3DPtr> *selection)
+void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant::Object3DPtr> *selection)
 {
     ImGui::BeginTabBar("scene_tabs");
     if(ImGui::BeginTabItem("scenegraph"))
@@ -630,32 +630,32 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::
     }
     if(ImGui::BeginTabItem("cameras"))
     {
-        if(ImGui::Button("add camera")) { scene->add_object(vierkant::PerspectiveCamera::create(scene->registry())); }
-        vierkant::SelectVisitor<vierkant::PerspectiveCamera> camera_filter({}, false);
-        scene->root()->accept(camera_filter);
+        if(ImGui::Button("add camera")) { scene->create_camera(); }
 
-        for(const auto &cam: camera_filter.objects)
-        {
-            bool enabled = cam == camera.get();
+        auto visit_fn = [&camera](Object3D &obj) {
+            if(!obj.has_component<camera_component_t>()) { return true; }
+
+            bool enabled = &obj == camera.get();
 
             // push object id
-            ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D *>()(cam)));
-            if(ImGui::Checkbox("", &enabled) && enabled)
-            {
-                camera = std::dynamic_pointer_cast<Camera>(cam->shared_from_this());
-            }
+            ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D *>()(&obj)));
+            if(ImGui::Checkbox("", &enabled) && enabled) { camera = obj.shared_from_this(); }
             ImGui::PopID();
             ImGui::SameLine();
 
-            if(ImGui::TreeNode((void *) ((uint64_t) cam->id()), "%s", cam->name.c_str()))
+            if(ImGui::TreeNode((void *) (uint64_t) obj.id(), "%s", obj.name.c_str()))
             {
-                vierkant::gui::draw_camera_param_ui(cam->perspective_params);
+                vierkant::gui::draw_camera_param_ui(
+                        std::get<physical_camera_params_t>(obj.get_component<camera_component_t>().params));
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::TreePop();
             }
-        }
+            return true;
+        };
 
+        vierkant::LambdaVisitor visitor;
+        visitor.traverse(*scene->root(), visit_fn);
         ImGui::EndTabItem();
     }
     ImGui::EndTabBar();
@@ -1510,7 +1510,7 @@ void draw_object_ui(const Object3DPtr &object)
     }
 }
 
-bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::CameraConstPtr &camera, GuizmoType type)
+bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Object3DConstPtr &camera, GuizmoType type)
 {
     bool changed = false;
 
@@ -1526,26 +1526,30 @@ bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Cam
             default: break;
         }
         glm::mat4 m = vierkant::mat4_cast(transform);
-        auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(camera).get();
-        ImGuizmo::SetOrthographic(ortho_cam);
 
-        auto perspective_cam = std::dynamic_pointer_cast<const vierkant::PerspectiveCamera>(camera);
+        auto *cam_cmp = camera->get_component_ptr<vierkant::camera_component_t>();
+        assert(cam_cmp);
+
+        auto *ortho_params = std::get_if<ortho_camera_params_t>(&cam_cmp->params);
+        auto *perspective_params = std::get_if<physical_camera_params_t>(&cam_cmp->params);
+
+        ImGuizmo::SetOrthographic(ortho_params);
 
         auto sz = ImGui::GetIO().DisplaySize;
-        auto view = vierkant::mat4_cast(camera->view_transform());
+        auto view = vierkant::mat4_cast(camera::view_transform(camera.get()));
 
-        if(ortho_cam)
+        if(ortho_params)
         {
-            const auto &cam_params = ortho_cam->ortho_params;
-            auto proj = glm::orthoRH(cam_params.left, cam_params.right, cam_params.bottom, cam_params.top,
-                                     cam_params.near_, cam_params.far_);
+            auto proj = glm::orthoRH(ortho_params->left, ortho_params->right, ortho_params->bottom, ortho_params->top,
+                                     ortho_params->near_, ortho_params->far_);
             changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
                                            ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(m));
         }
-        else if(perspective_cam)
+        else if(perspective_params)
         {
-            const auto &cam_params = perspective_cam->perspective_params;
-            auto proj = glm::perspectiveRH(cam_params.fovy(), sz.x / sz.y, camera->near(), camera->far());
+            auto proj = glm::perspectiveRH(perspective_params->fovy(), sz.x / sz.y,
+                                           perspective_params->clipping_distances.x,
+                                           perspective_params->clipping_distances.y);
             changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
                                            ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(m));
         }
@@ -1554,7 +1558,8 @@ bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Cam
     return changed;
 }
 
-void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::CameraConstPtr &camera, GuizmoType type)
+void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::Object3DConstPtr &camera,
+                           GuizmoType type)
 {
     if(camera && type != GuizmoType::INACTIVE)
     {
@@ -1563,7 +1568,7 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
     }
 }
 
-void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, const vierkant::CameraConstPtr &camera,
+void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, const vierkant::Object3DConstPtr &camera,
                            GuizmoType type)
 {
     if(object_set.size() > 1)

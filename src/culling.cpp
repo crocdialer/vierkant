@@ -14,9 +14,7 @@ struct scoped_stack_push
     std::stack<vierkant::transform_t> &stack;
 
     scoped_stack_push(std::stack<vierkant::transform_t> &stack_, const vierkant::transform_t &t) : stack(stack_)
-    {
-        stack.push(t);
-    }
+    { stack.push(t); }
 
     ~scoped_stack_push() { stack.pop(); }
 };
@@ -24,11 +22,14 @@ struct scoped_stack_push
 class CullVisitor : public vierkant::Visitor
 {
 public:
-    CullVisitor(vierkant::CameraPtr cam, bool check_intersection, bool world_space)
-        : m_frustum(cam->frustum()), m_camera(std::move(cam)), m_check_intersection(check_intersection)
+    CullVisitor(vierkant::Object3DPtr cam, bool check_intersection, bool world_space)
+        : m_frustum(camera::frustum(cam.get())), m_camera(std::move(cam)), m_check_intersection(check_intersection)
     {
-        if(!world_space) { m_transform_stack.push(m_camera->view_transform()); }
-        else { m_transform_stack.push({}); }
+        if(!world_space) { m_transform_stack.push(camera::view_transform(m_camera.get())); }
+        else
+        {
+            m_transform_stack.push({});
+        }
     };
 
     void visit(vierkant::Object3D &object) override
@@ -58,7 +59,7 @@ public:
                 {
                     auto &drawable = mesh_drawables[i];
                     m_cull_result.entity_map[drawable.id] = {object.id(), i};
-                    drawable.matrices.projection = m_camera->projection_matrix();
+                    drawable.matrices.projection = camera::projection_matrix(m_camera.get());
 
                     id_entry_t key = {object.id(), drawable.entry_index};
                     m_cull_result.index_map[key] = m_cull_result.drawables.size();
@@ -102,7 +103,7 @@ public:
 
     vierkant::Frustum m_frustum;
 
-    vierkant::CameraPtr m_camera;
+    vierkant::Object3DPtr m_camera;
 
     bool m_check_intersection;
 

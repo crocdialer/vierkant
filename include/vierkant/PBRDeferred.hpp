@@ -196,7 +196,7 @@ public:
      * @return  a render_result_t object.
      */
     render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
-                                 const CameraPtr &cam, const std::set<std::string> &tags) override;
+                                 const Object3DPtr &cam, const std::set<std::string> &tags) override;
 
     std::vector<uint16_t> pick(const glm::vec2 &normalized_coord, const glm::vec2 &normalized_size) override;
 
@@ -348,7 +348,7 @@ private:
 
     void update_timing(frame_context_t &frame_context);
 
-    void update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_context_t &frame_context);
+    void update_recycling(const SceneConstPtr &scene, const Object3DPtr &cam, frame_context_t &frame_context);
 
     void update_animation_transforms(frame_context_t &frame_context);
 
@@ -358,7 +358,7 @@ private:
 
     vierkant::Framebuffer &lighting_pass(const vierkant::cull_result_t &cull_result);
 
-    vierkant::ImagePtr post_fx_pass(const CameraPtr &cam, const vierkant::ImagePtr &color,
+    vierkant::ImagePtr post_fx_pass(const Object3DPtr &cam, const vierkant::ImagePtr &color,
                                     const vierkant::ImagePtr &depth);
 
     void resize_indirect_draw_buffers(uint32_t num_draws, Rasterizer::indirect_draw_bundle_t &params);

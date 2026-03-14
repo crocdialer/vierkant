@@ -214,12 +214,15 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_cull_data.draw_command_indices_in_post = params.draw_command_indices_in_post->device_address();
     draw_cull_data.draw_result = context->draw_cull_result_buffer->device_address();
 
-    auto projection = params.camera->projection_matrix();
+    const auto &camera_params = params.camera->get_component<camera_component_t>().params;
+
+    auto projection = camera::projection_matrix(params.camera.get());
     draw_cull_data.P00 = projection[0][0];
     draw_cull_data.P11 = projection[1][1];
-    draw_cull_data.znear = params.camera->near();
-    draw_cull_data.zfar = params.camera->far();
-    if(auto perspective_cam = std::dynamic_pointer_cast<const vierkant::PerspectiveCamera>(params.camera))
+    draw_cull_data.znear = camera::near(params.camera.get());
+    draw_cull_data.zfar = camera::far(params.camera.get());
+
+    if(std::get_if<physical_camera_params_t>(&camera_params))
     {
         glm::mat4 projectionT = transpose(projection);
         glm::vec4 frustumX = projectionT[3] + projectionT[0];// x + w < 0
@@ -228,13 +231,12 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
         frustumY /= glm::length(frustumY.xyz());
         draw_cull_data.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
     }
-    else if(auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(params.camera))
+    else if(const auto *ortho_params = std::get_if<ortho_camera_params_t>(&camera_params))
     {
         draw_cull_data.ortho = true;
-        draw_cull_data.frustum = {ortho_cam->ortho_params.left, ortho_cam->ortho_params.right,
-                                  ortho_cam->ortho_params.bottom, ortho_cam->ortho_params.top};
+        draw_cull_data.frustum = {ortho_params->left, ortho_params->right, ortho_params->bottom, ortho_params->top};
     }
-    draw_cull_data.view = vierkant::mat4_cast(params.camera->view_transform());
+    draw_cull_data.view = vierkant::mat4_cast(camera::view_transform(params.camera.get()));
     draw_cull_data.lod_base = params.lod_base;
     draw_cull_data.lod_step = params.lod_step;
 

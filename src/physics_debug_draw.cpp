@@ -13,7 +13,7 @@ namespace vierkant
 
 SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rasterizer &renderer,
                                                                   const vierkant::SceneConstPtr &scene,
-                                                                  const vierkant::CameraPtr &cam,
+                                                                  const vierkant::Object3DPtr &cam,
                                                                   const std::set<std::string> & /*tags*/)
 {
     auto physics_scene = std::dynamic_pointer_cast<const vierkant::PhysicsScene>(scene);
@@ -39,7 +39,8 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
         if(frame_context.settings.draw_aabbs)
         {
             const auto &aabb = physics_debug_result.aabbs[i];
-            m_draw_context.draw_boundingbox(m_rasterizer, aabb, cam->view_transform(), cam->projection_matrix());
+            m_draw_context.draw_boundingbox(m_rasterizer, aabb, camera::view_transform(cam.get()),
+                                            camera::projection_matrix(cam.get()));
         }
 
         if(frame_context.settings.draw_meshes)
@@ -66,15 +67,17 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
                 frame_context.physics_meshes[geom.get()] = mesh;
             }
             auto color = settings.use_mesh_colors ? physics_debug_result.colors[i] : glm::vec4(1.f);
-            m_draw_context.draw_mesh(m_rasterizer, mesh, cam->view_transform() * transform, cam->projection_matrix(),
-                                     vierkant::ShaderType::UNLIT_COLOR, color, true, true);
+            m_draw_context.draw_mesh(m_rasterizer, mesh, camera::view_transform(cam.get()) * transform,
+                                     camera::projection_matrix(cam.get()), vierkant::ShaderType::UNLIT_COLOR, color,
+                                     true, true);
         }
     }
 
     if(frame_context.settings.draw_lines && physics_debug_result.lines)
     {
         m_draw_context.draw_lines(m_rasterizer, physics_debug_result.lines->positions,
-                                  physics_debug_result.lines->colors, cam->view_transform(), cam->projection_matrix());
+                                  physics_debug_result.lines->colors, camera::view_transform(cam.get()),
+                                  camera::projection_matrix(cam.get()));
     }
 
     auto cmd_buf = m_rasterizer.render(frame_context.frame_buffer);
@@ -146,8 +149,6 @@ PhysicsDebugRenderer::PhysicsDebugRenderer(const create_info_t &create_info)
 }
 
 PhysicsDebugRendererPtr PhysicsDebugRenderer::create(const create_info_t &create_info)
-{
-    return vierkant::PhysicsDebugRendererPtr(new PhysicsDebugRenderer(create_info));
-}
+{ return vierkant::PhysicsDebugRendererPtr(new PhysicsDebugRenderer(create_info)); }
 
 }// namespace vierkant

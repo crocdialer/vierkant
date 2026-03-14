@@ -303,7 +303,7 @@ PBRDeferred::~PBRDeferred()
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
 { return vierkant::PBRDeferredPtr(new PBRDeferred(device, create_info)); }
 
-void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_context_t &frame_context)
+void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr &cam, frame_context_t &frame_context)
 {
     uint64_t frame_thresh = scene->current_frame();
     bool need_culling = false;
@@ -414,7 +414,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 }
 
 SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, const SceneConstPtr &scene,
-                                                         const CameraPtr &cam, const std::set<std::string> &tags)
+                                                         const Object3DPtr &cam, const std::set<std::string> &tags)
 {
     // reference to current frame-assets
     auto &frame_context = m_frame_contexts[m_g_renderer_main.current_index()];
@@ -598,26 +598,28 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     // update camera/jitter ubo
     frame_context.camera_params = {};
-    frame_context.camera_params.view = vierkant::mat4_cast(cull_result.camera->view_transform());
-    frame_context.camera_params.projection = cull_result.camera->projection_matrix();
+    frame_context.camera_params.view = vierkant::mat4_cast(camera::view_transform(cull_result.camera.get()));
+    frame_context.camera_params.projection = camera::projection_matrix(cull_result.camera.get());
     frame_context.camera_params.sample_offset = jitter_offset;
-    frame_context.camera_params.near = cull_result.camera->near();
-    frame_context.camera_params.far = cull_result.camera->far();
+    frame_context.camera_params.near = camera::near(cull_result.camera.get());
+    frame_context.camera_params.far = camera::far(cull_result.camera.get());
 
-    if(auto perspective_cam = std::dynamic_pointer_cast<const vierkant::PerspectiveCamera>(cull_result.camera))
+    const auto &cam_params = cull_result.camera->get_component_ptr<camera_component_t>()->params;
+
+    if(std::get_if<physical_camera_params_t>(&cam_params))
     {
-        glm::mat4 projectionT = transpose(cull_result.camera->projection_matrix());
+        glm::mat4 projectionT = transpose(camera::projection_matrix(cull_result.camera.get()));
         glm::vec4 frustumX = projectionT[3] + projectionT[0];// x + w < 0
         frustumX /= glm::length(frustumX.xyz());
         glm::vec4 frustumY = projectionT[3] + projectionT[1];// y + w < 0
         frustumY /= glm::length(frustumY.xyz());
         frame_context.camera_params.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
     }
-    else if(auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(cull_result.camera))
+    else if(const auto *ortho_params = std::get_if<ortho_camera_params_t>(&cam_params))
     {
         frame_context.camera_params.ortho = true;
-        frame_context.camera_params.frustum = {ortho_cam->ortho_params.left, ortho_cam->ortho_params.right,
-                                               ortho_cam->ortho_params.bottom, ortho_cam->ortho_params.top};
+        frame_context.camera_params.frustum = {ortho_params->left, ortho_params->right, ortho_params->bottom,
+                                               ortho_params->top};
     }
     camera_params_t cameras[2] = {frame_context.camera_params, last_frame_context.camera_params};
     frame_context.g_buffer_camera_ubo->set_data(&cameras, sizeof(cameras));
@@ -967,7 +969,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     // update UBO
     environment_lighting_ubo_t ubo = {};
     ubo.camera_transform = mat4_cast(cull_result.camera->global_transform());
-    ubo.inverse_projection = glm::inverse(cull_result.camera->projection_matrix());
+    ubo.inverse_projection = glm::inverse(camera::projection_matrix(cull_result.camera.get()));
     ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) + 1);
     ubo.environment_factor = frame_context.settings.environment_factor;
     ubo.num_lights = frame_context.cull_result.lights.size();
@@ -1017,7 +1019,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
             vierkant::ambient_occlusion_params_t ambient_occlusion_params = {};
             ambient_occlusion_params.use_ray_queries = frame_context.settings.use_ray_queries;
             ambient_occlusion_params.top_level = frame_context.scene_ray_acceleration.top_lvl.structure;
-            ambient_occlusion_params.projection = cull_result.camera->projection_matrix();
+            ambient_occlusion_params.projection = camera::projection_matrix(cull_result.camera.get());
             ambient_occlusion_params.camera_transform = cull_result.camera->global_transform();
             ambient_occlusion_params.normal_img = frame_context.g_buffer_post.color_attachment(G_BUFFER_NORMAL);
             ambient_occlusion_params.depth_img = frame_context.g_buffer_post.depth_attachment();
@@ -1096,7 +1098,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     return frame_context.lighting_buffer;
 }
 
-vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkant::ImagePtr &color,
+vierkant::ImagePtr PBRDeferred::post_fx_pass(const Object3DPtr &cam, const vierkant::ImagePtr &color,
                                              const vierkant::ImagePtr &depth)
 {
     size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
@@ -1222,18 +1224,19 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
     {
         auto drawable = m_drawable_dof;
         drawable.descriptors[0].images = {output_img, depth};
-        auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam);
 
-        if(perspective_cam && !drawable.descriptors[1].buffers.empty())
+        const auto &cam_cmp = cam->get_component<camera_component_t>();
+
+        if(const auto *cam_params = std::get_if<physical_camera_params_t>(&cam_cmp.params);
+           cam_params && !drawable.descriptors[1].buffers.empty())
         {
-            const auto &cam_params = perspective_cam->perspective_params;
             depth_of_field_params_t dof_params = {};
-            dof_params.focal_distance = cam_params.focal_distance;
-            dof_params.focal_length = cam_params.focal_length;
-            dof_params.sensor_width = cam_params.sensor_width;
-            dof_params.aperture = static_cast<float>(cam_params.aperture_size());
-            dof_params.near = cam_params.clipping_distances.x;
-            dof_params.far = cam_params.clipping_distances.y;
+            dof_params.focal_distance = cam_params->focal_distance;
+            dof_params.focal_length = cam_params->focal_length;
+            dof_params.sensor_width = cam_params->sensor_width;
+            dof_params.aperture = static_cast<float>(cam_params->aperture_size());
+            dof_params.near = cam_params->clipping_distances.x;
+            dof_params.far = cam_params->clipping_distances.y;
             dof_params.debug = frame_context.settings.use_dof_focus_overlay;
             vierkant::staging_copy_info_t staging_copy_info = {};
             staging_copy_info.data = &dof_params;

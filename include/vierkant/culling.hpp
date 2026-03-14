@@ -37,8 +37,8 @@ struct cull_result_t
     //! lookup: (id/entry) -> drawable-index
     index_cache_t index_map;
 
-    //! the camera used to perform culling
-    CameraPtr camera;
+    //! the camera-object used to perform culling
+    Object3DPtr camera;
 
     vierkant::SceneConstPtr scene;
 };
@@ -46,7 +46,7 @@ struct cull_result_t
 struct cull_params_t
 {
     vierkant::SceneConstPtr scene;
-    CameraPtr camera;
+    Object3DPtr camera;
     bool check_intersection = true;
     bool world_space = false;
     std::set<std::string> tags;

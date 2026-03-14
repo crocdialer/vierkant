@@ -10,7 +10,7 @@ namespace vierkant
 
 SceneRenderer::render_result_t UnlitForward::render_scene(vierkant::Rasterizer &renderer,
                                                           const vierkant::SceneConstPtr &scene,
-                                                          const vierkant::CameraPtr &cam,
+                                                          const vierkant::Object3DPtr &cam,
                                                           const std::set<std::string> &tags)
 {
     vierkant::cull_params_t cull_params = {};

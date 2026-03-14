@@ -173,7 +173,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 }
 
 SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer, const SceneConstPtr &scene,
-                                                           const CameraPtr &cam, const std::set<std::string> &tags)
+                                                           const Object3DPtr &cam, const std::set<std::string> &tags)
 {
     auto &frame_context = m_frame_contexts[renderer.current_index()];
     frame_context.statistics.timestamp = std::chrono::steady_clock::now();
@@ -295,7 +295,7 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
 }
 
 void PBRPathTracer::path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr & /*scene*/,
-                                    const CameraPtr &cam)
+                                    const Object3DPtr &cam)
 {
     update_trace_descriptors(frame_context, cam);
 
@@ -436,7 +436,7 @@ void PBRPathTracer::post_fx_pass(frame_context_t &frame_context)
     }
 }
 
-void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, const CameraPtr &cam)
+void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, const Object3DPtr &cam)
 {
     frame_context.tracable.descriptors.clear();
 
@@ -465,19 +465,20 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     }
 
     camera_params_t camera_params = {};
-    camera_params.projection_view = cam->projection_matrix() * mat4_cast(cam->view_transform());
-    camera_params.projection_inverse = glm::inverse(cam->projection_matrix());
+    camera_params.projection_view = camera::projection_matrix(cam.get()) * mat4_cast(camera::view_transform(cam.get()));
+    camera_params.projection_inverse = glm::inverse(camera::projection_matrix(cam.get()));
     camera_params.view_inverse = vierkant::mat4_cast(cam->global_transform());
     camera_params.ortho = true;
 
-    if(auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam))
+    const auto &cam_cmp = cam->get_component<camera_component_t>();
+
+    if(const auto *perspective_params = std::get_if<physical_camera_params_t>(&cam_cmp.params))
     {
         camera_params.ortho = false;
-        camera_params.fov = perspective_cam->perspective_params.fovy();
-        camera_params.aperture = frame_context.settings.depth_of_field
-                                         ? static_cast<float>(perspective_cam->perspective_params.aperture_size())
-                                         : 0.f;
-        camera_params.focal_distance = perspective_cam->perspective_params.focal_distance;
+        camera_params.fov = perspective_params->fovy();
+        camera_params.aperture =
+                frame_context.settings.depth_of_field ? static_cast<float>(perspective_params->aperture_size()) : 0.f;
+        camera_params.focal_distance = perspective_params->focal_distance;
     }
 
     trace_data_t trace_data = {};

@@ -31,11 +31,12 @@ TEST(TestPBRDeferred, basic)
     EXPECT_EQ(1, mesh->materials.size());
 
     // create camera / mesh-node/ scene
-    auto registry = std::make_shared<entt::registry>();
-    auto cam = vierkant::PerspectiveCamera::create(registry);
+    auto scene = vierkant::Scene::create();
+
+    auto cam = scene->create_object();
+    cam->add_component<vierkant::camera_component_t>({vierkant::physical_camera_params_t{}});
     EXPECT_TRUE(cam);
 
-    auto scene = vierkant::Scene::create();
     auto mesh_node = scene->create_mesh_object({mesh});
     EXPECT_TRUE(mesh_node);
 

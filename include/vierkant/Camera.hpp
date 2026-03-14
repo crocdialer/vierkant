@@ -7,8 +7,6 @@ namespace vierkant
 {
 
 DEFINE_CLASS_PTR(Camera)
-DEFINE_CLASS_PTR(OrthoCamera)
-DEFINE_CLASS_PTR(PerspectiveCamera)
 DEFINE_CLASS_PTR(CubeCamera)
 
 /**
@@ -19,118 +17,43 @@ DEFINE_CLASS_PTR(CubeCamera)
  */
 glm::vec2 clipping_distances(const glm::mat4 &projection);
 
-class Camera : virtual public Object3D
+struct camera_component_t
 {
-public:
-    vierkant::transform_t view_transform() const;
-
-    virtual glm::mat4 projection_matrix() const = 0;
-
-    virtual vierkant::Frustum frustum() const = 0;
-
-    virtual float near() const = 0;
-
-    virtual float far() const = 0;
-
-    virtual vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const = 0;
-
-    virtual vierkant::camera_params_variant_t params() const = 0;
-
-    void accept(class Visitor &v) override;
+    VIERKANT_ENABLE_AS_COMPONENT();
+    vierkant::camera_params_variant_t params;
 };
 
-class OrthoCamera : public Camera
+namespace camera
+{
+
+inline vierkant::transform_t view_transform(const vierkant::Object3D *camera)
+{
+    auto t = vierkant::inverse(camera->global_transform());
+    t.scale = {1.f, 1.f, 1.f};
+    return t;
+}
+
+glm::mat4 projection_matrix(const vierkant::Object3D *camera);
+float near(const vierkant::Object3D *camera);
+float far(const vierkant::Object3D *camera);
+vierkant::Frustum frustum(const vierkant::Object3D *camera);
+vierkant::Ray calculate_ray(const vierkant::Object3D *camera, const glm::vec2 &pos, const glm::vec2 &extent);
+
+}// namespace camera
+
+class CubeCamera
 {
 public:
-    vierkant::ortho_camera_params_t ortho_params;
+    CubeCamera(float near, float far) { m_params.clipping_distances = {near, far}; };
 
-    static OrthoCameraPtr create(const std::shared_ptr<entt::registry> &registry,
-                                 vierkant::ortho_camera_params_t params = {})
-    {
-        {
-            auto ret = OrthoCameraPtr(new OrthoCamera(registry.get()));
-            ret->ortho_params = params;
-            return ret;
-        }
-    }
+    [[nodiscard]] glm::mat4 projection_matrix() const;
 
-    glm::mat4 projection_matrix() const override;
+    [[nodiscard]] glm::mat4 view_matrix(uint32_t the_face) const;
 
-    vierkant::Frustum frustum() const override;
-
-    float near() const override { return ortho_params.near_; };
-
-    float far() const override { return ortho_params.far_; };
-
-    vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
-
-    vierkant::camera_params_variant_t params() const override { return ortho_params; }
-
-    void accept(class Visitor &v) override;
+    [[nodiscard]] std::vector<glm::mat4> view_matrices() const;
 
 private:
-    explicit OrthoCamera(entt::registry *registry);
-};
-
-class PerspectiveCamera : public Camera
-{
-public:
-    physical_camera_params_t perspective_params;
-
-    static PerspectiveCameraPtr create(const std::shared_ptr<entt::registry> &registry,
-                                       const physical_camera_params_t params = {})
-    {
-        auto ret = PerspectiveCameraPtr(new PerspectiveCamera(registry.get()));
-        ret->perspective_params = params;
-        return ret;
-    }
-
-    glm::mat4 projection_matrix() const override;
-
-    vierkant::Frustum frustum() const override;
-
-    float near() const override { return perspective_params.clipping_distances.x; };
-
-    float far() const override { return perspective_params.clipping_distances.y; };
-
-    vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
-
-    vierkant::camera_params_variant_t params() const override { return perspective_params; }
-
-    void accept(class Visitor &v) override;
-
-private:
-    explicit PerspectiveCamera(entt::registry *registry);
-};
-
-class CubeCamera : public Camera
-{
-public:
-    static CubeCameraPtr create(float the_near, float the_far)
-    {
-        return CubeCameraPtr(new CubeCamera(the_near, the_far));
-    };
-
-    glm::mat4 projection_matrix() const override;
-
-    vierkant::Frustum frustum() const override;
-
-    float near() const override { return m_near; };
-
-    float far() const override { return m_far; };
-
-    vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
-
-    vierkant::camera_params_variant_t params() const override { return vierkant::physical_camera_params_t(); }
-
-    glm::mat4 view_matrix(uint32_t the_face) const;
-
-    std::vector<glm::mat4> view_matrices() const;
-
-private:
-    CubeCamera(float the_near, float the_far);
-
-    float m_near, m_far;
+    physical_camera_params_t m_params = {};
 };
 
 }// namespace vierkant

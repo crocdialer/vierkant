@@ -47,7 +47,9 @@ void HelloTriangleApplication::create_context_and_window()
     window_delegate.draw_fn = [this](const vierkant::WindowPtr &w) { return draw(w); };
     window_delegate.resize_fn = [this](uint32_t w, uint32_t h) {
         create_graphics_pipeline();
-        m_camera->perspective_params.aspect = m_window->aspect_ratio();
+        auto &camera_params = std::get<vierkant::physical_camera_params_t>(
+                m_camera->get_component<vierkant::camera_component_t>().params);
+        camera_params.aspect = m_window->aspect_ratio();
     };
     window_delegate.close_fn = [this]() { running = false; };
     m_window->window_delegates[name()] = window_delegate;
@@ -75,7 +77,11 @@ void HelloTriangleApplication::create_context_and_window()
     m_window->mouse_delegates["gui"] = m_gui_context.mouse_delegate();
 
     // camera
-    m_camera = vierkant::PerspectiveCamera::create(m_registry);
+    m_camera = m_object_store->create_object();
+    vierkant::physical_camera_params_t params = {};
+    m_camera->add_component<vierkant::camera_component_t>({params});
+    m_camera->name = "default";
+
     m_camera->transform.emplace();
     m_camera->transform->translation = {0.f, 0.f, 3.f};
 }
@@ -111,16 +117,15 @@ void HelloTriangleApplication::load_model()
     vierkant::create_drawables_params_t drawable_params = {};
 
     m_drawable = vierkant::create_drawables({m_mesh}, drawable_params).front();
-    m_drawable.pipeline_format.shader_stages =
-            vierkant::create_shader_stages(vierkant::ShaderType::UNLIT_COLOR);
+    m_drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(vierkant::ShaderType::UNLIT_COLOR);
 }
 
 void HelloTriangleApplication::update(double time_delta)
 {
     m_gui_context.update(time_delta, m_window->size(), m_window->framebuffer_size());
 
-    m_drawable.matrices.transform = m_camera->view_transform();
-    m_drawable.matrices.projection = m_camera->projection_matrix();
+    m_drawable.matrices.transform = vierkant::camera::view_transform(m_camera.get());
+    m_drawable.matrices.projection = vierkant::camera::projection_matrix(m_camera.get());
 
     // issue top-level draw-command
     m_window->draw();
@@ -155,6 +160,9 @@ vierkant::window_delegate_t::draw_result_t HelloTriangleApplication::draw(const 
         // get values from completed futures
         for(auto &f: cmd_futures) { ret.command_buffers.push_back(f.get()); }
     }
-    else { ret.command_buffers = {render_mesh(), render_gui()}; }
+    else
+    {
+        ret.command_buffers = {render_mesh(), render_gui()};
+    }
     return ret;
 }

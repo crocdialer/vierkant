@@ -64,7 +64,12 @@ public:
     * @param    mesh_component  a provided mesh-component
     * @return   a newly created Object3D with attached components.
     */
-    [[nodiscard]] vierkant::Object3DPtr create_mesh_object(const vierkant::mesh_component_t &mesh_component) const;
+    vierkant::Object3DPtr create_mesh_object(const vierkant::mesh_component_t &mesh_component);
+
+    vierkant::Object3DPtr create_object();
+
+    vierkant::Object3DPtr
+    create_camera(const vierkant::camera_params_variant_t &params = vierkant::physical_camera_params_t{});
 
 protected:
     explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store);
