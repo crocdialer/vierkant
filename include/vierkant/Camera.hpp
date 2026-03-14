@@ -27,7 +27,11 @@ namespace camera
 {
 
 inline vierkant::transform_t view_transform(const vierkant::Object3D *camera)
-{ return vierkant::inverse(camera->global_transform()); }
+{
+    auto t = vierkant::inverse(camera->global_transform());
+    t.scale = {1.f, 1.f, 1.f};
+    return t;
+}
 
 glm::mat4 projection_matrix(const vierkant::Object3D *camera);
 float near(const vierkant::Object3D *camera);
