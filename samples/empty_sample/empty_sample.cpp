@@ -47,7 +47,8 @@ void HelloTriangleApplication::create_context_and_window()
     window_delegate.draw_fn = [this](const vierkant::WindowPtr &w) { return draw(w); };
     window_delegate.resize_fn = [this](uint32_t w, uint32_t h) {
         create_graphics_pipeline();
-        auto &camera_params = std::get<vierkant::physical_camera_params_t>(m_camera->params());
+        auto &camera_params = std::get<vierkant::physical_camera_params_t>(
+                m_camera->get_component<vierkant::camera_component_t>().params);
         camera_params.aspect = m_window->aspect_ratio();
     };
     window_delegate.close_fn = [this]() { running = false; };
@@ -76,7 +77,11 @@ void HelloTriangleApplication::create_context_and_window()
     m_window->mouse_delegates["gui"] = m_gui_context.mouse_delegate();
 
     // camera
-    m_camera = vierkant::PerspectiveCamera::create(m_registry);
+    m_camera = m_object_store->create_object();
+    vierkant::physical_camera_params_t params = {};
+    m_camera->add_component<vierkant::camera_component_t>({params});
+    m_camera->name = "default";
+
     m_camera->transform.emplace();
     m_camera->transform->translation = {0.f, 0.f, 3.f};
 }
@@ -119,8 +124,8 @@ void HelloTriangleApplication::update(double time_delta)
 {
     m_gui_context.update(time_delta, m_window->size(), m_window->framebuffer_size());
 
-    m_drawable.matrices.transform = m_camera->view_transform();
-    m_drawable.matrices.projection = m_camera->projection_matrix();
+    m_drawable.matrices.transform = vierkant::camera::view_transform(m_camera.get());
+    m_drawable.matrices.projection = vierkant::camera::projection_matrix(m_camera.get());
 
     // issue top-level draw-command
     m_window->draw();

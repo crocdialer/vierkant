@@ -79,9 +79,7 @@ inline ray_intersection intersect(const Ray &ray, const Plane &plane) { return i
 ray_triangle_intersection intersect(const Triangle &triangle, const Ray &ray);
 
 inline ray_triangle_intersection intersect(const Ray &ray, const Triangle &triangle)
-{
-    return intersect(triangle, ray);
-}
+{ return intersect(triangle, ray); }
 
 
 ray_intersection intersect(const Sphere &sphere, const Ray &ray);
@@ -149,6 +147,8 @@ struct Ray
     glm::vec3 origin;
     glm::vec3 direction;
 
+    Ray() = default;
+
     Ray(const glm::vec3 &origin_, const glm::vec3 &direction_) : origin(origin_), direction(normalize(direction_)) {}
 
     inline Ray &transform(const glm::mat4 &t)
@@ -187,9 +187,7 @@ struct Plane
     [[nodiscard]] inline const glm::vec3 &normal() const { return *((glm::vec3 *) (&coefficients[0])); };
 
     [[nodiscard]] inline float distance(const glm::vec3 &p) const
-    {
-        return dot(p, coefficients.xyz()) + coefficients.w;
-    };
+    { return dot(p, coefficients.xyz()) + coefficients.w; };
 
     inline Plane &transform(const glm::mat4 &t)
     {

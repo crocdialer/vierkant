@@ -48,6 +48,15 @@ vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_com
     return object;
 }
 
+vierkant::Object3DPtr Scene::create_object() const { return m_object_store->create_object(); }
+
+vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_params_variant_t &params) const
+{
+    auto cam = m_object_store->create_object();
+    cam->add_component<vierkant::camera_component_t>({params});
+    return cam;
+}
+
 
 Scene::Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store)
     : m_object_store(object_store ? object_store : create_object_store())
@@ -57,9 +66,7 @@ Scene::Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store)
 }
 
 ScenePtr Scene::create(const std::shared_ptr<vierkant::ObjectStore> &object_store)
-{
-    return ScenePtr(new Scene(object_store));
-}
+{ return ScenePtr(new Scene(object_store)); }
 
 void Scene::add_object(const Object3DPtr &object) { m_root->add_child(object); }
 
@@ -107,7 +114,10 @@ void Scene::update(double time_delta)
                     timer_cmp->timer_fn(obj);
 
                     if(timer_cmp->repeat) { timer_cmp->duration += timer_cmp->total; }
-                    else { timer_cmp->timer_fn = {}; }
+                    else
+                    {
+                        timer_cmp->timer_fn = {};
+                    }
                 }
             }
             return true;

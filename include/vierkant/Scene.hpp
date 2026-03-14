@@ -66,6 +66,10 @@ public:
     */
     [[nodiscard]] vierkant::Object3DPtr create_mesh_object(const vierkant::mesh_component_t &mesh_component) const;
 
+    [[nodiscard]] vierkant::Object3DPtr create_object() const;
+
+    [[nodiscard]] vierkant::Object3DPtr create_camera(const vierkant::camera_params_variant_t &params = {}) const;
+
 protected:
     explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store);
 

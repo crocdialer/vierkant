@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <crocore/Application.hpp>
 #include <crocore/Animation.hpp>
+#include <crocore/Application.hpp>
 
 #include <vierkant/vierkant.hpp>
 
@@ -28,11 +28,10 @@ class HelloTriangleApplication : public crocore::Application
 {
 
 public:
-
-    explicit HelloTriangleApplication(const crocore::Application::create_info_t &create_info) : crocore::Application(create_info){};
+    explicit HelloTriangleApplication(const crocore::Application::create_info_t &create_info)
+        : crocore::Application(create_info) {};
 
 private:
-
     void setup() override;
 
     void update(double time_delta) override;
@@ -54,7 +53,7 @@ private:
     bool m_fullscreen = false;
 
     // entity registry
-    std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
+    std::unique_ptr<vierkant::ObjectStore> m_object_store = vierkant::create_object_store();
 
     // bundles basic Vulkan assets
     vierkant::Instance m_instance;
@@ -73,7 +72,7 @@ private:
 
     vierkant::gui::Context m_gui_context;
 
-    vierkant::PerspectiveCameraPtr m_camera;
+    vierkant::Object3DPtr m_camera;
 };
 
 int main(int argc, char *argv[])
