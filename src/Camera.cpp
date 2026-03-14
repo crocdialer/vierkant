@@ -175,15 +175,8 @@ vierkant::Ray calculate_ray(const vierkant::Object3D *camera, const glm::vec2 &p
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-CubeCamera::CubeCamera(entt::registry *registry) : Object3D(registry, "CubeCamera") {}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 glm::mat4 CubeCamera::projection_matrix() const
-{
-    const auto &perspective_params = std::get<physical_camera_params_t>(get_component<camera_component_t>().params);
-    return perspective_infinite_reverse_RH_ZO(glm::radians(90.f), 1.f, perspective_params.clipping_distances.x);
-}
+{ return perspective_infinite_reverse_RH_ZO(glm::radians(90.f), 1.f, m_params.clipping_distances.x); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -193,7 +186,7 @@ glm::mat4 CubeCamera::view_matrix(uint32_t the_face) const
 
     constexpr glm::vec3 vals[12] = {X_AXIS, -Y_AXIS, -X_AXIS, -Y_AXIS, -Y_AXIS, -Z_AXIS,
                                     Y_AXIS, Z_AXIS,  Z_AXIS,  -Y_AXIS, -Z_AXIS, -Y_AXIS};
-    glm::vec3 p = global_transform().translation;
+    glm::vec3 p{};// = global_transform().translation;
     the_face = crocore::clamp<uint32_t>(the_face, 0, 5);
     return glm::lookAt(p, p + vals[2 * the_face], vals[2 * the_face + 1]);
 }

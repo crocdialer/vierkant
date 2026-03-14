@@ -337,9 +337,8 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, const vi
     drawable.pipeline_format.cull_mode = VK_CULL_MODE_FRONT_BIT;
     drawable.use_own_buffers = true;
 
-    // stupid hack. all we need are vanilla view/projection matrices for 6 directions
-    entt::registry tmp_registry;
-    auto cube_cam = vierkant::CubeCamera::create(&tmp_registry, .1f, 10.f);
+    // all we need are vanilla view/projection matrices for 6 directions
+    auto cube_cam = vierkant::CubeCamera(.1f, 10.f);
 
     struct geom_shader_ubo_t
     {
@@ -348,8 +347,8 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, const vi
         glm::mat4 projection_matrix = glm::mat4(1);
     };
     geom_shader_ubo_t ubo_data = {};
-    memcpy(ubo_data.view_matrix, cube_cam->view_matrices().data(), sizeof(ubo_data.view_matrix));
-    ubo_data.projection_matrix = cube_cam->projection_matrix();
+    memcpy(ubo_data.view_matrix, cube_cam.view_matrices().data(), sizeof(ubo_data.view_matrix));
+    ubo_data.projection_matrix = cube_cam.projection_matrix();
 
     vierkant::descriptor_t desc_matrices = {};
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;

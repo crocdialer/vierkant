@@ -41,26 +41,19 @@ vierkant::Ray calculate_ray(const vierkant::Object3D *camera, const glm::vec2 &p
 
 }// namespace camera
 
-class CubeCamera : public Object3D
+class CubeCamera
 {
 public:
-    static CubeCameraPtr create(entt::registry *registry, float near, float far)
-    {
-        auto ret = CubeCameraPtr(new CubeCamera(registry));
-        physical_camera_params_t params = {};
-        params.clipping_distances = {near, far};
-        ret->add_component<camera_component_t>({params});
-        return ret;
-    };
+    CubeCamera(float near, float far) { m_params.clipping_distances = {near, far}; };
 
-    glm::mat4 projection_matrix() const;
+    [[nodiscard]] glm::mat4 projection_matrix() const;
 
-    glm::mat4 view_matrix(uint32_t the_face) const;
+    [[nodiscard]] glm::mat4 view_matrix(uint32_t the_face) const;
 
-    std::vector<glm::mat4> view_matrices() const;
+    [[nodiscard]] std::vector<glm::mat4> view_matrices() const;
 
 private:
-    CubeCamera(entt::registry *registry);
+    physical_camera_params_t m_params = {};
 };
 
 }// namespace vierkant
