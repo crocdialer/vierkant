@@ -12,6 +12,20 @@
 namespace vierkant::gui
 {
 
+enum class GuizmoType
+{
+    INACTIVE = 0,
+    TRANSLATE,
+    ROTATE,
+    SCALE
+};
+
+enum class GuizmoSpace
+{
+    WORLD = 0,
+    LOCAL = 1
+};
+
 void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::WindowPtr &window);
 
 void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level_enum>> &items);
@@ -29,21 +43,14 @@ void draw_object_ui(const vierkant::Object3DPtr &object);
 
 void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params);
 
-enum class GuizmoType
-{
-    INACTIVE = 0,
-    TRANSLATE,
-    ROTATE,
-    SCALE
-};
-
-bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Object3DConstPtr &camera, GuizmoType type);
+bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Object3DConstPtr &camera, GuizmoType type,
+                           GuizmoSpace space = GuizmoSpace::WORLD);
 
 void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::Object3DConstPtr &camera,
-                           GuizmoType type);
+                           GuizmoType type, GuizmoSpace space = GuizmoSpace::WORLD);
 
 void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, const vierkant::Object3DConstPtr &camera,
-                           GuizmoType type);
+                           GuizmoType type, GuizmoSpace space = GuizmoSpace::WORLD);
 
 bool draw_material_ui(vierkant::material_t &material,
                       const std::function<void(vierkant::TextureType, const std::string &)> &draw_texture_fn = {});
