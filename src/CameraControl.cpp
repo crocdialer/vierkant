@@ -156,11 +156,22 @@ void FlyCamera::update(double time_delta)
 
                 switch(key)
                 {
+                    case vierkant::Key::_E:
                     case vierkant::Key::_PAGE_UP: move_mask.y += 1.f; break;
+
+                    case vierkant::Key::_Q:
                     case vierkant::Key::_PAGE_DOWN: move_mask.y -= 1.f; break;
+
+                    case vierkant::Key::_D:
                     case vierkant::Key::_RIGHT: move_mask.x += 1.f; break;
+
+                    case vierkant::Key::_A:
                     case vierkant::Key::_LEFT: move_mask.x -= 1.f; break;
+
+                    case vierkant::Key::_W:
                     case vierkant::Key::_UP: move_mask.z -= 1.f; break;
+
+                    case vierkant::Key::_S:
                     case vierkant::Key::_DOWN: move_mask.z += 1.f; break;
                     default: break;
                 }
@@ -214,7 +225,7 @@ vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
             diff *= mouse_sensitivity;
             orbit(diff);
             m_last_cursor_pos = e.position();
-            if(enabled && transform_cb) { transform_cb(transform()); }
+            if(transform_cb) { transform_cb(transform()); }
         }
     };
     return ret;
@@ -226,6 +237,12 @@ vierkant::key_delegate_t FlyCamera::key_delegate()
     ret.key_press = [this](const vierkant::KeyEvent &e) {
         switch(e.code())
         {
+            case vierkant::Key::_A:
+            case vierkant::Key::_S:
+            case vierkant::Key::_D:
+            case vierkant::Key::_W:
+            case vierkant::Key::_Q:
+            case vierkant::Key::_E:
             case vierkant::Key::_PAGE_UP:
             case vierkant::Key::_PAGE_DOWN:
             case vierkant::Key::_RIGHT:
@@ -240,6 +257,12 @@ vierkant::key_delegate_t FlyCamera::key_delegate()
     ret.key_release = [this](const vierkant::KeyEvent &e) {
         switch(e.code())
         {
+            case vierkant::Key::_A:
+            case vierkant::Key::_S:
+            case vierkant::Key::_D:
+            case vierkant::Key::_W:
+            case vierkant::Key::_Q:
+            case vierkant::Key::_E:
             case vierkant::Key::_PAGE_UP:
             case vierkant::Key::_PAGE_DOWN:
             case vierkant::Key::_RIGHT:
