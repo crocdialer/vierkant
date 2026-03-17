@@ -42,7 +42,10 @@ VkResult CreateDebugUtilMessenger(VkInstance instance, const VkDebugUtilsMesseng
     {
         return vkCreateDebugUtilsMessengerEXT(instance, pCreateInfo, pAllocator, pCallback);
     }
-    else { return VK_ERROR_EXTENSION_NOT_PRESENT; }
+    else
+    {
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
 }
 
 void DestroyDebugUtilMessenger(VkInstance instance, VkDebugUtilsMessengerEXT callback,
@@ -217,10 +220,11 @@ bool Instance::init(const create_info_t &create_info)
     spdlog::debug("instance-extensions: {}", used_extensions);
 
     // check support for validation-layers
+    bool use_validation_layers = create_info.use_validation_layers;
     if(create_info.use_validation_layers && !check_validation_layer_support())
     {
-        spdlog::error("validation layers requested, but not available!");
-        return false;
+        spdlog::warn("validation layers requested, but not available!");
+        use_validation_layers = false;
     }
 
     VkApplicationInfo app_info = {};
@@ -239,8 +243,8 @@ bool Instance::init(const create_info_t &create_info)
     instance_create_info.enabledExtensionCount = used_extensions.size();
     instance_create_info.ppEnabledExtensionNames = used_extensions.data();
     instance_create_info.enabledLayerCount =
-            create_info.use_validation_layers ? static_cast<uint32_t>(g_validation_layers.size()) : 0;
-    instance_create_info.ppEnabledLayerNames = create_info.use_validation_layers ? g_validation_layers.data() : nullptr;
+            use_validation_layers ? static_cast<uint32_t>(g_validation_layers.size()) : 0;
+    instance_create_info.ppEnabledLayerNames = use_validation_layers ? g_validation_layers.data() : nullptr;
 
     VkDebugUtilsMessengerCreateInfoEXT debug_utils_create_info = {};
     debug_utils_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -250,7 +254,7 @@ bool Instance::init(const create_info_t &create_info)
     debug_utils_create_info.pfnUserCallback = debug_callback;
 
     // request debug_utils only if validation was requested
-    instance_create_info.pNext = create_info.use_validation_layers ? &debug_utils_create_info : nullptr;
+    instance_create_info.pNext = use_validation_layers ? &debug_utils_create_info : nullptr;
 
     // create the vulkan instance
     vkCheck(vkCreateInstance(&instance_create_info, nullptr, &m_handle), "failed to create instance!");
@@ -258,7 +262,7 @@ bool Instance::init(const create_info_t &create_info)
     // load all instance-functions pointers dynamically
     volkLoadInstance(m_handle);
 
-    if(create_info.use_validation_layers)
+    if(use_validation_layers)
     {
         vkCheck(CreateDebugUtilMessenger(m_handle, &debug_utils_create_info, nullptr, &m_debug_messenger),
                 "failed to create 'VkDebugUtilsMessengerEXT'");

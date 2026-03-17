@@ -6,9 +6,6 @@
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(Camera)
-DEFINE_CLASS_PTR(CubeCamera)
-
 /**
  * @brief   Extract the near- and far-clipping distances from a projection matrix.
  *
