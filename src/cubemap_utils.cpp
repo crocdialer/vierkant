@@ -98,6 +98,9 @@ vierkant::ImagePtr cubemap_neutral_environment(const vierkant::DevicePtr &device
     // mandatory to sync here
     vkWaitForFences(device->handle(), fences.size(), fences.data(), VK_TRUE, std::numeric_limits<uint64_t>::max());
 
+    device->set_object_name(reinterpret_cast<uint64_t>(ret_img->image()), VK_OBJECT_TYPE_IMAGE,
+                            "cubemap_neutral_environment");
+
     return ret_img;
 }
 
@@ -141,6 +144,8 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::DevicePtr &device, cons
     // mandatory to sync here
     vkWaitForFences(device->handle(), fences.size(), fences.data(), VK_TRUE, std::numeric_limits<uint64_t>::max());
 
+    device->set_object_name(reinterpret_cast<uint64_t>(ret_img->image()), VK_OBJECT_TYPE_IMAGE,
+                            "cubemap_from_panorama");
     return ret_img;
 }
 
@@ -304,6 +309,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, const vi
     img_fmt.num_layers = 6;
     img_fmt.use_mipmap = false;
     img_fmt.format = color_format;
+    img_fmt.name = "cube_frame_buffer";
 
     // create cube framebuffer
     vierkant::Framebuffer::create_info_t fb_create_info = {};
