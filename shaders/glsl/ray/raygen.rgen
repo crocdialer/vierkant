@@ -6,9 +6,8 @@
 
 #include "../utils/random.glsl"
 #include "../utils/hash.glsl"
-#include "../utils/bsdf.glsl"
+#include "../utils/sampling.glsl"
 #include "ray_common.glsl"
-#include "reservoir.glsl"
 
 #define MAX_MEDIA_STACK_SIZE 4
 
