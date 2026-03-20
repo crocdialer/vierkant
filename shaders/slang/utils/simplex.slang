@@ -29,7 +29,7 @@ public float simplex(float3 v)
     const float2 C = float2(1.0 / 6.0, 1.0 / 3.0);
     const float4 D = float4(0.0, 0.5, 1.0, 2.0);
 
-    float3 i  = floor(v + dot(v, C.yyy));
+    float3 i = floor(v + dot(v, C.yyy));
     float3 x0 = v - i + dot(i, C.xxx);
 
     float3 g = step(x0.yzx, x0.xyz);
@@ -42,10 +42,8 @@ public float simplex(float3 v)
     float3 x3 = x0 - D.yyy;
 
     i = _mod289(i);
-    float4 p = _permute(_permute(_permute(
-        i.z + float4(0.0, i1.z, i2.z, 1.0))
-        + i.y + float4(0.0, i1.y, i2.y, 1.0))
-        + i.x + float4(0.0, i1.x, i2.x, 1.0));
+    float4 p = _permute(_permute(_permute(i.z + float4(0.0, i1.z, i2.z, 1.0)) + i.y + float4(0.0, i1.y, i2.y, 1.0)) +
+                        i.x + float4(0.0, i1.x, i2.x, 1.0));
 
     float n_ = 0.142857142857;
     float3 ns = n_ * D.wyz - D.xzx;
@@ -98,13 +96,10 @@ float4 _grad4(float j, float4 ip)
 
 public float simplex(float4 v)
 {
-    const float4 C = float4(0.138196601125011,
-                            0.276393202250021,
-                            0.414589803375032,
-                           -0.447213595499958);
+    const float4 C = float4(0.138196601125011, 0.276393202250021, 0.414589803375032, -0.447213595499958);
     const float F4 = 0.309016994374947451;
 
-    float4 i  = floor(v + dot(v, float4(F4)));
+    float4 i = floor(v + dot(v, float4(F4)));
     float4 x0 = v - i + dot(i, C.xxxx);
 
     float4 i0;
@@ -128,15 +123,14 @@ public float simplex(float4 v)
 
     i = _mod289(i);
     float j0 = _permute(_permute(_permute(_permute(i.w) + i.z) + i.y) + i.x);
-    float4 j1 = _permute(_permute(_permute(_permute(
-        i.w + float4(i1.w, i2.w, i3.w, 1.0))
-        + i.z + float4(i1.z, i2.z, i3.z, 1.0))
-        + i.y + float4(i1.y, i2.y, i3.y, 1.0))
-        + i.x + float4(i1.x, i2.x, i3.x, 1.0));
+    float4 j1 = _permute(
+            _permute(_permute(_permute(i.w + float4(i1.w, i2.w, i3.w, 1.0)) + i.z + float4(i1.z, i2.z, i3.z, 1.0)) +
+                     i.y + float4(i1.y, i2.y, i3.y, 1.0)) +
+            i.x + float4(i1.x, i2.x, i3.x, 1.0));
 
     float4 ip = float4(1.0 / 294.0, 1.0 / 49.0, 1.0 / 7.0, 0.0);
 
-    float4 p0 = _grad4(j0,   ip);
+    float4 p0 = _grad4(j0, ip);
     float4 p1 = _grad4(j1.x, ip);
     float4 p2 = _grad4(j1.y, ip);
     float4 p3 = _grad4(j1.z, ip);
@@ -153,8 +147,8 @@ public float simplex(float4 v)
     float2 m1 = max(0.6 - float2(dot(x3, x3), dot(x4, x4)), 0.0);
     m0 = m0 * m0;
     m1 = m1 * m1;
-    return 49.0 * (dot(m0 * m0, float3(dot(p0, x0), dot(p1, x1), dot(p2, x2)))
-                 + dot(m1 * m1, float2(dot(p3, x3), dot(p4, x4))));
+    return 49.0 * (dot(m0 * m0, float3(dot(p0, x0), dot(p1, x1), dot(p2, x2))) +
+                   dot(m1 * m1, float2(dot(p3, x3), dot(p4, x4))));
 }
 
-} // namespace utils
+}// namespace utils

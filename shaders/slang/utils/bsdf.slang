@@ -12,15 +12,9 @@ public float SchlickFresnel(float u)
     return m * m * m * m * m;
 }
 
-public float F_Schlick(float cosTheta, float F0)
-{
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-}
+public float F_Schlick(float cosTheta, float F0) { return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0); }
 
-public float3 F_Schlick(float cosTheta, float3 F0)
-{
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-}
+public float3 F_Schlick(float cosTheta, float3 F0) { return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0); }
 
 public float3 F_SchlickR(float cosTheta, float3 F0, float roughness)
 {
@@ -30,7 +24,7 @@ public float3 F_SchlickR(float cosTheta, float3 F0, float roughness)
 public float DielectricFresnel(float cos_theta_i, float eta)
 {
     float sinThetaTSq = eta * eta * (1.0 - cos_theta_i * cos_theta_i);
-    if (sinThetaTSq > 1.0) return 1.0;
+    if(sinThetaTSq > 1.0) return 1.0;
 
     float cos_theta_t = sqrt(max(1.0 - sinThetaTSq, 0.0));
     float rs = (eta * cos_theta_t - cos_theta_i) / (eta * cos_theta_t + cos_theta_i);
@@ -56,11 +50,9 @@ public float3 IorToFresnel0(float3 transmittedIor, float incidentIor)
 }
 
 // XYZ to sRGB/Rec.709 matrix (column-major, same as GLSL mat3 constructor)
-static const float3x3 XYZ_TO_REC709 = float3x3(
-    float3(3.2404542, -0.9692660,  0.0556434),
-    float3(-1.5371385,  1.8760108, -0.2040259),
-    float3(-0.4985314,  0.0415560,  1.0572252)
-);
+static const float3x3 XYZ_TO_REC709 =
+        float3x3(float3(3.2404542, -0.9692660, 0.0556434), float3(-1.5371385, 1.8760108, -0.2040259),
+                 float3(-0.4985314, 0.0415560, 1.0572252));
 
 public float3 evalSensitivity(float OPD, float3 shift)
 {
@@ -77,7 +69,8 @@ public float3 evalSensitivity(float OPD, float3 shift)
     return mul(XYZ_TO_REC709, xyz);
 }
 
-public float3 iridescent_fresnel(float outsideIOR, float iridescenceIOR, float3 baseF0, float iridescenceThickness, float cosTheta1)
+public float3 iridescent_fresnel(float outsideIOR, float iridescenceIOR, float3 baseF0, float iridescenceThickness,
+                                 float cosTheta1)
 {
     float R0 = IorToFresnel0(iridescenceIOR, outsideIOR);
     float R12 = F_Schlick(cosTheta1, R0);
@@ -85,7 +78,7 @@ public float3 iridescent_fresnel(float outsideIOR, float iridescenceIOR, float3 
 
     float sinTheta2Sq = pow(outsideIOR / iridescenceIOR, 2.0) * (1.0 - pow(cosTheta1, 2.0));
     float cosTheta2Sq = 1.0 - sinTheta2Sq;
-    if (cosTheta2Sq < 0.0) return float3(1.0);
+    if(cosTheta2Sq < 0.0) return float3(1.0);
     float cosTheta2 = sqrt(cosTheta2Sq);
 
     float3 baseIOR = Fresnel0ToIor(clamp(baseF0, 0.0, 0.9999) + 0.0001);
@@ -96,9 +89,9 @@ public float3 iridescent_fresnel(float outsideIOR, float iridescenceIOR, float3 
     float phi21 = PI - phi12;
 
     float3 phi23 = float3(0.0);
-    if (baseIOR.x < iridescenceIOR) phi23.x = PI;
-    if (baseIOR.y < iridescenceIOR) phi23.y = PI;
-    if (baseIOR.z < iridescenceIOR) phi23.z = PI;
+    if(baseIOR.x < iridescenceIOR) phi23.x = PI;
+    if(baseIOR.y < iridescenceIOR) phi23.y = PI;
+    if(baseIOR.z < iridescenceIOR) phi23.z = PI;
 
     float3 phi = float3(phi21) + phi23;
     float OPD = 2.0 * iridescenceIOR * iridescenceThickness * cosTheta1;
@@ -111,7 +104,7 @@ public float3 iridescent_fresnel(float outsideIOR, float iridescenceIOR, float3 
     float3 I = C0;
     float3 Cm = Rs - T121;
 
-    for (int m = 1; m <= 2; ++m)
+    for(int m = 1; m <= 2; ++m)
     {
         Cm *= r123;
         float3 Sm = 2.0 * evalSensitivity(float(m) * OPD, float(m) * phi);
@@ -122,7 +115,7 @@ public float3 iridescent_fresnel(float outsideIOR, float iridescenceIOR, float3 
 
 public float GTR1(float NDotH, float a)
 {
-    if (a >= 1.0) return (1.0 / PI);
+    if(a >= 1.0) return (1.0 / PI);
     float a2 = a * a;
     float t = 1.0 + (a2 - 1.0) * NDotH * NDotH;
     return (a2 - 1.0) / (PI * log(a2) * t);
@@ -148,4 +141,4 @@ public float power_heuristic(float a, float b)
     return t / (b * b + t);
 }
 
-} // namespace utils
+}// namespace utils

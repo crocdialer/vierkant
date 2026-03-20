@@ -33,9 +33,6 @@ public uint lcg(inout uint prev)
 }
 
 // Generate a random float in [0, 1) given the previous RNG state
-public float rnd(inout uint prev)
-{
-    return float(lcg(prev)) / float(0x01000000);
-}
+public float rnd(inout uint prev) { return float(lcg(prev)) / float(0x01000000); }
 
 }// namespace utils

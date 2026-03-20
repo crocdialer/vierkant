@@ -8,7 +8,7 @@ namespace utils
 //! return a Hammersley point in range [0, 1]
 public float2 Hammersley(uint i, uint N)
 {
-    float vdc = float(reversebits(i)) * 2.3283064365386963e-10; // Van der Corput
+    float vdc = float(reversebits(i)) * 2.3283064365386963e-10;// Van der Corput
     return float2(float(i) / float(N), vdc);
 }
 

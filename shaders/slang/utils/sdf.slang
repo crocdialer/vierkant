@@ -3,10 +3,7 @@ module sdf;
 namespace utils
 {
 
-public float sd_sphere(float3 p, float r)
-{
-    return length(p) - r;
-}
+public float sd_sphere(float3 p, float r) { return length(p) - r; }
 
 public float sdBox(float3 p, float3 b)
 {
@@ -33,4 +30,4 @@ public float sdCappedCylinder(float3 p, float h, float r)
     return min(max(d.x, d.y), 0.0) + length(max(d, 0.0));
 }
 
-} // namespace utils
+}// namespace utils

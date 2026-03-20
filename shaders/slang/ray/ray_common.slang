@@ -34,7 +34,7 @@ public static const uint MISS_INDEX_DEFAULT = 0;
 
 public enum MediaOp : uint
 {
-    NoOp  = 0,
+    NoOp = 0,
     Enter = 1,
     Leave = 2,
 };
@@ -133,11 +133,11 @@ public struct trace_data_t
     public media_t camera_media;
 
     // device pointers
-    public utils::packed_vertex_t** vertex_buffers;
-    public uint32_t**  index_buffers;
-    public entry_t*          entries;
-    public material_t*       materials;
-    public pixel_data_t*     out_pixels;
+    public utils::packed_vertex_t **vertex_buffers;
+    public uint32_t **index_buffers;
+    public entry_t *entries;
+    public material_t *materials;
+    public pixel_data_t *out_pixels;
 };
 
-} // namespace ray
+}// namespace ray
