@@ -11,7 +11,7 @@ public struct matrix_struct_t
     public float4x4 projection;
     public float4x4 texture;
     public utils::transform_t transform;
-    uint pad[2];
+    private uint pad[2];
 };
 
 // Per-draw data
@@ -46,7 +46,7 @@ public struct mesh_entry_t
     public uint vertex_offset;
     public uint vertex_count;
     public uint lod_count;
-    uint pad;
+    private uint pad;
     public lod_t lods[MAX_NUM_MESH_LODS];
 };
 
@@ -174,10 +174,7 @@ public enum DrawCommandFlags : uint
     Meshlets = 0x08,
 };
 
-public bool has_flag(uint flag_bits, uint flag)
-{
-    return (flag_bits & flag) == flag;
-}
+public bool has_flag(uint flag_bits, uint flag) { return (flag_bits & flag) == flag; }
 
 public void set_flag(inout uint flag_bits, uint flag, bool value)
 {
@@ -188,45 +185,45 @@ public void set_flag(inout uint flag_bits, uint flag, bool value)
 public struct indexed_draw_command_t
 {
     // DrawIndexed-style parameters
-    uint index_count;
-    uint instance_count;
-    uint first_index;
-    int vertex_offset;
-    uint first_instance;
+    public uint index_count;
+    public uint instance_count;
+    public uint first_index;
+    public int vertex_offset;
+    public uint first_instance;
 
     // Mesh shader dispatch parameters
-    uint group_count_x;
-    uint group_count_y;
-    uint group_count_z;
+    public uint group_count_x;
+    public uint group_count_y;
+    public uint group_count_z;
 
-    DrawCommandFlags flags;
-    uint object_index;
-    uint base_meshlet;
-    uint num_meshlets;
-    uint meshlet_visibility_index;
-    uint count_buffer_offset;
-    uint first_draw_index;
-    uint pad;
+    public DrawCommandFlags flags;
+    public uint object_index;
+    public uint base_meshlet;
+    public uint num_meshlets;
+    public uint meshlet_visibility_index;
+    public uint count_buffer_offset;
+    public uint first_draw_index;
+    private uint pad;
 };
 
 // Compact representation of a meshlet
 public struct meshlet_t
 {
-    uint vertex_offset;
-    uint triangle_offset;
+    public uint vertex_offset;
+    public uint triangle_offset;
 
-    uint8_t vertex_count;
-    uint8_t triangle_count;
+    public uint8_t vertex_count;
+    public uint8_t triangle_count;
 
     //! normal cone, useful for backface culling (packed as snorm8)
-    int8_t cone_axis[3];
-    int8_t cone_cutoff;
+    public int8_t cone_axis[3];
+    public int8_t cone_cutoff;
 
-    uint8_t padding[2];
+    private uint8_t padding[2];
 
     //! bounding sphere (center, radius), useful for frustum and occlusion culling
-    float3 sphere_center;
-    float sphere_radius;
+    public float3 sphere_center;
+    public float sphere_radius;
 };
 
-} // namespace renderer
+}// namespace renderer
