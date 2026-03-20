@@ -9,7 +9,7 @@ public float3 slerp(float3 x, float3 y, float a)
     // get cosine of angle between vectors (-1 -> 1)
     float cos_alpha = dot(x, y);
 
-    if(cos_alpha > 0.9999 || cos_alpha < -0.9999){ return a <= 0.5 ? x : y; }
+    if(cos_alpha > 0.9999 || cos_alpha < -0.9999) { return a <= 0.5 ? x : y; }
 
     // get angle (0 -> pi)
     float alpha = acos(cos_alpha);

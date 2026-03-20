@@ -2,6 +2,7 @@
 #include <vierkant/Visitor.hpp>
 #include <vierkant/gpu_timestamp_util.hpp>
 #include <vierkant/shaders.hpp>
+#include <vierkant/shaders_slang.hpp>
 
 namespace vierkant
 {
@@ -123,21 +124,19 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                 vierkant::create_query_pool(m_device, 2 * SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
     }
 
-    auto raygen = vierkant::create_shader_module(vierkant::shaders::ray::raygen_rgen);
-    auto ray_closest_hit = vierkant::create_shader_module(vierkant::shaders::ray::closesthit_rchit);
-    auto ray_any_hit = vierkant::create_shader_module(vierkant::shaders::ray::anyhit_rahit);
-    auto ray_miss = vierkant::create_shader_module(vierkant::shaders::ray::miss_rmiss);
-    auto ray_miss_env = vierkant::create_shader_module(vierkant::shaders::ray::miss_environment_rmiss);
+    auto rt_shader_stages = vierkant::create_shader_module(vierkant::slang_shaders::slang::raypipeline_slang);
+    auto ray_miss_env = rt_shader_stages;
+    ray_miss_env.entry_point_name = "miss_environment";
 
-    m_shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, raygen},
-                       {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss},
-                       {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit},
-                       {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, ray_any_hit}};
+    m_shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, rt_shader_stages},
+                       {VK_SHADER_STAGE_MISS_BIT_KHR, rt_shader_stages},
+                       {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, rt_shader_stages},
+                       {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, rt_shader_stages}};
 
-    m_shader_stages_env = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, raygen},
+    m_shader_stages_env = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, rt_shader_stages},
                            {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_env},
-                           {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit},
-                           {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, ray_any_hit}};
+                           {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, rt_shader_stages},
+                           {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, rt_shader_stages}};
 
     // create drawables for post-fx-pass
     {

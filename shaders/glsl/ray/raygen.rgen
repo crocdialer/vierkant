@@ -6,9 +6,8 @@
 
 #include "../utils/random.glsl"
 #include "../utils/hash.glsl"
-#include "../utils/bsdf.glsl"
+#include "../utils/sampling.glsl"
 #include "ray_common.glsl"
-#include "reservoir.glsl"
 
 #define MAX_MEDIA_STACK_SIZE 4
 
@@ -55,7 +54,7 @@ Ray camera_ray(vec2 coord, vec2 size, vec2 Xi)
     }
 
     // next ray + cone
-    Ray ray = Ray(origin, direction, 0.0001, 10000.0);
+    Ray ray = Ray(origin, 0.0001, direction, 10000.0);
     return ray;
 }
 
