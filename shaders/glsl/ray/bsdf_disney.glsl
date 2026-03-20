@@ -40,11 +40,11 @@ struct bsdf_sample_t
     // reflect/refract direction
     vec3 direction;
 
-    // reflect/scatter-value
-    vec3 F;
-
     // probability density
     float pdf;
+
+    // reflect/scatter-value
+    vec3 F;
 
     // sample passed through a surface
     bool transmission;
