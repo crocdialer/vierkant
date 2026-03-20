@@ -126,7 +126,6 @@ public struct camera_ubo_t
     public bool ortho;
 };
 
-// Buffer-reference types for BDA (buffer device address) access
 public struct trace_data_t
 {
     public trace_params_t params;
@@ -134,11 +133,11 @@ public struct trace_data_t
     public media_t camera_media;
 
     // device pointers
-    public uint64_t vertex_buffers;
-    public uint64_t index_buffers;
-    public uint64_t entries;
-    public uint64_t materials;
-    public pixel_data_t* out_pixels;
+    public utils::packed_vertex_t** vertex_buffers;
+    public uint32_t**  index_buffers;
+    public entry_t*          entries;
+    public material_t*       materials;
+    public pixel_data_t*     out_pixels;
 };
 
 } // namespace ray
