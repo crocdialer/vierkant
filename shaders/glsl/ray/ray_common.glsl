@@ -19,8 +19,8 @@ struct Triangle
 struct Ray
 {
     vec3 origin;
-    vec3 direction;
     float tmin;
+    vec3 direction;
     float tmax;
 };
 

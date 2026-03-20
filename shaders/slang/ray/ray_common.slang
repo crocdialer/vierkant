@@ -19,8 +19,8 @@ public struct Triangle
 public struct Ray
 {
     public float3 origin;
-    public float3 direction;
     public float tmin;
+    public float3 direction;
     public float tmax;
 };
 
@@ -138,7 +138,7 @@ public struct trace_data_t
     public uint64_t index_buffers;
     public uint64_t entries;
     public uint64_t materials;
-    public uint64_t out_pixels;
+    public pixel_data_t* out_pixels;
 };
 
 } // namespace ray

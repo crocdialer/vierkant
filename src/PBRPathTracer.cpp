@@ -2,6 +2,7 @@
 #include <vierkant/Visitor.hpp>
 #include <vierkant/gpu_timestamp_util.hpp>
 #include <vierkant/shaders.hpp>
+#include <vierkant/shaders_slang.hpp>
 
 namespace vierkant
 {
@@ -123,7 +124,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                 vierkant::create_query_pool(m_device, 2 * SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
     }
 
-    auto raygen = vierkant::create_shader_module(vierkant::shaders::ray::raygen_rgen);
+    auto raygen = vierkant::create_shader_module(vierkant::slang_shaders::slang::raygen_slang);
     auto ray_closest_hit = vierkant::create_shader_module(vierkant::shaders::ray::closesthit_rchit);
     auto ray_any_hit = vierkant::create_shader_module(vierkant::shaders::ray::anyhit_rahit);
     auto ray_miss = vierkant::create_shader_module(vierkant::shaders::ray::miss_rmiss);
