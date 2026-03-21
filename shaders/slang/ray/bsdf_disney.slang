@@ -166,10 +166,10 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
 
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
 
-    float3 H = mul(frame, utils::sample_GGX(Xi, material.roughness));
+    float3 H = mul(utils::sample_GGX(Xi, material.roughness), frame);
     if(dot(V, H) < 0.0) { H = -H; }
 
-    float3 H_vndf = mul(frame, utils::sample_GGX_VNDF(Xi, mul(transpose(frame), V), float2(material.roughness)));
+    float3 H_vndf = mul(utils::sample_GGX_VNDF(Xi, mul(frame, V), float2(material.roughness)), frame);
     if(dot(V, H_vndf) < 0.0) { H_vndf = -H_vndf; }
 
     // transmission
@@ -211,7 +211,7 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
         // diffuse
         if(utils::rnd(rng_state) < diffuseRatio)
         {
-            ret.direction = mul(frame, utils::sample_hemisphere_cosine(Xi));
+            ret.direction = mul(utils::sample_hemisphere_cosine(Xi), frame);
             H = normalize(ret.direction + V);
             ret.F = EvalDiffuse(material, V, N, ret.direction, H, ret.pdf);
             ret.pdf *= diffuseRatio;
@@ -238,7 +238,7 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
             }
             else// clearcoat
             {
-                H = mul(frame, utils::sample_GTR1(Xi, lerp(0.1, 0.001, material.clearcoat)));
+                H = mul(utils::sample_GTR1(Xi, lerp(0.1, 0.001, material.clearcoat)), frame);
                 if(dot(V, H) < 0.0) { H = -H; }
                 ret.direction = normalize(reflect(-V, H));
                 ret.F = EvalClearcoat(material, V, N, ret.direction, H, ret.pdf);

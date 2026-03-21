@@ -23,7 +23,7 @@ public float3 sample_sun_light(material_t material, sunlight_params_t p, Raytrac
                                float3 N, float3 V, float eta, inout uint rng_state)
 {
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
-    float3 light_dir = mul(utils::local_frame(p.direction), utils::sample_unit_sphere_cap(Xi, p.angular_size));
+    float3 light_dir = mul(utils::sample_unit_sphere_cap(Xi, p.angular_size), utils::local_frame(p.direction));
 
     ray::Ray r;
     r.origin = pos + ray::EPS * N;
@@ -47,7 +47,7 @@ public float3 sample_sun_light_phase(Ray ray, sunlight_params_t p, RaytracingAcc
                                      inout uint rng_state)
 {
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
-    float3 light_dir = mul(utils::local_frame(p.direction), utils::sample_unit_sphere_cap(Xi, p.angular_size));
+    float3 light_dir = mul(utils::sample_unit_sphere_cap(Xi, p.angular_size), utils::local_frame(p.direction));
 
     Ray light_ray;
     light_ray.origin = ray.origin;

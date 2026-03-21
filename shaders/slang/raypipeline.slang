@@ -361,7 +361,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             payload.ray.origin += payload.ray.direction * t;
             float phase_pdf;
             payload.ray.direction =
-                    mul(utils::local_frame(payload.ray.direction), utils::sample_phase_hg(Xi, g, phase_pdf));
+                    mul(utils::sample_phase_hg(Xi, g, phase_pdf), utils::local_frame(payload.ray.direction));
 
 #if USE_DIRECT_LIGHTING
             ray::sunlight_params_t sun_params;
@@ -410,7 +410,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             normal.z = sqrt(1.0 - normal.x * normal.x - normal.y * normal.y);
 
             float3 b = normalize(cross(v.normal, v.tangent));
-            normal = mul(float3x3(v.tangent, b, payload.normal), normal);
+            normal = mul(normal, float3x3(v.tangent, b, payload.normal));
             payload.normal = dot(payload.normal, normal) > 0.0 ? normal : payload.normal;
         }
 
