@@ -71,7 +71,9 @@ inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
 }
 
 std::vector<const char *> RayBuilder::required_extensions()
-{ return {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME}; }
+{
+    return {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
+}
 
 RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool)
     : m_device(device), m_queue(queue), m_memory_pool(std::move(pool))
@@ -392,6 +394,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
     std::vector<entry_t> entries;
     std::vector<material_struct_t> materials;
     std::vector<vierkant::ImagePtr> textures = {m_placeholder_solid_white};
+    std::unordered_map<const vierkant::Image *, uint32_t> texture_indices;
 
     //! vertex- and index-buffers for the entire scene
     std::vector<vierkant::BufferPtr> vertex_buffers;
@@ -555,8 +558,18 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                 for(auto &[type_flag, tex]: mesh_material->textures)
                 {
                     material.texture_type_flags |= static_cast<uint32_t>(type_flag);
-                    uint32_t texture_index = textures.size();
-                    textures.push_back(tex);
+
+                    uint32_t texture_index;
+                    if(auto idx_it = texture_indices.find(tex.get()); idx_it != texture_indices.end())
+                    {
+                        texture_index = idx_it->second;
+                    }
+                    else
+                    {
+                        texture_index = textures.size();
+                        texture_indices[tex.get()] = texture_index;
+                        textures.push_back(tex);
+                    }
 
                     switch(type_flag)
                     {
