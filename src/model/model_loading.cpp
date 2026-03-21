@@ -1,4 +1,4 @@
-#include <set>
+#include <vierkant/hash.hpp>
 #include <vierkant/model/gltf.hpp>
 #include <vierkant/model/model_loading.hpp>
 #include <vierkant/model/wavefront_obj.hpp>
@@ -226,6 +226,10 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
     }
     ret.mesh->materials.resize(std::max<size_t>(1, mesh_assets.materials.size()));
 
+    // cache required texture/sampler combinations
+    std::unordered_map<std::pair<TextureId, SamplerId>, ImagePtr, vierkant::pair_hash<TextureId, SamplerId>>
+            id_permutation_cache;
+
     for(uint32_t i = 0; i < mesh_assets.materials.size(); ++i)
     {
         const auto &asset_mat = mesh_assets.materials[i];
@@ -242,11 +246,17 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
             // optional sampler-override
             if(tex_data.sampler_id)
             {
-                // clone img
-                vk_img = ret.textures[tex_data.texture_id]->clone();
-                auto sampler_it = mesh_assets.texture_samplers.find(tex_data.sampler_id);
+                // get cache reference for texture/sampler permutation
+                auto &cache_img = id_permutation_cache[{tex_data.texture_id, tex_data.sampler_id}];
 
-                if(sampler_it != mesh_assets.texture_samplers.end())
+                // check cache-entry, clone img if necessary
+                vk_img = cache_img ? cache_img : ret.textures[tex_data.texture_id]->clone();
+
+                // store in cache
+                cache_img = vk_img;
+
+                if(auto sampler_it = mesh_assets.texture_samplers.find(tex_data.sampler_id);
+                   sampler_it != mesh_assets.texture_samplers.end())
                 {
                     auto vk_sampler = create_sampler(params.device, sampler_it->second, vk_img->num_mip_levels());
                     ret.samplers[tex_data.sampler_id] = vk_sampler;
