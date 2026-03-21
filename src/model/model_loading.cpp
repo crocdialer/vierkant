@@ -246,26 +246,32 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
             // optional sampler-override
             if(tex_data.sampler_id)
             {
-                // get cache reference for texture/sampler permutation
-                auto &cache_img = id_permutation_cache[{tex_data.texture_id, tex_data.sampler_id}];
+                auto cache_key = std::make_pair(tex_data.texture_id, tex_data.sampler_id);
 
                 // check cache-entry, clone img if necessary
-                vk_img = cache_img ? cache_img : ret.textures[tex_data.texture_id]->clone();
-
-                // store in cache
-                cache_img = vk_img;
-
-                if(auto sampler_it = mesh_assets.texture_samplers.find(tex_data.sampler_id);
-                   sampler_it != mesh_assets.texture_samplers.end())
+                if(auto cache_it = id_permutation_cache.find(cache_key); cache_it != id_permutation_cache.end())
                 {
-                    auto vk_sampler = create_sampler(params.device, sampler_it->second, vk_img->num_mip_levels());
-                    ret.samplers[tex_data.sampler_id] = vk_sampler;
-                    vk_img->set_sampler(vk_sampler);
+                    vk_img = cache_it->second;
                 }
                 else
                 {
-                    spdlog::warn("material '{}' references sampler '{}', but could not find in bundle", asset_mat.name,
-                                 tex_data.sampler_id.str());
+                    vk_img = ret.textures[tex_data.texture_id]->clone();
+
+                    // store in cache
+                    id_permutation_cache[cache_key] = vk_img;
+
+                    if(auto sampler_it = mesh_assets.texture_samplers.find(tex_data.sampler_id);
+                       sampler_it != mesh_assets.texture_samplers.end())
+                    {
+                        auto vk_sampler = create_sampler(params.device, sampler_it->second, vk_img->num_mip_levels());
+                        ret.samplers[tex_data.sampler_id] = vk_sampler;
+                        vk_img->set_sampler(vk_sampler);
+                    }
+                    else
+                    {
+                        spdlog::warn("material '{}' references sampler '{}', but could not find in bundle",
+                                     asset_mat.name, tex_data.sampler_id.str());
+                    }
                 }
             }
             material->textures[tex_type] = vk_img;
