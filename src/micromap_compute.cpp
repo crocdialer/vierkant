@@ -1,6 +1,6 @@
 #include <vierkant/barycentric_indexing.hpp>
 #include <vierkant/micromap_compute.hpp>
-#include <vierkant/shaders.hpp>
+#include <vierkant/shaders_slang.hpp>
 #include <vierkant/staging_copy.hpp>
 #include <vierkant/vertex_splicer.hpp>
 
@@ -63,7 +63,7 @@ micromap_compute_context_handle create_micromap_compute_context(const DevicePtr 
     compute_create_info.pipeline_cache = pipeline_cache;
     ret->compute = vierkant::Compute(device, compute_create_info);
 
-    auto shader_stage = vierkant::create_shader_module(vierkant::shaders::ray::micromap_comp);
+    auto shader_stage = vierkant::create_shader_module(vierkant::slang_shaders::slang::micromap_slang);
     ret->micromap_computable.pipeline_info.shader_stage = shader_stage;
     ret->micromap_compute_local_size = *shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT)[0].group_count;
 
@@ -90,7 +90,10 @@ micromap_compute_context_handle create_micromap_compute_context(const DevicePtr 
                 device, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                 VMA_MEMORY_USAGE_GPU_ONLY, pool_create_info);
     }
-    else { ret->memory_pool = memory_pool; }
+    else
+    {
+        ret->memory_pool = memory_pool;
+    }
     return ret;
 }
 
