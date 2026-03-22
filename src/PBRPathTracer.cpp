@@ -71,7 +71,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     vierkant::Compute::computable_t denoise_computable = {};
     glm::uvec3 group_count;
     denoise_computable.pipeline_info.shader_stage =
-            vierkant::create_shader_module(vierkant::shaders::ray::denoise_comp);
+            vierkant::create_shader_module(vierkant::slang_shaders::slang::denoise_slang);
     group_count =
             *denoise_computable.pipeline_info.shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT)[0].group_count;
 
