@@ -164,7 +164,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
         image_size = {width, height};
 
         computable.descriptors[2].buffers = {context->depth_pyramid_ubo};
-        computable.descriptors[2].buffer_offsets = {ubo_offset_bytes};
+        computable.descriptors[2].buffer_ranges = {{ubo_offset_bytes}};
 
         // dispatch compute shader
         context->depth_pyramid_computes[lvl - 1].dispatch({computable}, context->depth_pyramid_cmd_buffer.handle());

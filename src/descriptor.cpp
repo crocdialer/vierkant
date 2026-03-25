@@ -164,8 +164,8 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
                 std::vector<VkDescriptorBufferInfo> buffer_infos;
                 buffer_infos.reserve(desc.buffers.size());
 
-                auto offsets = desc.buffer_offsets;
-                offsets.resize(desc.buffers.size(), 0);
+                auto buffer_ranges = desc.buffer_ranges;
+                buffer_ranges.resize(desc.buffers.size());
 
                 for(uint32_t j = 0; j < desc.buffers.size(); ++j)
                 {
@@ -175,8 +175,9 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
                     {
                         VkDescriptorBufferInfo buffer_info = {};
                         buffer_info.buffer = buf->handle();
-                        buffer_info.offset = offsets[j];
-                        buffer_info.range = buf->num_bytes() - offsets[j];
+                        buffer_info.offset = buffer_ranges[j].offset;
+                        buffer_info.range = buffer_ranges[j].range ? buffer_ranges[j].range
+                                                                   : buf->num_bytes() - buffer_ranges[j].offset;
                         buffer_infos.push_back(buffer_info);
                     }
                 }
@@ -294,7 +295,10 @@ DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &devi
         current.erase(set_it);
         set_it = new_it;
     }
-    else { set_it = next.find(descriptors); }
+    else
+    {
+        set_it = next.find(descriptors);
+    }
 
     // not found -> create and insert descriptor-set layout
     if(set_it == next.end())
@@ -377,19 +381,23 @@ void update_descriptor_buffer(const vierkant::DevicePtr &device, const Descripto
 
                     if(buf)
                     {
-                        VkDeviceSize buf_offset =
-                                descriptor.buffer_offsets.size() > i ? descriptor.buffer_offsets[i] : 0;
+                        descriptor_t::buffer_range_t buf_range = {};
+                        if(descriptor.buffer_ranges.size() > i) { buf_range = descriptor.buffer_ranges[i]; }
+
                         VkDescriptorAddressInfoEXT address_info = {};
                         address_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT;
                         address_info.format = VK_FORMAT_UNDEFINED;
-                        address_info.address = buf->device_address() + buf_offset;
-                        address_info.range = buf->num_bytes();
+                        address_info.address = buf->device_address() + buf_range.offset;
+                        address_info.range = buf_range.range ? buf_range.range : buf->num_bytes() - buf_range.offset;
 
                         if(descriptor_get_info.type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
                         {
                             descriptor_get_info.data.pStorageBuffer = &address_info;
                         }
-                        else { descriptor_get_info.data.pUniformBuffer = &address_info; }
+                        else
+                        {
+                            descriptor_get_info.data.pUniformBuffer = &address_info;
+                        }
 
                         vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride,
                                            data_ptr + i * desc_stride);
@@ -424,7 +432,10 @@ void update_descriptor_buffer(const vierkant::DevicePtr &device, const Descripto
                         {
                             descriptor_get_info.data.pCombinedImageSampler = &image_info;
                         }
-                        else { descriptor_get_info.data.pStorageImage = &image_info; }
+                        else
+                        {
+                            descriptor_get_info.data.pStorageImage = &image_info;
+                        }
 
                         vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride,
                                            data_ptr + i * desc_stride);
@@ -518,7 +529,10 @@ DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device
         // insert all created assets and store in map
         current[descriptors_copy] = ret;
     }
-    else { ret = descriptor_set_it->second; }
+    else
+    {
+        ret = descriptor_set_it->second;
+    }
     return ret;
 }
 
@@ -535,7 +549,11 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     hash_combine(h, descriptor.stage_flags);
     hash_combine(h, descriptor.variable_count);
     for(const auto &buf: descriptor.buffers) { hash_combine(h, buf); }
-    for(const auto &offset: descriptor.buffer_offsets) { hash_combine(h, offset); }
+    for(const auto &[offset, range]: descriptor.buffer_ranges)
+    {
+        hash_combine(h, offset);
+        hash_combine(h, range);
+    }
     for(const auto &img: descriptor.images) { hash_combine(h, img); }
     for(const auto &s: descriptor.image_views) { hash_combine(h, s); }
     for(const auto &as: descriptor.acceleration_structures) { hash_combine(h, as); }

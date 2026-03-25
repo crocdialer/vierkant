@@ -42,8 +42,14 @@ struct descriptor_t
     //! used for descriptors containing buffers
     std::vector<vierkant::BufferPtr> buffers;
 
-    //! optional array of buffer-offsets. if no value for a buffer index is found, 0 is used.
-    std::vector<VkDeviceSize> buffer_offsets;
+    //! optional array of buffer-ranges. if no value for a buffer index is found, default values are used.
+    struct buffer_range_t
+    {
+        VkDeviceSize offset = 0;
+        VkDeviceSize range = 0;
+        constexpr bool operator==(const buffer_range_t &other) const = default;
+    };
+    std::vector<buffer_range_t> buffer_ranges;
 
     //! used for descriptors containing (an array of) images
     std::vector<vierkant::ImagePtr> images;

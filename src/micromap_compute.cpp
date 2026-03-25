@@ -299,7 +299,8 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             descriptor_ubo.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
             descriptor_ubo.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             descriptor_ubo.buffers = {context->params_ubo_buffer};
-            descriptor_ubo.buffer_offsets = {param_ubos.size() * sizeof(micromap_params_ubo_t)};
+            descriptor_ubo.buffer_ranges = {
+                    {param_ubos.size() * sizeof(micromap_params_ubo_t), sizeof(micromap_params_ubo_t)}};
 
             auto &descriptor_img = computable.descriptors[1];
             descriptor_img.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;

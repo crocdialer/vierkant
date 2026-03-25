@@ -219,7 +219,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
                 desc_params.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_params.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
                 desc_params.buffers = {context->skin_param_buffer};
-                desc_params.buffer_offsets = {skin_param_buffer_offset};
+                desc_params.buffer_ranges = {{skin_param_buffer_offset, sizeof(skin_compute_params_t)}};
                 computables.push_back(std::move(computable));
 
                 // advance offset, respect alignment
@@ -263,7 +263,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
                     desc_params.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                     desc_params.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
                     desc_params.buffers = {context->morph_param_buffer};
-                    desc_params.buffer_offsets = {morph_param_buffer_offset};
+                    desc_params.buffer_ranges = {{morph_param_buffer_offset, sizeof(morph_compute_params_t)}};
                     computables.push_back(std::move(computable));
 
                     // advance offset, respect alignment
