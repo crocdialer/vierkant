@@ -53,6 +53,8 @@ public:
 
     float distance = 1.f;
 
+    bool invert_trackpad_scroll = true;
+
     void update(double time_delta) override;
 
     vierkant::key_delegate_t key_delegate() override { return {}; };
