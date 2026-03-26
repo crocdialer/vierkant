@@ -8,6 +8,10 @@ public struct transform_t
     public float translation_x, translation_y, translation_z;
     public float rotation_x, rotation_y, rotation_z, rotation_w;
     public float scale_x, scale_y, scale_z;
+
+    public float3 translation() { return float3(translation_x, translation_y, translation_z); }
+    public float4 rotation() { return float4(rotation_x, rotation_y, rotation_z, rotation_w); }
+    public float3 scale() { return float3(scale_x, scale_y, scale_z); }
 };
 
 public float3 rotate_quat(float4 q, float3 v) { return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v); }

@@ -298,6 +298,9 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     ray::entry_t entry = trace_data.entries[InstanceID()];
     ray::material_t material = trace_data.materials[entry.material_index];
 
+    // potentially limit ray tmax
+    float tmax_inside_volume = 2 * length(entry.transform.scale() * entry.aabb.half_extents());
+
     float3 V = -WorldRayDirection();
     float NoV = abs(dot(V, payload.normal));
 
@@ -461,12 +464,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         if(bsdf_sample.transmission)
         {
-            float tmax_limit =
-                    2 * length(float3(entry.transform.scale_x, entry.transform.scale_y, entry.transform.scale_z) *
-                               entry.aabb.half_extents());
-
             // examine next media-op, limit ray.tmax when entering a volume
-            payload.ray.tmax = next_media_op == ray::MediaOp::Enter ? tmax_limit : ray::DEFAULT_TMAX;
+            payload.ray.tmax = next_media_op == ray::MediaOp::Enter ? tmax_inside_volume : ray::DEFAULT_TMAX;
         }
         payload.media_op = bsdf_sample.transmission ? next_media_op : ray::MediaOp::NoOp;
 
