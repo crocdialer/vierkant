@@ -10,6 +10,8 @@ namespace ray
 public static const float EPS = 1e-4;
 public static const float PDF_EPS = 1e-3;
 
+public static const float DEFAULT_TMAX = 10000.0f;
+
 //! Triangle groups triangle vertices
 public struct Triangle
 {

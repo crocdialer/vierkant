@@ -75,7 +75,7 @@ ray::Ray camera_ray(float2 coord, float2 size, float2 Xi)
     r.origin = origin;
     r.direction = direction;
     r.tmin = ray::EPS;
-    r.tmax = 10000.0;
+    r.tmax = ray::DEFAULT_TMAX;
     return r;
 }
 
@@ -388,7 +388,9 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     payload.media.sigma_a = (1 - material.scattering_ratio) * sigma_t;
     payload.media.phase_g = material.phase_asymmetry_g;
     payload.media.ior = sample_surface ? material.ior : payload.media.ior;
-    payload.media_op = sample_medium ? ray::MediaOp::NoOp : (backface ? ray::MediaOp::Leave : ray::MediaOp::Enter);
+
+    // determine next media-op
+    let next_media_op = sample_medium ? ray::MediaOp::NoOp : (backface ? ray::MediaOp::Leave : ray::MediaOp::Enter);
 
     if(sample_surface)
     {
@@ -456,7 +458,17 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         payload.ray.direction = bsdf_sample.direction;
         float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
         payload.beta *= bsdf_sample.F * cos_theta / max(bsdf_sample.pdf, ray::PDF_EPS);
-        if(!bsdf_sample.transmission) { payload.media_op = ray::MediaOp::NoOp; }
+
+        if(bsdf_sample.transmission)
+        {
+            float tmax_limit =
+                    2 * length(float3(entry.transform.scale_x, entry.transform.scale_y, entry.transform.scale_z) *
+                               entry.aabb.half_extents());
+
+            // examine next media-op, limit ray.tmax when entering a volume
+            payload.ray.tmax = next_media_op == ray::MediaOp::Enter ? tmax_limit : ray::DEFAULT_TMAX;
+        }
+        payload.media_op = bsdf_sample.transmission ? next_media_op : ray::MediaOp::NoOp;
 
 #if USE_DIRECT_LIGHTING
         {

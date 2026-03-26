@@ -9,6 +9,8 @@ public struct aabb_t
 {
     public float min_x, min_y, min_z;
     public float max_x, max_y, max_z;
+
+    public float3 half_extents() { return float3(max_x - min_x, max_y - min_y, max_z - min_z) * 0.5f; }
 };
 
 //! entry_t holds properties for geometric entries with common attributes
