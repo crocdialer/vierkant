@@ -327,7 +327,6 @@ struct physics_component_t
     float angular_damping = 0.05f;
     bool kinematic = false;
     bool sensor = false;
-    constexpr bool operator==(const vierkant::physics_component_t &) const = default;
 };
 
 //! constraints can be attached to arbitrary objects and reference via vierkant::BodyId
