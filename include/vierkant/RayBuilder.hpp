@@ -286,7 +286,8 @@ private:
      * @param   mesh        a provided vierkant::MeshConstPtr
      * @param   transform   a provided transformation-matrix
      */
-    [[nodiscard]] build_result_t create_mesh_structures(const create_mesh_structures_params_t &params) const;
+    [[nodiscard]] build_result_t create_mesh_structures(const SceneConstPtr &scene,
+                                                        const create_mesh_structures_params_t &params) const;
 
     void compact(build_result_t &build_result) const;
 

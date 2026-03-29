@@ -10,6 +10,9 @@
 #include <vierkant/descriptor.hpp>
 #include <vierkant/mesh_component.hpp>
 
+// tmp: material_data TODO: material_dataut in dedicated header
+#include <vierkant/model/model_loading.hpp>
+
 namespace vierkant
 {
 
@@ -59,7 +62,7 @@ struct alignas(16) material_struct_t
     uint32_t two_sided = false;
 
     uint32_t texture_type_flags = 0;
-    
+
     uint32_t base_texture_index = 0;
 };
 
@@ -118,6 +121,10 @@ struct drawable_t
 struct create_drawables_params_t
 {
     vierkant::transform_t transform = {};
+
+    const vierkant::model::material_data_t *material_data = nullptr;
+    const std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> *texture_store = nullptr;
+
     uint32_t animation_index = 0;
     float animation_time = 0.f;
 };
@@ -131,6 +138,6 @@ struct create_drawables_params_t
 std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_component_t &mesh_component,
                                                    const create_drawables_params_t &params);
 
-void update_material(const vierkant::material_t &mat_in, vierkant::material_struct_t &mat_out);
+void update_material(const vierkant::material_t *mat_in, vierkant::material_struct_t &mat_out);
 
 }// namespace vierkant

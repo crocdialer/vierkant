@@ -7,7 +7,6 @@
 #include "vierkant/Buffer.hpp"
 #include "vierkant/Device.hpp"
 #include "vierkant/Geometry.hpp"
-#include "vierkant/Image.hpp"
 #include "vierkant/Material.hpp"
 #include <vierkant/intersection.hpp>
 #include <vierkant/transform.hpp>
@@ -239,7 +238,7 @@ public:
     std::vector<entry_t> entries;
 
     //! materials for submeshes
-    std::vector<vierkant::MaterialPtr> materials;
+    std::vector<vierkant::MaterialId> materials;
 
     //! node animations
     vierkant::nodes::NodePtr root_node, root_bone;
@@ -337,12 +336,12 @@ namespace std
 template<>
 struct hash<vierkant::mesh_buffer_params_t>
 {
-    size_t operator()(vierkant::mesh_buffer_params_t const &params) const;
+    size_t operator()(vierkant::mesh_buffer_params_t const &params) const noexcept;
 };
 
 template<>
 struct hash<vierkant::animated_mesh_t>
 {
-    size_t operator()(vierkant::animated_mesh_t const &key) const;
+    size_t operator()(vierkant::animated_mesh_t const &key) const noexcept;
 };
 }// namespace std

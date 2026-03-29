@@ -120,6 +120,8 @@ std::optional<model_assets_t> load_model(const std::filesystem::path &path, croc
 struct load_mesh_result_t
 {
     vierkant::MeshPtr mesh;
+    std::unordered_map<vierkant::MaterialId, vierkant::material_t> materials;
+
     std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> textures;
     std::unordered_map<vierkant::SamplerId, vierkant::VkSamplerPtr> samplers;
 };
@@ -166,5 +168,17 @@ vierkant::ImagePtr create_texture(const vierkant::DevicePtr &device, const croco
 vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              const vierkant::bcn::compress_result_t &compression_result,
                                              vierkant::Image::Format format, VkQueue load_queue);
+
+struct material_data_t
+{
+    //! common materials for all submeshes
+    std::unordered_map<vierkant::MaterialId, vierkant::material_t> materials;
+
+    //! common textures for all materials
+    std::unordered_map<vierkant::TextureId, vierkant::texture_variant_t> textures;
+
+    //! texture-sample-states for all materials
+    std::unordered_map<vierkant::SamplerId, vierkant::texture_sampler_t> texture_samplers;
+};
 
 }// namespace vierkant::model

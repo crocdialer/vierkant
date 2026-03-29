@@ -153,21 +153,6 @@ struct texture_sampler_t
     glm::mat4 transform = glm::mat4(1);
 };
 
-DEFINE_CLASS_PTR(Material)
-
-class Material
-{
-public:
-    static MaterialPtr create() { return MaterialPtr(new Material()); };
-
-    material_t m;
-    size_t hash = 0;
-    std::map<TextureType, vierkant::ImagePtr> textures;
-
-private:
-    Material() = default;
-};
-
 }// namespace vierkant
 
 // template specializations for hashing

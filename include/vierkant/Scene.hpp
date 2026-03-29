@@ -4,11 +4,11 @@
 
 #include <crocore/ThreadPool.hpp>
 
-#include <vierkant/Camera.hpp>
 #include <vierkant/Image.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Object3D.hpp>
 #include <vierkant/mesh_component.hpp>
+#include <vierkant/model/model_loading.hpp>
 
 namespace vierkant
 {
@@ -71,6 +71,31 @@ public:
     vierkant::Object3DPtr
     create_camera(const vierkant::camera_params_variant_t &params = vierkant::physical_camera_params_t{});
 
+    uint64_t material_hash(const vierkant::MaterialId &material_id) const
+    {
+        if(const auto it = m_material_hashes.find(material_id); it != m_material_hashes.end()) { return it->second; }
+        return 0;
+    };
+
+    void add_material(material_t material);
+
+    const material_t *material(const vierkant::MaterialId &material_id) const;
+
+    material_t *material(const vierkant::MaterialId &material_id);
+
+    void add_texture(const vierkant::TextureId &texture_id, const vierkant::ImagePtr &tex);
+
+    vierkant::ImagePtr texture(const vierkant::TextureId &texture_id) const;
+
+    const vierkant::model::material_data_t *material_data() const { return &m_material_data; }
+
+    const std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> *texture_store() const
+    { return &m_texture_store; }
+
+    vierkant::model::material_data_t m_material_data;
+    std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> m_texture_store;
+    std::unordered_map<vierkant::MaterialId, uint64_t> m_material_hashes;
+
 protected:
     explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store);
 
@@ -94,7 +119,7 @@ struct id_entry_t
     uint32_t id;
     uint32_t entry;
 
-    inline bool operator==(const id_entry_t &other) const { return id == other.id && entry == other.entry; }
+    bool operator==(const id_entry_t &other) const { return id == other.id && entry == other.entry; }
 };
 
 }// namespace vierkant
@@ -104,7 +129,7 @@ namespace std
 template<>
 struct hash<vierkant::id_entry_t>
 {
-    size_t operator()(vierkant::id_entry_t const &key) const;
+    size_t operator()(vierkant::id_entry_t const &key) const noexcept;
 };
 
 }// namespace std

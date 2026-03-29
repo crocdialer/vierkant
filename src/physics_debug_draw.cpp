@@ -63,7 +63,9 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
                 vierkant::Mesh::create_info_t mesh_create_info = {};
                 mesh_create_info.mesh_buffer_params.use_vertex_colors = true;
                 mesh = vierkant::Mesh::create_from_geometry(m_rasterizer.device(), geom, mesh_create_info);
-                mesh->materials.front()->m.blend_mode = vierkant::BlendMode::Blend;
+
+                // TODO: add new material with blending to scene
+                // mesh->materials.front()->m.blend_mode = vierkant::BlendMode::Blend;
                 frame_context.physics_meshes[geom.get()] = mesh;
             }
             auto color = settings.use_mesh_colors ? physics_debug_result.colors[i] : glm::vec4(1.f);

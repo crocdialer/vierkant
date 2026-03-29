@@ -49,7 +49,12 @@ struct scoped_child_window_t
     }
 };
 
-bool draw_material_ui(const MaterialPtr &mesh_material);
+void draw_object_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &object);
+
+void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &object,
+                  vierkant::mesh_component_t &mesh_component);
+
+bool draw_material_ui(const vierkant::ScenePtr &scene, const MaterialId &material_id);
 
 void draw_light_ui(vierkant::model::lightsource_t &light);
 
@@ -570,41 +575,47 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
         ImGui::Separator();
         if(selection)
         {
-            for(auto &obj: *selection) { draw_object_ui(obj); }
+            for(auto &obj: *selection) { draw_object_ui(scene, obj); }
         }
 
         ImGui::EndTabItem();
     }
     if(ImGui::BeginTabItem("materials"))
     {
-        std::unordered_set<vierkant::MaterialPtr> material_map;
-        std::vector<vierkant::MaterialPtr> materials;
-
-        auto view = scene->registry()->view<vierkant::mesh_component_t>();
-
-        // uniquely gather all materials in order
-        for(const auto &[entity, mesh_cmp]: view.each())
+        for(auto &[mat_id, mat]: scene->m_material_data.materials)
         {
-            if(mesh_cmp.mesh)
-            {
-                for(const auto &m: mesh_cmp.mesh->materials)
+            auto draw_texture = [&scene, &mat](vierkant::TextureType type, const std::string &text) {
+                if(const auto it = mat.texture_data.find(type); it != mat.texture_data.end())
                 {
-                    if(!material_map.contains(m))
+                    const auto &tex_data = it->second;
+
+                    if(const auto img = scene->texture(tex_data.texture_id))
                     {
-                        materials.push_back(m);
-                        material_map.insert(m);
+                        constexpr uint32_t buf_size = 16;
+                        char buf[buf_size];
+                        const bool is_bc5 = img->format().format == VK_FORMAT_BC5_UNORM_BLOCK ||
+                                            img->format().format == VK_FORMAT_BC5_SNORM_BLOCK;
+                        const bool is_bc7 = img->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
+                                            img->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
+                        snprintf(buf, buf_size, "%s", is_bc7 ? " - BC7" : is_bc5 ? " - BC5" : "");
+
+                        auto w = ImGui::GetContentRegionAvail().x;
+                        ImVec2 sz(w, w / (static_cast<float>(img->width()) / static_cast<float>(img->height())));
+                        ImGui::BulletText("%s (%d x %d%s)", text.c_str(), img->width(), img->height(), buf);
+                        ImGui::Image((ImTextureID) (img.get()), sz);
+                        ImGui::Separator();
+                    }
+                    else
+                    {
+                        ImGui::Text("missing image: %s", tex_data.texture_id.str().c_str());
                     }
                 }
-            }
-        }
-        for(uint32_t i = 0; i < materials.size(); ++i)
-        {
-            const auto &mat = materials[i];
-            auto mat_name = mat->m.name.empty() ? std::to_string(i) : mat->m.name;
+            };
+            auto mat_name = mat.name.empty() ? mat_id.str() : mat.name;
 
-            if(mat && ImGui::TreeNode((void *) (mat.get()), "%s", mat_name.c_str()))
+            if(ImGui::TreeNode(&mat, "%s", mat_name.c_str()))
             {
-                draw_material_ui(mat);
+                draw_material_ui(mat, draw_texture);
                 ImGui::Separator();
                 ImGui::TreePop();
             }
@@ -776,35 +787,38 @@ bool draw_material_ui(vierkant::material_t &material,
     return changed;
 }
 
-bool draw_material_ui(const MaterialPtr &mesh_material)
+bool draw_material_ui(const vierkant::ScenePtr &scene, const MaterialId &material_id)
 {
     const float w = ImGui::GetContentRegionAvail().x;
+    auto *material = scene->material(material_id);
 
-    auto draw_texture = [&mesh_material, w](vierkant::TextureType type, const std::string &text) {
-        auto it = mesh_material->textures.find(type);
-
-        if(it != mesh_material->textures.end())
+    auto draw_texture = [&scene, material, w](vierkant::TextureType type, const std::string &text) {
+        if(const auto it = material->texture_data.find(type); it != material->texture_data.end())
         {
-            const auto &img = it->second;
+            const auto &tex_data = it->second;
 
-            if(img)
+            if(const auto img = scene->texture(tex_data.texture_id))
             {
                 constexpr uint32_t buf_size = 16;
                 char buf[buf_size];
-                bool is_bc5 = img->format().format == VK_FORMAT_BC5_UNORM_BLOCK ||
-                              img->format().format == VK_FORMAT_BC5_SNORM_BLOCK;
-                bool is_bc7 = img->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
-                              img->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
+                const bool is_bc5 = img->format().format == VK_FORMAT_BC5_UNORM_BLOCK ||
+                                    img->format().format == VK_FORMAT_BC5_SNORM_BLOCK;
+                const bool is_bc7 = img->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
+                                    img->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
                 snprintf(buf, buf_size, "%s", is_bc7 ? " - BC7" : is_bc5 ? " - BC5" : "");
                 ImVec2 sz(w, w / (static_cast<float>(img->width()) / static_cast<float>(img->height())));
                 ImGui::BulletText("%s (%d x %d%s)", text.c_str(), img->width(), img->height(), buf);
                 ImGui::Image((ImTextureID) (img.get()), sz);
                 ImGui::Separator();
             }
+            else
+            {
+                ImGui::Text("missing image: %s", tex_data.texture_id.str().c_str());
+            }
         }
     };
 
-    return draw_material_ui(mesh_material->m, draw_texture);
+    return draw_material_ui(*material, draw_texture);
 }
 
 void draw_light_ui(vierkant::model::lightsource_t &light)
@@ -831,7 +845,8 @@ void draw_light_ui(vierkant::model::lightsource_t &light)
     ImGui::InputFloat("outer_cone_angle", &light.outer_cone_angle);
 }
 
-void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_t &mesh_component)
+void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &object,
+                  vierkant::mesh_component_t &mesh_component)
 {
     const auto &mesh = mesh_component.mesh;
 
@@ -905,9 +920,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
                 ImGui::Separator();
 
                 // material ui
-                material_changed |= draw_material_ui(mesh->materials[e.material_index]);
-
-
+                material_changed |= draw_material_ui(scene, mesh->materials[e.material_index]);
                 ImGui::TreePop();
             }
 
@@ -924,15 +937,23 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
     {
         for(uint32_t i = 0; i < mesh->materials.size(); ++i)
         {
-            const auto &mesh_material = mesh->materials[i];
-            const auto &mat = mesh_material->m;
-            auto mat_name = mat.name.empty() ? std::to_string(i) : mat.name;
+            const auto &mesh_material_id = mesh->materials[i];
 
-            if(mesh_material && ImGui::TreeNode((void *) (mesh_material.get()), "%s", mat_name.c_str()))
+            auto *mat = scene->material(mesh_material_id);
+            if(mat)
             {
-                material_changed |= draw_material_ui(mesh_material);
-                ImGui::Separator();
-                ImGui::TreePop();
+                auto mat_name = mat->name.empty() ? std::to_string(i) : mat->name;
+
+                if(mat && ImGui::TreeNode(mat, "%s", mat_name.c_str()))
+                {
+                    material_changed |= draw_material_ui(scene, mesh_material_id);
+                    ImGui::Separator();
+                    ImGui::TreePop();
+                }
+            }
+            else
+            {
+                ImGui::Text("Not found: %d", i);
             }
         }
         ImGui::Separator();
@@ -1034,7 +1055,7 @@ bool draw_transform(vierkant::transform_t &t, const std::string &label = "transf
     return changed;
 }
 
-void draw_object_ui(const Object3DPtr &object)
+void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
 {
     constexpr char window_name[] = "object";
     scoped_child_window_t child_window(window_name);
@@ -1506,7 +1527,7 @@ void draw_object_ui(const Object3DPtr &object)
     // check for a mesh-component
     if(object->has_component<vierkant::mesh_component_t>())
     {
-        draw_mesh_ui(object, object->get_component<vierkant::mesh_component_t>());
+        draw_mesh_ui(scene, object, object->get_component<vierkant::mesh_component_t>());
     }
 }
 

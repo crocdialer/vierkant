@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <vierkant/model/model_loading.hpp>
+
 #include <unordered_set>
 #include <vierkant/Buffer.hpp>
 #include <vierkant/Compute.hpp>
@@ -33,6 +35,9 @@ struct micromap_compute_params_t
 
     vierkant::QueryPoolPtr query_pool = nullptr;
     uint32_t query_index_start = 0, query_index_end = 0;
+
+    const vierkant::model::material_data_t *material_data = nullptr;
+    const std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> *texture_store = nullptr;
 };
 
 //! define a typesafe identifier for individual mesh-compute runs

@@ -83,6 +83,42 @@ void Scene::clear()
     m_root->name = s_scene_root_name;
 }
 
+void Scene::add_material(material_t material)
+{
+    m_material_data.materials[material.id] = std::move(material);
+    m_material_hashes[material.id] = std::hash<material_t>()(material);
+}
+
+const material_t *Scene::material(const vierkant::MaterialId &material_id) const
+{
+    if(const auto it = m_material_data.materials.find(material_id); it != m_material_data.materials.end())
+    {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+material_t *Scene::material(const vierkant::MaterialId &material_id)
+{
+    if(const auto it = m_material_data.materials.find(material_id); it != m_material_data.materials.end())
+    {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+void Scene::add_texture(const vierkant::TextureId &texture_id, const vierkant::ImagePtr &tex)
+{
+    // TODO: mutex?
+    m_texture_store[texture_id] = tex;
+}
+
+vierkant::ImagePtr Scene::texture(const vierkant::TextureId &texture_id) const
+{
+    if(const auto it = m_texture_store.find(texture_id); it != m_texture_store.end()) { return it->second; }
+    return nullptr;
+}
+
 void Scene::update(double time_delta)
 {
     LambdaVisitor visitor;
@@ -191,7 +227,7 @@ void Scene::set_environment(const vierkant::ImagePtr &img)
 
 }// namespace vierkant
 
-size_t std::hash<vierkant::id_entry_t>::operator()(vierkant::id_entry_t const &key) const
+size_t std::hash<vierkant::id_entry_t>::operator()(vierkant::id_entry_t const &key) const noexcept
 {
     size_t h = 0;
     vierkant::hash_combine(h, key.id);

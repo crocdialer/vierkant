@@ -224,48 +224,58 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
                 },
                 tex_variant);
     }
-    ret.mesh->materials.resize(std::max<size_t>(1, mesh_assets.materials.size()));
 
     // cache required texture/sampler combinations
-    std::unordered_map<std::pair<TextureId, SamplerId>, ImagePtr, vierkant::pair_hash<TextureId, SamplerId>>
+    std::unordered_map<std::pair<TextureId, SamplerId>, std::pair<TextureId, ImagePtr>,
+                       vierkant::pair_hash<TextureId, SamplerId>>
             id_permutation_cache;
+
+    ret.mesh->materials.resize(mesh_assets.materials.size());
 
     for(uint32_t i = 0; i < mesh_assets.materials.size(); ++i)
     {
         const auto &asset_mat = mesh_assets.materials[i];
+        ret.mesh->materials[i] = asset_mat.id;
 
-        auto &material = ret.mesh->materials[i];
-        material = vierkant::Material::create();
-        material->m = asset_mat;
-        material->hash = std::hash<vierkant::material_t>()(asset_mat);
+        auto &material = ret.materials[asset_mat.id];
+        material = asset_mat;
 
-        for(const auto &[tex_type, tex_data]: asset_mat.texture_data)
+        for(auto &[tex_type, tex_data]: material.texture_data)
         {
-            auto vk_img = ret.textures[tex_data.texture_id];
-
             // optional sampler-override
             if(tex_data.sampler_id)
             {
+                auto vk_img = ret.textures[tex_data.texture_id];
+                auto tex_id = tex_data.texture_id;
                 auto cache_key = std::make_pair(tex_data.texture_id, tex_data.sampler_id);
 
                 // check cache-entry, clone img if necessary
                 if(auto cache_it = id_permutation_cache.find(cache_key); cache_it != id_permutation_cache.end())
                 {
-                    vk_img = cache_it->second;
+                    const auto &[cache_id, cache_img] = cache_it->second;
+                    vk_img = cache_img;
+                    tex_id = cache_id;
                 }
                 else
                 {
                     vk_img = ret.textures[tex_data.texture_id]->clone();
+                    tex_id = TextureId::random();
 
                     // store in cache
-                    id_permutation_cache[cache_key] = vk_img;
+                    id_permutation_cache[cache_key] = {tex_id, vk_img};
+
+                    // store permutation with new id
+                    ret.textures[tex_id] = vk_img;
+
+                    // overwrite original texture-id here, not sure
+                    tex_data.texture_id = tex_id;
 
                     if(auto sampler_it = mesh_assets.texture_samplers.find(tex_data.sampler_id);
                        sampler_it != mesh_assets.texture_samplers.end())
                     {
                         auto vk_sampler = create_sampler(params.device, sampler_it->second, vk_img->num_mip_levels());
-                        ret.samplers[tex_data.sampler_id] = vk_sampler;
                         vk_img->set_sampler(vk_sampler);
+                        ret.samplers[tex_data.sampler_id] = vk_sampler;
                     }
                     else
                     {
@@ -274,7 +284,8 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
                     }
                 }
             }
-            material->textures[tex_type] = vk_img;
+            // TODO: need image/sampler combos here
+            // material.texture_data[tex_type] = vk_img;
         }
     }
 

@@ -16,119 +16,81 @@ using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, VkDeviceSi
 
 template<>
 VkIndexType index_type<uint8_t>()
-{
-    return VK_INDEX_TYPE_UINT8_EXT;
-}
+{ return VK_INDEX_TYPE_UINT8_EXT; }
 
 template<>
 VkIndexType index_type<uint16_t>()
-{
-    return VK_INDEX_TYPE_UINT16;
-}
+{ return VK_INDEX_TYPE_UINT16; }
 
 template<>
 VkIndexType index_type<uint32_t>()
-{
-    return VK_INDEX_TYPE_UINT32;
-}
+{ return VK_INDEX_TYPE_UINT32; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<>
 VkFormat format<uint8_t>()
-{
-    return VK_FORMAT_R8_UNORM;
-}
+{ return VK_FORMAT_R8_UNORM; }
 
 template<>
 VkFormat format<float>()
-{
-    return VK_FORMAT_R32_SFLOAT;
-}
+{ return VK_FORMAT_R32_SFLOAT; }
 
 template<>
 VkFormat format<glm::vec2>()
-{
-    return VK_FORMAT_R32G32_SFLOAT;
-}
+{ return VK_FORMAT_R32G32_SFLOAT; }
 
 template<>
 VkFormat format<glm::vec3>()
-{
-    return VK_FORMAT_R32G32B32_SFLOAT;
-}
+{ return VK_FORMAT_R32G32B32_SFLOAT; }
 
 template<>
 VkFormat format<glm::vec4>()
-{
-    return VK_FORMAT_R32G32B32A32_SFLOAT;
-}
+{ return VK_FORMAT_R32G32B32A32_SFLOAT; }
 
 template<>
 VkFormat format<int32_t>()
-{
-    return VK_FORMAT_R32_SINT;
-}
+{ return VK_FORMAT_R32_SINT; }
 
 template<>
 VkFormat format<glm::ivec2>()
-{
-    return VK_FORMAT_R32G32_SINT;
-}
+{ return VK_FORMAT_R32G32_SINT; }
 
 template<>
 VkFormat format<glm::ivec3>()
-{
-    return VK_FORMAT_R32G32B32_SINT;
-}
+{ return VK_FORMAT_R32G32B32_SINT; }
 
 template<>
 VkFormat format<glm::ivec4>()
-{
-    return VK_FORMAT_R32G32B32A32_SINT;
-}
+{ return VK_FORMAT_R32G32B32A32_SINT; }
 
 template<>
 VkFormat format<uint32_t>()
-{
-    return VK_FORMAT_R32_UINT;
-}
+{ return VK_FORMAT_R32_UINT; }
 
 template<>
 VkFormat format<glm::uvec2>()
-{
-    return VK_FORMAT_R32G32_UINT;
-}
+{ return VK_FORMAT_R32G32_UINT; }
 
 template<>
 VkFormat format<glm::uvec3>()
-{
-    return VK_FORMAT_R32G32B32_UINT;
-}
+{ return VK_FORMAT_R32G32B32_UINT; }
 
 template<>
 VkFormat format<glm::uvec4>()
-{
-    return VK_FORMAT_R32G32B32A32_UINT;
-}
+{ return VK_FORMAT_R32G32B32A32_UINT; }
 
 template<>
 VkFormat format<glm::vec<2, uint16_t>>()
-{
-    return VK_FORMAT_R16G16_UINT;
-}
+{ return VK_FORMAT_R16G16_UINT; }
 
 template<>
 VkFormat format<glm::vec<3, uint16_t>>()
-{
-    return VK_FORMAT_R16G16B16_UINT;
-}
+{ return VK_FORMAT_R16G16B16_UINT; }
 
 template<>
 VkFormat format<glm::vec<4, uint16_t>>()
-{
-    return VK_FORMAT_R16G16B16A16_UINT;
-}
+{ return VK_FORMAT_R16G16B16A16_UINT; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -179,7 +141,10 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
         staging_buffer = vierkant::Buffer::create(device, nullptr, num_staging_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                   VMA_MEMORY_USAGE_CPU_ONLY);
     }
-    else { staging_buffer->set_data(nullptr, num_staging_bytes); }
+    else
+    {
+        staging_buffer->set_data(nullptr, num_staging_bytes);
+    }
 
     auto staging_copy = [num_array_bytes, staging_buffer, &staging_offset, command_buffer = create_info.command_buffer,
                          device](const auto &array, vierkant::BufferPtr &outbuffer, VkBufferUsageFlags flags) {
@@ -197,7 +162,10 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
         {
             outbuffer = vierkant::Buffer::create(device, nullptr, num_bytes, flags, VMA_MEMORY_USAGE_GPU_ONLY);
         }
-        else { outbuffer->set_data(nullptr, num_bytes); }
+        else
+        {
+            outbuffer->set_data(nullptr, num_bytes);
+        }
 
         // issue copy from staging-buffer to GPU-buffer
         staging_buffer->copy_to(outbuffer, command_buffer, staging_offset, 0, num_bytes);
@@ -244,7 +212,7 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
     }
 
     mesh->materials.resize(mesh_buffer_bundle.num_materials);
-    for(auto &m: mesh->materials) { m = vierkant::Material::create(); }
+    // for(auto &m: mesh->materials) { m = vierkant::Material::create(); }
 
     return mesh;
 }
@@ -681,7 +649,8 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
 }//namespace vierkant
 
-size_t std::hash<vierkant::mesh_buffer_params_t>::operator()(vierkant::mesh_buffer_params_t const &params) const
+size_t
+std::hash<vierkant::mesh_buffer_params_t>::operator()(vierkant::mesh_buffer_params_t const &params) const noexcept
 {
     size_t hash_val = 0;
     vierkant::hash_combine(hash_val, params.remap_indices);
@@ -699,7 +668,7 @@ size_t std::hash<vierkant::mesh_buffer_params_t>::operator()(vierkant::mesh_buff
     return hash_val;
 }
 
-size_t std::hash<vierkant::animated_mesh_t>::operator()(vierkant::animated_mesh_t const &key) const
+size_t std::hash<vierkant::animated_mesh_t>::operator()(vierkant::animated_mesh_t const &key) const noexcept
 {
     size_t h = 0;
     vierkant::hash_combine(h, key.mesh);
