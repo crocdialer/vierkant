@@ -4,11 +4,13 @@
 
 #pragma once
 
+#include <crocore/Image.hpp>
 #include <crocore/NamedUUID.hpp>
-
-#include "vierkant/Geometry.hpp"
-#include "vierkant/Image.hpp"
-#include "vierkant/Pipeline.hpp"
+#include <variant>
+#include <vierkant/Geometry.hpp>
+#include <vierkant/Image.hpp>
+#include <vierkant/Pipeline.hpp>
+#include <vierkant/texture_block_compression.hpp>
 
 namespace vierkant
 {
@@ -153,6 +155,22 @@ struct texture_sampler_t
     glm::mat4 transform = glm::mat4(1);
 };
 
+
+//! contains uncompressed or BC7-compressed images
+using texture_variant_t = std::variant<crocore::ImagePtr, vierkant::bcn::compress_result_t>;
+
+struct material_data_t
+{
+    //! common materials for all submeshes
+    std::unordered_map<vierkant::MaterialId, vierkant::material_t> materials;
+
+    //! common textures for all materials
+    std::unordered_map<vierkant::TextureId, vierkant::texture_variant_t> textures;
+
+    //! texture-sample-states for all materials
+    std::unordered_map<vierkant::SamplerId, vierkant::texture_sampler_t> texture_samplers;
+};
+
 }// namespace vierkant
 
 // template specializations for hashing
@@ -161,6 +179,6 @@ namespace std
 template<>
 struct hash<vierkant::material_t>
 {
-    size_t operator()(vierkant::material_t const &m) const;
+    size_t operator()(vierkant::material_t const &m) const noexcept;
 };
 }// namespace std

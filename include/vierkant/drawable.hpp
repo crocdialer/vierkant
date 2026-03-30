@@ -122,7 +122,7 @@ struct create_drawables_params_t
 {
     vierkant::transform_t transform = {};
 
-    const vierkant::model::material_data_t *material_data = nullptr;
+    const vierkant::material_data_t *material_data = nullptr;
     const std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> *texture_store = nullptr;
 
     uint32_t animation_index = 0;

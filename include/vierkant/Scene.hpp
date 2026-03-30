@@ -87,12 +87,12 @@ public:
 
     vierkant::ImagePtr texture(const vierkant::TextureId &texture_id) const;
 
-    const vierkant::model::material_data_t *material_data() const { return &m_material_data; }
+    const vierkant::material_data_t *material_data() const { return &m_material_data; }
 
     const std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> *texture_store() const
     { return &m_texture_store; }
 
-    vierkant::model::material_data_t m_material_data;
+    vierkant::material_data_t m_material_data;
     std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> m_texture_store;
     std::unordered_map<vierkant::MaterialId, uint64_t> m_material_hashes;
 
