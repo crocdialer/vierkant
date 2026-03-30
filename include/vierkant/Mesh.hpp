@@ -238,7 +238,7 @@ public:
     std::vector<entry_t> entries;
 
     //! materials for submeshes
-    std::vector<vierkant::MaterialId> materials;
+    std::vector<vierkant::MaterialId> material_ids;
 
     //! node animations
     vierkant::nodes::NodePtr root_node, root_bone;

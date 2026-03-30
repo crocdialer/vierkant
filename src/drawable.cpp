@@ -67,11 +67,11 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         const auto &lod_0 = mesh->entries[i].lods.front();
 
         // sanity check material-index
-        if(entry.material_index >= mesh->materials.size()) { continue; }
+        if(entry.material_index >= mesh->material_ids.size()) { continue; }
 
         // const auto &material = mesh_material->m;
 
-        const auto &mesh_material_id = mesh->materials[entry.material_index];
+        const auto &mesh_material_id = mesh->material_ids[entry.material_index];
         const material_t *material = nullptr;
 
         if(params.material_data)

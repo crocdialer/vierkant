@@ -920,7 +920,7 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
                 ImGui::Separator();
 
                 // material ui
-                material_changed |= draw_material_ui(scene, mesh->materials[e.material_index]);
+                material_changed |= draw_material_ui(scene, mesh->material_ids[e.material_index]);
                 ImGui::TreePop();
             }
 
@@ -933,11 +933,11 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
     }
 
     // materials
-    if(!mesh->entries.empty() && ImGui::TreeNode("materials", "materials (%zu)", mesh->materials.size()))
+    if(!mesh->entries.empty() && ImGui::TreeNode("materials", "materials (%zu)", mesh->material_ids.size()))
     {
-        for(uint32_t i = 0; i < mesh->materials.size(); ++i)
+        for(uint32_t i = 0; i < mesh->material_ids.size(); ++i)
         {
-            const auto &mesh_material_id = mesh->materials[i];
+            const auto &mesh_material_id = mesh->material_ids[i];
 
             auto *mat = scene->material(mesh_material_id);
             if(mat)

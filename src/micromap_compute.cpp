@@ -252,7 +252,7 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             const auto &entry = mesh->entries[i];
             const auto &lod_0 = entry.lods.front();
 
-            const auto &mesh_material_id = mesh->materials[entry.material_index];
+            const auto &mesh_material_id = mesh->material_ids[entry.material_index];
 
             assert(params.material_data);
             const auto &material = params.material_data->materials.at(mesh_material_id);

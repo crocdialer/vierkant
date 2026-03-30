@@ -764,7 +764,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
                     drawable.vertex_buffer ? drawable.vertex_buffer : drawable.mesh->vertex_buffer->device_address();
             vertex_buffer_refs.push_back(vertex_buffer_address);
 
-            mat_id = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
+            mat_id = drawable.mesh->material_ids[drawable.mesh->entries[drawable.entry_index].material_index];
             if(!drawable.share_material || !material_index_map.contains(mat_id))
             {
                 material_index_map[mat_id] = material_data.size();

@@ -230,12 +230,12 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
                        vierkant::pair_hash<TextureId, SamplerId>>
             id_permutation_cache;
 
-    ret.mesh->materials.resize(mesh_assets.materials.size());
+    ret.mesh->material_ids.resize(mesh_assets.materials.size());
 
     for(uint32_t i = 0; i < mesh_assets.materials.size(); ++i)
     {
         const auto &asset_mat = mesh_assets.materials[i];
-        ret.mesh->materials[i] = asset_mat.id;
+        ret.mesh->material_ids[i] = asset_mat.id;
 
         auto &material = ret.materials[asset_mat.id];
         material = asset_mat;

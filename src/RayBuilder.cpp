@@ -159,7 +159,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const SceneConstPt
 
         const auto &entry = params.mesh->entries[i];
         const auto &lod_0 = entry.lods.front();
-        const auto &mesh_material_id = params.mesh->materials[entry.material_index];
+        const auto &mesh_material_id = params.mesh->material_ids[entry.material_index];
 
         const auto *material = scene->material(mesh_material_id);
         // assert(material);
@@ -491,7 +491,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
             const auto &mesh_entry = mesh->entries[i];
             const auto &lod = mesh_entry.lods.front();
-            const auto &mesh_material_id = mesh->materials[mesh_entry.material_index];
+            const auto &mesh_material_id = mesh->material_ids[mesh_entry.material_index];
 
             // const auto &m = mesh->materials[mesh_entry.material_index]->m;
             const auto *mat = params.scene->material(mesh_material_id);

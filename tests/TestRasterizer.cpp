@@ -19,7 +19,7 @@ std::vector<vierkant::drawable_t> create_test_drawables(const vierkant::DevicePt
     auto mesh = vierkant::Mesh::create_with_entries(device, {entry_info}, mesh_create_info);
 
     EXPECT_EQ(1, mesh->entries.size());
-    EXPECT_EQ(1, mesh->materials.size());
+    EXPECT_EQ(1, mesh->material_ids.size());
 
     vierkant::create_drawables_params_t drawable_params = {};
     auto drawables = vierkant::create_drawables({mesh}, drawable_params);

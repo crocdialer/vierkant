@@ -211,7 +211,7 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
                      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | create_info.buffer_usage_flags);
     }
 
-    mesh->materials.resize(mesh_buffer_bundle.num_materials);
+    mesh->material_ids.resize(mesh_buffer_bundle.num_materials);
     // for(auto &m: mesh->materials) { m = vierkant::Material::create(); }
 
     return mesh;

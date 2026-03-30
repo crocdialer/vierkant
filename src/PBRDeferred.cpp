@@ -393,7 +393,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr
 
                     if(material_update)
                     {
-                        const auto &material_id = mesh->materials[entry.material_index];
+                        const auto &material_id = mesh->material_ids[entry.material_index];
                         const auto *material = scene->material(material_id);
                         vierkant::update_material(material, drawable.material);
                     }
