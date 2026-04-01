@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <vierkant/model/model_loading.hpp>
-
 #include <unordered_set>
 #include <vierkant/Buffer.hpp>
 #include <vierkant/Compute.hpp>

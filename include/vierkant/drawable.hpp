@@ -10,9 +10,6 @@
 #include <vierkant/descriptor.hpp>
 #include <vierkant/mesh_component.hpp>
 
-// tmp: material_data TODO: material_dataut in dedicated header
-#include <vierkant/model/model_loading.hpp>
-
 namespace vierkant
 {
 
