@@ -688,15 +688,31 @@ bool draw_material_ui(vierkant::material_t &material,
     }
     ImGui::Separator();
 
+    auto tex_uuid_input = [&material, &text_buf](vierkant::TextureType type) {
+        // reset buf
+        *text_buf = 0;
+
+        if(const auto it = material.texture_data.find(type); it != material.texture_data.end())
+        {
+            strcpy(text_buf, it->second.texture_id.str().c_str());
+        }
+        if(ImGui::InputText("texture-id:", text_buf, buf_size, ImGuiInputTextFlags_EnterReturnsTrue))
+        {
+            auto new_tex_id = TextureId::from_string(text_buf);
+            material.texture_data[type].texture_id = new_tex_id;
+        }
+    };
+
     // base color
     changed |= ImGui::ColorEdit4("base color", glm::value_ptr(material.base_color));
-    if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::Color, "base color"); }
+    tex_uuid_input(TextureType::Color);
+    if(draw_texture_fn) { draw_texture_fn(TextureType::Color, "base color"); }
 
     // emissive color
     changed |= ImGui::ColorEdit3("emission color", glm::value_ptr(material.emission));
     changed |= ImGui::InputFloat("emissive strength", &material.emissive_strength);
     if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::Emission, "emission"); }
-
+tex_uuid_input(TextureType::Color);
     // normalmap
     if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::Normal, "normals"); }
 
