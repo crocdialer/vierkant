@@ -65,18 +65,14 @@ std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, c
 
     std::unordered_map<std::string, std::tuple<TextureId, crocore::ImagePtr>> image_cache;
     auto get_image = [&image_cache](const std::string &path) -> std::tuple<TextureId, crocore::ImagePtr> {
-        auto it = image_cache.find(path);
-        if(it != image_cache.end()) { return it->second; }
+        if(auto it = image_cache.find(path); it != image_cache.end()) { return it->second; }
 
         std::tuple<TextureId, crocore::ImagePtr> ret;
         try
         {
-            ret = {TextureId::random(), crocore::create_image_from_file(path, 4)};
+            ret = {TextureId::from_name(path), crocore::create_image_from_file(path, 4)};
             image_cache[path] = ret;
-        } catch(std::exception &e)
-        {
-            spdlog::warn(e.what());
-        }
+        } catch(std::exception &e) { spdlog::warn(e.what()); }
         return ret;
     };
 

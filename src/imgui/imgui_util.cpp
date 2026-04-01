@@ -688,7 +688,7 @@ bool draw_material_ui(vierkant::material_t &material,
     }
     ImGui::Separator();
 
-    auto tex_uuid_input = [&material, &text_buf](vierkant::TextureType type) {
+    auto tex_uuid_input = [&material, &text_buf, &changed](vierkant::TextureType type) {
         // reset buf
         *text_buf = 0;
 
@@ -696,11 +696,14 @@ bool draw_material_ui(vierkant::material_t &material,
         {
             strcpy(text_buf, it->second.texture_id.str().c_str());
         }
+        ImGui::PushID(static_cast<int>(type));
         if(ImGui::InputText("texture-id:", text_buf, buf_size, ImGuiInputTextFlags_EnterReturnsTrue))
         {
+            changed = true;
             auto new_tex_id = TextureId::from_string(text_buf);
             material.texture_data[type].texture_id = new_tex_id;
         }
+        ImGui::PopID();
     };
 
     // base color
@@ -712,9 +715,11 @@ bool draw_material_ui(vierkant::material_t &material,
     changed |= ImGui::ColorEdit3("emission color", glm::value_ptr(material.emission));
     changed |= ImGui::InputFloat("emissive strength", &material.emissive_strength);
     if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::Emission, "emission"); }
-tex_uuid_input(TextureType::Color);
+    tex_uuid_input(TextureType::Emission);
+
     // normalmap
     if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::Normal, "normals"); }
+    tex_uuid_input(TextureType::Normal);
 
     ImGui::Separator();
 
@@ -729,6 +734,7 @@ tex_uuid_input(TextureType::Color);
 
     // ambient-occlusion / roughness / metalness
     if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::Ao_rough_metal, "occlusion / roughness / metalness"); }
+    tex_uuid_input(TextureType::Ao_rough_metal);
 
     ImGui::Separator();
 

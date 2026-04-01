@@ -494,13 +494,11 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
             const auto &material_ids = mesh_component.material_ids ? *mesh_component.material_ids : mesh->material_ids;
             const auto &mesh_material_id = material_ids[mesh_entry.material_index];
 
-            // const auto &m = mesh->materials[mesh_entry.material_index]->m;
             const auto *mat = params.scene->material(mesh_material_id);
 
             const auto &asset = acceleration_assets[i];
 
             // apply node-animation transform, if any
-
             auto transform = obj_global_transform;
             if(!mesh_component.library)
             {

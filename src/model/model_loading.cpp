@@ -268,7 +268,7 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
                     ret.textures[tex_id] = vk_img;
 
                     // overwrite original texture-id here, not sure
-                    tex_data.texture_id = tex_id;
+                    // tex_data.texture_id = tex_id;
 
                     if(auto sampler_it = mesh_assets.texture_samplers.find(tex_data.sampler_id);
                        sampler_it != mesh_assets.texture_samplers.end())
