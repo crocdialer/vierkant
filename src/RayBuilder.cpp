@@ -491,7 +491,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
             const auto &mesh_entry = mesh->entries[i];
             const auto &lod = mesh_entry.lods.front();
-            const auto &mesh_material_id = mesh->material_ids[mesh_entry.material_index];
+            const auto &material_ids = mesh_component.material_ids ? *mesh_component.material_ids : mesh->material_ids;
+            const auto &mesh_material_id = material_ids[mesh_entry.material_index];
 
             // const auto &m = mesh->materials[mesh_entry.material_index]->m;
             const auto *mat = params.scene->material(mesh_material_id);

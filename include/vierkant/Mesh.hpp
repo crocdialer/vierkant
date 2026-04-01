@@ -28,7 +28,7 @@ DEFINE_NAMED_UUID(MeshId)
  * @tparam  T   template parameter providing the datatype
  * @return      the VkIndexType for T
  */
-template<typename T>
+template<std::unsigned_integral T>
 VkIndexType index_type();
 
 /**
@@ -197,6 +197,7 @@ public:
      *
      * @param   device              handle for the vierkant::Device to create subresources with
      * @param   entry_create_infos  an array of entry_create_info_t structs.
+     * @param   create_info         a create_info structs containing parameters
      * @return  the newly created vierkant::MeshPtr
      */
     static vierkant::MeshPtr create_with_entries(const vierkant::DevicePtr &device,
@@ -207,8 +208,9 @@ public:
      * @brief   Create a vierkant::MeshPtr from a provided vierkant::mesh_buffer_bundle_t.
      *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
      *
-     * @param   device      handle for the vierkant::Device to create subresources with
-     * @param   geometry    a Geometry struct to extract the vertex information from
+     * @param   device              handle for the vierkant::Device to create subresources with
+     * @param   mesh_buffer_bundle  a mesh_buffer_bundle to extract the vertex information from
+     * @param   create_info         a create_info structs containing parameters
      * @return  the newly created vierkant::MeshPtr
      */
     static vierkant::MeshPtr create_from_bundle(const vierkant::DevicePtr &device,

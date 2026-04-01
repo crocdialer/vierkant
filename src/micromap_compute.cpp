@@ -252,6 +252,9 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             const auto &entry = mesh->entries[i];
             const auto &lod_0 = entry.lods.front();
 
+            // TODO: use original or override material_ids
+            // const auto &material_ids = mesh_component.material_ids ? *mesh_component.material_ids : mesh->material_ids;
+
             const auto &mesh_material_id = mesh->material_ids[entry.material_index];
 
             assert(params.material_data);

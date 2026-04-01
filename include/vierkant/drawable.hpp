@@ -76,6 +76,8 @@ struct drawable_t
 {
     DrawableId id;
 
+    MaterialId material_id = MaterialId::nil();
+
     MeshConstPtr mesh;
 
     //! optional override for vertex-buffer provided by mesh, if any

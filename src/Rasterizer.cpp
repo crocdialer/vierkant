@@ -734,7 +734,6 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
         const auto &drawable = drawables[i];
         uint32_t mesh_index = 0;
         uint32_t vertex_buffer_index = vertex_buffer_refs.size();
-        auto mat_id = vierkant::MaterialId::nil();
 
         if(drawable.mesh && !drawable.mesh->entries.empty())
         {
@@ -764,10 +763,9 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
                     drawable.vertex_buffer ? drawable.vertex_buffer : drawable.mesh->vertex_buffer->device_address();
             vertex_buffer_refs.push_back(vertex_buffer_address);
 
-            mat_id = drawable.mesh->material_ids[drawable.mesh->entries[drawable.entry_index].material_index];
-            if(!drawable.share_material || !material_index_map.contains(mat_id))
+            if(!drawable.share_material || !material_index_map.contains(drawable.material_id))
             {
-                material_index_map[mat_id] = material_data.size();
+                material_index_map[drawable.material_id] = material_data.size();
                 material_data.push_back(drawable.material);
             }
 
@@ -782,7 +780,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
 
         frame_asset.mesh_draws[i].current_matrices = drawable.matrices;
         frame_asset.mesh_draws[i].mesh_index = mesh_index;
-        frame_asset.mesh_draws[i].material_index = material_index_map[mat_id];
+        frame_asset.mesh_draws[i].material_index = material_index_map[drawable.material_id];
         frame_asset.mesh_draws[i].vertex_buffer_index = vertex_buffer_index;
 
         if(drawable.last_matrices) { frame_asset.mesh_draws[i].last_matrices = *drawable.last_matrices; }
