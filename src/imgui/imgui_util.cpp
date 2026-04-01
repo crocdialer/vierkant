@@ -873,6 +873,9 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
     // entries
     if(ImGui::TreeNode("entries", "entries (%zu)", mesh->entries.size()))
     {
+        constexpr size_t buf_size = 64;
+        char text_buf[buf_size];
+
         size_t entry_idx = 0;
         std::hash<vierkant::MeshConstPtr> hash;
 
@@ -920,8 +923,31 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
                 ImGui::Text("%s", mesh_info_str.c_str());
                 ImGui::Separator();
 
+                auto material_id = material_ids[e.material_index];
+
+                strcpy(text_buf, material_ids[e.material_index].str().c_str());
+                if(ImGui::InputText("material_id", text_buf, sizeof(text_buf)))
+                {
+                    auto new_mat_id = vierkant::MaterialId::from_string(text_buf);
+
+                    // check if material is defined
+                    if(scene->material(new_mat_id))
+                    {
+                        // create material_id override, if necessary
+                        if(!mesh_component.material_ids)
+                        {
+                            mesh_component.material_ids = mesh_component.mesh->material_ids;
+                        }
+
+                        // set new material-id as override
+                        material_id = new_mat_id;
+                        mesh_component.material_ids.value()[e.material_index] = new_mat_id;
+                        material_changed = true;
+                    }
+                }
+
                 // material ui
-                material_changed |= draw_material_ui(scene, material_ids[e.material_index]);
+                material_changed |= draw_material_ui(scene, material_id);
                 ImGui::TreePop();
             }
 
@@ -940,8 +966,7 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
         {
             const auto &mesh_material_id = material_ids[i];
 
-            auto *mat = scene->material(mesh_material_id);
-            if(mat)
+            if(const auto *mat = scene->material(mesh_material_id))
             {
                 auto mat_name = mat->name.empty() ? std::to_string(i) : mat->name;
 
