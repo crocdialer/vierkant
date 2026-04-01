@@ -840,7 +840,7 @@ bool draw_material_ui(const vierkant::ScenePtr &scene, const MaterialId &materia
         }
     };
 
-    return draw_material_ui(*material, draw_texture);
+    return material && draw_material_ui(*material, draw_texture);
 }
 
 void draw_light_ui(vierkant::model::lightsource_t &light)
