@@ -8,18 +8,25 @@
 namespace vierkant
 {
 
-void update_material(const vierkant::material_t &mat_in, vierkant::material_struct_t &mat_out)
+void update_material(const vierkant::material_t *mat_in, vierkant::material_struct_t &mat_out)
 {
-    // material params
-    mat_out.emission = {mat_in.emission, mat_in.emissive_strength};
-    mat_out.ambient = mat_in.occlusion;
-    mat_out.roughness = mat_in.roughness;
-    mat_out.metalness = mat_in.metalness;
-    mat_out.blend_mode = static_cast<uint32_t>(mat_in.blend_mode);
-    mat_out.alpha_cutoff = mat_in.alpha_cutoff;
-    mat_out.two_sided = mat_in.twosided;
-    mat_out.transmission = mat_in.transmission;
-    mat_out.color = mat_in.base_color;
+    if(mat_in)
+    {
+        // material params
+        mat_out.emission = {mat_in->emission, mat_in->emissive_strength};
+        mat_out.ambient = mat_in->occlusion;
+        mat_out.roughness = mat_in->roughness;
+        mat_out.metalness = mat_in->metalness;
+        mat_out.blend_mode = static_cast<uint32_t>(mat_in->blend_mode);
+        mat_out.alpha_cutoff = mat_in->alpha_cutoff;
+        mat_out.two_sided = mat_in->twosided;
+        mat_out.transmission = mat_in->transmission;
+        mat_out.color = mat_in->base_color;
+    }
+    else
+    {
+        spdlog::warn("{}: mat_in is nullptr", __func__);
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -59,14 +66,31 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         const auto &entry = mesh->entries[i];
         const auto &lod_0 = mesh->entries[i].lods.front();
 
-        // sanity check material-index
-        if(entry.material_index >= mesh->materials.size()) { continue; }
+        // original or override material_ids
+        const auto &material_ids = mesh_component.material_ids ? *mesh_component.material_ids : mesh->material_ids;
 
-        const auto &mesh_material = mesh->materials[entry.material_index];
-        const auto &material = mesh_material->m;
+        // sanity check material-index
+        if(entry.material_index >= material_ids.size())
+        {
+            spdlog::warn("material_ids: out-of-bounds: {} / {}", entry.material_index, material_ids.size());
+            continue;
+        }
+
+        const auto &mesh_material_id = material_ids[entry.material_index];
+        const material_t *material = nullptr;
+
+        if(params.material_data)
+        {
+            if(auto mat_it = params.material_data->materials.find(mesh_material_id);
+               mat_it != params.material_data->materials.end())
+            {
+                material = &mat_it->second;
+            }
+        }
 
         // acquire ref for mesh-drawable
         vierkant::drawable_t drawable = {};
+        drawable.material_id = mesh_material_id;
         drawable.mesh = mesh;
         drawable.entry_index = i;
 
@@ -78,13 +102,16 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
                     params.transform * (node_transforms.empty() ? entry.transform : node_transforms[entry.node_index]);
         }
 
-        auto col_img_it = material.texture_data.find(TextureType::Color);
-        if(col_img_it != material.texture_data.end() && col_img_it->second.texture_transform)
+        if(material)
         {
-            drawable.matrices.texture = *col_img_it->second.texture_transform;
-        }
+            auto col_img_it = material->texture_data.find(TextureType::Color);
+            if(col_img_it != material->texture_data.end() && col_img_it->second.texture_transform)
+            {
+                drawable.matrices.texture = *col_img_it->second.texture_transform;
+            }
 
-        update_material(material, drawable.material);
+            update_material(material, drawable.material);
+        }
 
         drawable.base_index = lod_0.base_index;
         drawable.num_indices = lod_0.num_indices;
@@ -97,8 +124,9 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         drawable.num_meshlets = lod_0.num_meshlets;
 
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
-        drawable.pipeline_format.blend_state.blendEnable = material.blend_mode == vierkant::BlendMode::Blend;
-        drawable.pipeline_format.cull_mode = material.twosided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
+        drawable.pipeline_format.blend_state.blendEnable =
+                material && material->blend_mode == vierkant::BlendMode::Blend;
+        drawable.pipeline_format.cull_mode = material && material->twosided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
 
         if(!drawable.use_own_buffers)
         {
@@ -126,18 +154,18 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
 
         // textures
-        if(!mesh_material->textures.empty())
+        if(material && !material->texture_data.empty())
         {
             vierkant::descriptor_t &desc_texture = drawable.descriptors[Rasterizer::BINDING_TEXTURES];
             desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-            for(auto &[type_flag, tex]: mesh_material->textures)
+            for(auto &[type_flag, tex_data]: material->texture_data)
             {
-                if(tex)
+                if(auto tex_it = params.texture_store->find(tex_data.texture_id); tex_it != params.texture_store->end())
                 {
                     drawable.material.texture_type_flags |= static_cast<uint32_t>(type_flag);
-                    desc_texture.images.push_back(tex);
+                    desc_texture.images.push_back(tex_it->second);
                 }
             }
         }

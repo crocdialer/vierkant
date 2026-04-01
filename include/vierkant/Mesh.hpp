@@ -7,7 +7,6 @@
 #include "vierkant/Buffer.hpp"
 #include "vierkant/Device.hpp"
 #include "vierkant/Geometry.hpp"
-#include "vierkant/Image.hpp"
 #include "vierkant/Material.hpp"
 #include <vierkant/intersection.hpp>
 #include <vierkant/transform.hpp>
@@ -29,7 +28,7 @@ DEFINE_NAMED_UUID(MeshId)
  * @tparam  T   template parameter providing the datatype
  * @return      the VkIndexType for T
  */
-template<typename T>
+template<std::unsigned_integral T>
 VkIndexType index_type();
 
 /**
@@ -198,6 +197,7 @@ public:
      *
      * @param   device              handle for the vierkant::Device to create subresources with
      * @param   entry_create_infos  an array of entry_create_info_t structs.
+     * @param   create_info         a create_info structs containing parameters
      * @return  the newly created vierkant::MeshPtr
      */
     static vierkant::MeshPtr create_with_entries(const vierkant::DevicePtr &device,
@@ -208,8 +208,9 @@ public:
      * @brief   Create a vierkant::MeshPtr from a provided vierkant::mesh_buffer_bundle_t.
      *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
      *
-     * @param   device      handle for the vierkant::Device to create subresources with
-     * @param   geometry    a Geometry struct to extract the vertex information from
+     * @param   device              handle for the vierkant::Device to create subresources with
+     * @param   mesh_buffer_bundle  a mesh_buffer_bundle to extract the vertex information from
+     * @param   create_info         a create_info structs containing parameters
      * @return  the newly created vierkant::MeshPtr
      */
     static vierkant::MeshPtr create_from_bundle(const vierkant::DevicePtr &device,
@@ -239,7 +240,7 @@ public:
     std::vector<entry_t> entries;
 
     //! materials for submeshes
-    std::vector<vierkant::MaterialPtr> materials;
+    std::vector<vierkant::MaterialId> material_ids;
 
     //! node animations
     vierkant::nodes::NodePtr root_node, root_bone;
@@ -337,12 +338,12 @@ namespace std
 template<>
 struct hash<vierkant::mesh_buffer_params_t>
 {
-    size_t operator()(vierkant::mesh_buffer_params_t const &params) const;
+    size_t operator()(vierkant::mesh_buffer_params_t const &params) const noexcept;
 };
 
 template<>
 struct hash<vierkant::animated_mesh_t>
 {
-    size_t operator()(vierkant::animated_mesh_t const &key) const;
+    size_t operator()(vierkant::animated_mesh_t const &key) const noexcept;
 };
 }// namespace std

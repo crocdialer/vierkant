@@ -12,7 +12,7 @@ namespace vierkant
 
 using vierkant::hash_combine;
 
-size_t std::hash<vierkant::material_t>::operator()(vierkant::material_t const &m) const
+size_t std::hash<vierkant::material_t>::operator()(vierkant::material_t const &m) const noexcept
 {
     size_t h = 0;
     hash_combine(h, m.id);

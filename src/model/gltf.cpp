@@ -215,7 +215,10 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, cons
             const auto *ptr = reinterpret_cast<const uint32_t *>(data);
             geometry->indices = {ptr, ptr + index_accessor.count};
         }
-        else { spdlog::error("unsupported index-type: {}", index_accessor.componentType); }
+        else
+        {
+            spdlog::error("unsupported index-type: {}", index_accessor.componentType);
+        }
     }
 
     for(const auto &[attrib, accessor_idx]: attributes)
@@ -316,7 +319,10 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
         int32_t tex_index;
         if constexpr(std::is_same_v<T, tinygltf::TextureInfo>) { tex_index = texture_info.index; }
         else if constexpr(std::is_same_v<T, tinygltf::NormalTextureInfo>) { tex_index = texture_info.index; }
-        else { tex_index = texture_info; }
+        else
+        {
+            tex_index = texture_info;
+        }
 
         if(tex_index >= 0)
         {
@@ -923,7 +929,7 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
     std::unordered_map<uint32_t, TextureId> tex_id_cache;
     for(const auto &[index, img]: image_cache)
     {
-        auto texture_id = TextureId::random();
+        auto texture_id = TextureId::from_name(path.string() + "_" + std::to_string(index));
         tex_id_cache[index] = texture_id;
         out_assets.textures[texture_id] = img;
     }
@@ -1059,7 +1065,7 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
                 entry_create_infos.push_back(std::move(create_info));
 
             }// for all primitives
-        }    // mesh
+        }// mesh
 
         // node references camera
         if(tiny_node.camera >= 0 && static_cast<uint32_t>(tiny_node.camera) < model.cameras.size())

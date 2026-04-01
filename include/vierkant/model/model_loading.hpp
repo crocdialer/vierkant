@@ -19,9 +19,6 @@
 namespace vierkant
 {
 
-//! contains uncompressed or BC7-compressed images
-using texture_variant_t = std::variant<crocore::ImagePtr, vierkant::bcn::compress_result_t>;
-
 //! contains raw or packed geometry-information. either way 'can' be used to construct a mesh
 using geometry_variant_t =
         std::variant<std::vector<vierkant::Mesh::entry_create_info_t>, vierkant::mesh_buffer_bundle_t>;
@@ -120,6 +117,8 @@ std::optional<model_assets_t> load_model(const std::filesystem::path &path, croc
 struct load_mesh_result_t
 {
     vierkant::MeshPtr mesh;
+    std::unordered_map<vierkant::MaterialId, vierkant::material_t> materials;
+
     std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> textures;
     std::unordered_map<vierkant::SamplerId, vierkant::VkSamplerPtr> samplers;
 };

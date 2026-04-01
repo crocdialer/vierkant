@@ -59,7 +59,7 @@ struct alignas(16) material_struct_t
     uint32_t two_sided = false;
 
     uint32_t texture_type_flags = 0;
-    
+
     uint32_t base_texture_index = 0;
 };
 
@@ -72,6 +72,8 @@ DEFINE_NAMED_ID(DrawableId);
 struct drawable_t
 {
     DrawableId id;
+
+    MaterialId material_id = MaterialId::nil();
 
     MeshConstPtr mesh;
 
@@ -118,6 +120,10 @@ struct drawable_t
 struct create_drawables_params_t
 {
     vierkant::transform_t transform = {};
+
+    const vierkant::material_data_t *material_data = nullptr;
+    const std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> *texture_store = nullptr;
+
     uint32_t animation_index = 0;
     float animation_time = 0.f;
 };
@@ -131,6 +137,6 @@ struct create_drawables_params_t
 std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_component_t &mesh_component,
                                                    const create_drawables_params_t &params);
 
-void update_material(const vierkant::material_t &mat_in, vierkant::material_struct_t &mat_out);
+void update_material(const vierkant::material_t *mat_in, vierkant::material_struct_t &mat_out);
 
 }// namespace vierkant

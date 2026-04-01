@@ -2,8 +2,10 @@
 // Created by crocdialer on 6/14/20.
 //
 
-#include "vierkant/culling.hpp"
+#include <utility>
+
 #include "vierkant/Visitor.hpp"
+#include "vierkant/culling.hpp"
 #include "vierkant/hash.hpp"
 
 namespace vierkant
@@ -22,8 +24,9 @@ struct scoped_stack_push
 class CullVisitor : public vierkant::Visitor
 {
 public:
-    CullVisitor(vierkant::Object3DPtr cam, bool check_intersection, bool world_space)
-        : m_frustum(camera::frustum(cam.get())), m_camera(std::move(cam)), m_check_intersection(check_intersection)
+    CullVisitor(vierkant::SceneConstPtr scene, vierkant::Object3DPtr cam, bool check_intersection, bool world_space)
+        : m_frustum(camera::frustum(cam.get())), m_camera(std::move(cam)), m_scene(std::move(scene)),
+          m_check_intersection(check_intersection)
     {
         if(!world_space) { m_transform_stack.push(camera::view_transform(m_camera.get())); }
         else
@@ -45,6 +48,8 @@ public:
 
                 // create drawables
                 vierkant::create_drawables_params_t drawable_params = {};
+                drawable_params.material_data = m_scene->material_data();
+                drawable_params.texture_store = m_scene->texture_store();
                 drawable_params.transform = model_view;
 
                 if(object.has_component<animation_component_t>())
@@ -105,6 +110,8 @@ public:
 
     vierkant::Object3DPtr m_camera;
 
+    vierkant::SceneConstPtr m_scene;
+
     bool m_check_intersection;
 
     std::stack<vierkant::transform_t> m_transform_stack;
@@ -114,7 +121,8 @@ public:
 
 cull_result_t cull(const cull_params_t &cull_params)
 {
-    CullVisitor cull_visitor(cull_params.camera, cull_params.check_intersection, cull_params.world_space);
+    CullVisitor cull_visitor(cull_params.scene, cull_params.camera, cull_params.check_intersection,
+                             cull_params.world_space);
     cull_params.scene->root()->accept(cull_visitor);
     cull_visitor.m_cull_result.scene = cull_params.scene;
     cull_visitor.m_cull_result.camera = cull_params.camera;

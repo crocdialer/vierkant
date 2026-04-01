@@ -95,7 +95,8 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
             VMA_MEMORY_USAGE_GPU_ONLY);
 }
 
-RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_structures_params_t &params) const
+RayBuilder::build_result_t RayBuilder::create_mesh_structures(const SceneConstPtr &scene,
+                                                              const create_mesh_structures_params_t &params) const
 {
     if(!params.mesh)
     {
@@ -158,8 +159,10 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
 
         const auto &entry = params.mesh->entries[i];
         const auto &lod_0 = entry.lods.front();
-        const auto &mesh_material = params.mesh->materials[entry.material_index];
-        const auto &material = mesh_material->m;
+        const auto &mesh_material_id = params.mesh->material_ids[entry.material_index];
+
+        const auto *material = scene->material(mesh_material_id);
+        // assert(material);
 
         // throw on non-triangle entries
         if(entry.primitive_type != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
@@ -181,11 +184,9 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         VkMicromapUsageEXT micromap_usage = {};
 
         // attach an existing opacity-micromap for this geometry
-        if(params.micromap_assets.size() > i && material.blend_mode == vierkant::BlendMode::Mask)
+        if(params.micromap_assets.size() > i && material && material->blend_mode == vierkant::BlendMode::Mask)
         {
-            const auto &optional_micromap_asset = params.micromap_assets[i];
-
-            if(optional_micromap_asset)
+            if(const auto &optional_micromap_asset = params.micromap_assets[i])
             {
                 micromap_usage.count = vierkant::num_micro_triangles(optional_micromap_asset->num_subdivisions) *
                                        lod_0.num_indices / 3;
@@ -208,7 +209,8 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
 
         auto &geometry = geometries[i];
         geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-        geometry.flags = material.blend_mode == vierkant::BlendMode::Opaque ? VK_GEOMETRY_OPAQUE_BIT_KHR : 0;
+        geometry.flags =
+                material && material->blend_mode == vierkant::BlendMode::Opaque ? VK_GEOMETRY_OPAQUE_BIT_KHR : 0;
         geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
         geometry.geometry.triangles = triangles;
 
@@ -410,7 +412,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
     // vertex-buffer address -> index
     std::unordered_map<VkDeviceAddress, size_t> mesh_buffer_indices;
 
-    std::unordered_map<MaterialConstPtr, size_t> material_indices;
+    std::unordered_map<MaterialId, size_t> material_indices;
 
     vierkant::SelectVisitor<Object3D> visitor;
     params.scene->root()->accept(visitor);
@@ -489,13 +491,14 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
             const auto &mesh_entry = mesh->entries[i];
             const auto &lod = mesh_entry.lods.front();
-            const auto &mesh_material = mesh->materials[mesh_entry.material_index];
-            const auto &m = mesh->materials[mesh_entry.material_index]->m;
+            const auto &material_ids = mesh_component.material_ids ? *mesh_component.material_ids : mesh->material_ids;
+            const auto &mesh_material_id = material_ids[mesh_entry.material_index];
+
+            const auto *mat = params.scene->material(mesh_material_id);
 
             const auto &asset = acceleration_assets[i];
 
             // apply node-animation transform, if any
-
             auto transform = obj_global_transform;
             if(!mesh_component.library)
             {
@@ -509,7 +512,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
             // instance flags
             VkGeometryInstanceFlagsKHR instance_flags =
-                    m.twosided ? VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR : 0;
+                    mat && mat->twosided ? VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR : 0;
 
             // store next entry-index
             size_t entry_idx = entries.size();
@@ -525,72 +528,78 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
             std::optional<glm::mat4> texture_transform;
 
-            if(!material_indices.contains(mesh_material))
+            if(!material_indices.contains(mesh_material_id))
             {
-                material_indices[mesh_material] = materials.size();
+                material_indices[mesh_material_id] = materials.size();
                 RayBuilder::material_struct_t material = {};
-                material.color = m.base_color;
-                material.emission = {m.emission, m.emissive_strength};
-                material.roughness = m.roughness;
-                material.metalness = m.metalness;
-                material.transmission = m.transmission;
-                material.ior = m.ior;
-                material.attenuation_distance = m.attenuation_distance;
-                material.attenuation_color = m.attenuation_color;
-                material.clearcoat_factor = m.clearcoat_factor;
-                material.clearcoat_roughness_factor = m.clearcoat_roughness_factor;
-                material.sheen_color = {m.sheen_color, 0.f};
-                material.sheen_roughness = m.sheen_roughness;
 
-                material.blend_mode = static_cast<uint32_t>(m.blend_mode);
-                material.alpha_cutoff = m.alpha_cutoff;
-                material.two_sided = m.twosided;
-                material.null_surface = m.null_surface;
-                material.phase_asymmetry_g = m.phase_asymmetry_g;
-                material.scattering_ratio = m.scattering_ratio;
-
-                material.iridescence_strength = m.iridescence_factor;
-                material.iridescence_ior = m.iridescence_ior;
-                material.iridescence_thickness_range = m.iridescence_thickness_range;
-
-                for(auto &[type_flag, tex]: mesh_material->textures)
+                if(mat)
                 {
-                    material.texture_type_flags |= static_cast<uint32_t>(type_flag);
+                    material.color = mat->base_color;
+                    material.emission = {mat->emission, mat->emissive_strength};
+                    material.roughness = mat->roughness;
+                    material.metalness = mat->metalness;
+                    material.transmission = mat->transmission;
+                    material.ior = mat->ior;
+                    material.attenuation_distance = mat->attenuation_distance;
+                    material.attenuation_color = mat->attenuation_color;
+                    material.clearcoat_factor = mat->clearcoat_factor;
+                    material.clearcoat_roughness_factor = mat->clearcoat_roughness_factor;
+                    material.sheen_color = {mat->sheen_color, 0.f};
+                    material.sheen_roughness = mat->sheen_roughness;
 
-                    uint32_t texture_index;
-                    if(auto idx_it = texture_indices.find(tex.get()); idx_it != texture_indices.end())
+                    material.blend_mode = static_cast<uint32_t>(mat->blend_mode);
+                    material.alpha_cutoff = mat->alpha_cutoff;
+                    material.two_sided = mat->twosided;
+                    material.null_surface = mat->null_surface;
+                    material.phase_asymmetry_g = mat->phase_asymmetry_g;
+                    material.scattering_ratio = mat->scattering_ratio;
+
+                    material.iridescence_strength = mat->iridescence_factor;
+                    material.iridescence_ior = mat->iridescence_ior;
+                    material.iridescence_thickness_range = mat->iridescence_thickness_range;
+
+                    for(const auto &[type_flag, tex_data]: mat->texture_data)
                     {
-                        texture_index = idx_it->second;
-                    }
-                    else
-                    {
-                        texture_index = textures.size();
-                        texture_indices[tex.get()] = texture_index;
-                        textures.push_back(tex);
-                    }
+                        const auto &tex = params.scene->texture(tex_data.texture_id);
 
-                    switch(type_flag)
-                    {
-                        case vierkant::TextureType::Color:
-                            material.albedo_index = texture_index;
-                            if(mesh_material->m.texture_data[type_flag].texture_transform)
-                            {
-                                texture_transform = *mesh_material->m.texture_data[type_flag].texture_transform;
-                            }
-                            break;
+                        material.texture_type_flags |= static_cast<uint32_t>(type_flag);
 
-                        case vierkant::TextureType::Normal: material.normalmap_index = texture_index; break;
+                        uint32_t texture_index;
+                        if(auto idx_it = texture_indices.find(tex.get()); idx_it != texture_indices.end())
+                        {
+                            texture_index = idx_it->second;
+                        }
+                        else
+                        {
+                            texture_index = textures.size();
+                            texture_indices[tex.get()] = texture_index;
+                            textures.push_back(tex);
+                        }
 
-                        case vierkant::TextureType::Emission: material.emission_index = texture_index; break;
+                        switch(type_flag)
+                        {
+                            case vierkant::TextureType::Color:
+                                material.albedo_index = texture_index;
+                                if(tex_data.texture_transform) { texture_transform = *tex_data.texture_transform; }
+                                break;
 
-                        case vierkant::TextureType::Ao_rough_metal:
-                            material.ao_rough_metal_index = texture_index;
-                            break;
+                            case vierkant::TextureType::Normal: material.normalmap_index = texture_index; break;
 
-                        case vierkant::TextureType::Transmission: material.transmission_index = texture_index; break;
-                        default: break;
+                            case vierkant::TextureType::Emission: material.emission_index = texture_index; break;
+
+                            case vierkant::TextureType::Ao_rough_metal:
+                                material.ao_rough_metal_index = texture_index;
+                                break;
+
+                            case vierkant::TextureType::Transmission:
+                                material.transmission_index = texture_index;
+                                break;
+                            default: break;
+                        }
                     }
                 }
+
                 materials.push_back(material);
             }
 
@@ -600,7 +609,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
             top_level_entry.aabb = mesh_entry.bounding_box;
             if(texture_transform) { top_level_entry.texture_matrix = *texture_transform; }
             top_level_entry.buffer_index = mesh_buffer_indices[vertex_buffer_address];
-            top_level_entry.material_index = material_indices[mesh_material];
+            top_level_entry.material_index = material_indices[mesh_material_id];
             top_level_entry.vertex_offset = mesh_entry.vertex_offset;
             top_level_entry.base_index = lod.base_index;
             entries.push_back(top_level_entry);
@@ -932,7 +941,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             create_mesh_structures_params.semaphore_info.wait_stage =
                     VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
 
-            auto result = create_mesh_structures(create_mesh_structures_params);
+            auto result = create_mesh_structures(params.scene, create_mesh_structures_params);
             context->entity_assets[object->id()] = result.acceleration_assets;
             if(!use_mesh_compute) { context->mesh_assets[mesh] = result.acceleration_assets; }
             context->build_results[build_key] = std::move(result);

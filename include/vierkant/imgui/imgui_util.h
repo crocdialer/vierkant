@@ -39,8 +39,6 @@ void draw_scene_renderer_settings_ui(const vierkant::SceneRendererPtr &scene_ren
 
 void draw_scene_renderer_statistics_ui(const vierkant::SceneRendererPtr &scene_renderer);
 
-void draw_object_ui(const vierkant::Object3DPtr &object);
-
 void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params);
 
 bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Object3DConstPtr &camera, GuizmoType type,

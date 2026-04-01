@@ -28,7 +28,7 @@ TEST(TestPBRDeferred, basic)
     auto mesh = vierkant::Mesh::create_with_entries(test_context.device, {entry_info}, mesh_create_info);
 
     EXPECT_EQ(1, mesh->entries.size());
-    EXPECT_EQ(1, mesh->materials.size());
+    EXPECT_EQ(1, mesh->material_ids.size());
 
     // create camera / mesh-node/ scene
     auto scene = vierkant::Scene::create();

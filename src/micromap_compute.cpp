@@ -251,8 +251,17 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
         {
             const auto &entry = mesh->entries[i];
             const auto &lod_0 = entry.lods.front();
-            const auto &mesh_material = mesh->materials[entry.material_index];
-            const auto &material = mesh_material->m;
+
+            // TODO: use original or override material_ids
+            // const auto &material_ids = mesh_component.material_ids ? *mesh_component.material_ids : mesh->material_ids;
+
+            const auto &mesh_material_id = mesh->material_ids[entry.material_index];
+
+            assert(params.material_data);
+            const auto &material = params.material_data->materials.at(mesh_material_id);
+
+            const auto &tex_id = material.texture_data.at(vierkant::TextureType::Color).texture_id;
+            const auto &color_texture = params.texture_store->at(tex_id);
 
             const auto &buffer_size = buffer_sizes[i];
             const auto &buffer_offset = buffer_offsets[i];
@@ -305,7 +314,7 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             auto &descriptor_img = computable.descriptors[1];
             descriptor_img.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
             descriptor_img.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptor_img.images = {mesh_material->textures[vierkant::TextureType::Color]};
+            descriptor_img.images = {color_texture};
 
             // store params and computable, dispatch later
             param_ubos.push_back(param_ubo);
