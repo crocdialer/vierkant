@@ -86,7 +86,6 @@ void Scene::clear()
 void Scene::add_material(material_t material)
 {
     m_material_data.materials[material.id] = std::move(material);
-    m_material_hashes[material.id] = std::hash<material_t>()(material);
 }
 
 const material_t *Scene::material(const vierkant::MaterialId &material_id) const

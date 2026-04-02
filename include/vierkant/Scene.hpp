@@ -71,12 +71,6 @@ public:
     vierkant::Object3DPtr
     create_camera(const vierkant::camera_params_variant_t &params = vierkant::physical_camera_params_t{});
 
-    uint64_t material_hash(const vierkant::MaterialId &material_id) const
-    {
-        if(const auto it = m_material_hashes.find(material_id); it != m_material_hashes.end()) { return it->second; }
-        return 0;
-    };
-
     void add_material(material_t material);
 
     const material_t *material(const vierkant::MaterialId &material_id) const;
@@ -94,7 +88,6 @@ public:
 
     vierkant::material_data_t m_material_data;
     std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> m_texture_store;
-    std::unordered_map<vierkant::MaterialId, uint64_t> m_material_hashes;
 
 protected:
     explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store);
