@@ -325,7 +325,7 @@ GeometryPtr Geometry::Plane(float width, float height, uint32_t numSegments_W, u
 
     uint32_t gridX = numSegments_W, gridZ = numSegments_H, gridX1 = gridX + 1, gridZ1 = gridZ + 1;
 
-    glm::vec3 normal = xy_plane ? glm::vec3(0, 1, 0) : glm::vec3(0, 0, 1);
+    glm::vec3 normal = xy_plane ? glm::vec3(0, 0, 1) : glm::vec3(0, 1, 0);
 
     // create positions
     for(uint32_t iz = 0; iz < gridZ1; ++iz)
