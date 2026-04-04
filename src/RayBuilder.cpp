@@ -519,7 +519,9 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
             ret.entry_idx_to_object_id[entry_idx] = {object->id(), i};
             ret.object_id_to_entry_indices[object->id()].push_back(entry_idx);
 
-            instance.instanceCustomIndex = entry_idx;
+            // NOTE: we don't need a custom index (gl_InstanceCustomIndexEXT), just use gl_InstanceID
+            // instance.instanceCustomIndex = entry_idx;
+
             instance.mask = 0xFF;
             instance.instanceShaderBindingTableRecordOffset = 0;
             instance.flags = instance_flags;

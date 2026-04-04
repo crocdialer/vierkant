@@ -213,7 +213,7 @@ ray::RayCone propagate(ray::RayCone cone, float surface_spread_angle, float hitT
 
 ray::Triangle get_triangle()
 {
-    ray::entry_t entry = trace_data.entries[InstanceID()];
+    ray::entry_t entry = trace_data.entries[InstanceIndex()];
 
     uint base = entry.base_index + 3 * PrimitiveIndex();
     int3 ind = int3(trace_data.index_buffers[entry.buffer_index][base + 0],
@@ -227,7 +227,7 @@ ray::Triangle get_triangle()
 
 float lod_constant(ray::Triangle t)
 {
-    ray::entry_t entry = trace_data.entries[InstanceID()];
+    ray::entry_t entry = trace_data.entries[InstanceIndex()];
     t.v0.position = utils::apply_transform(entry.transform, t.v0.position);
     t.v1.position = utils::apply_transform(entry.transform, t.v1.position);
     t.v2.position = utils::apply_transform(entry.transform, t.v2.position);
@@ -275,7 +275,7 @@ utils::Vertex interpolate_vertex(ray::Triangle t, float2 bary_coords)
     out_vert.tangent =
             normalize(t.v0.tangent * barycentric.x + t.v1.tangent * barycentric.y + t.v2.tangent * barycentric.z);
 
-    ray::entry_t entry = trace_data.entries[InstanceID()];
+    ray::entry_t entry = trace_data.entries[InstanceIndex()];
     out_vert.position = utils::apply_transform(entry.transform, position);
     out_vert.tex_coord = mul(entry.texture_matrix, float4(out_vert.tex_coord, 0.0, 1.0)).xy;
 
@@ -295,7 +295,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     utils::Vertex v = interpolate_vertex(triangle, attribs.barycentrics);
     float triangle_lod = lod_constant(triangle);
 
-    ray::entry_t entry = trace_data.entries[InstanceID()];
+    ray::entry_t entry = trace_data.entries[InstanceIndex()];
     ray::material_t material = trace_data.materials[entry.material_index];
 
     // potentially limit ray tmax
@@ -304,7 +304,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     float3 V = -WorldRayDirection();
     float NoV = abs(dot(V, payload.normal));
 
-    payload.entity_index = InstanceID();
+    payload.entity_index = InstanceIndex();
     payload.position = v.position;
     payload.normal = v.normal;
 
@@ -507,7 +507,7 @@ void any_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes
 {
     uint rng_state = payload.rng_state;
 
-    ray::entry_t entry = trace_data.entries[InstanceID()];
+    ray::entry_t entry = trace_data.entries[InstanceIndex()];
     ray::material_t material = trace_data.materials[entry.material_index];
 
     if(!material.null_surface &&
