@@ -211,26 +211,23 @@ ray::RayCone propagate(ray::RayCone cone, float surface_spread_angle, float hitT
     return new_cone;
 }
 
-ray::Triangle get_triangle()
+ray::Triangle get_triangle(ray::entry_t *entry)
 {
-    ray::entry_t entry = trace_data.entries[InstanceIndex()];
+    uint base = entry->base_index + 3 * PrimitiveIndex();
+    int3 ind = int3(trace_data.index_buffers[entry->buffer_index][base + 0],
+                    trace_data.index_buffers[entry->buffer_index][base + 1],
+                    trace_data.index_buffers[entry->buffer_index][base + 2]);
 
-    uint base = entry.base_index + 3 * PrimitiveIndex();
-    int3 ind = int3(trace_data.index_buffers[entry.buffer_index][base + 0],
-                    trace_data.index_buffers[entry.buffer_index][base + 1],
-                    trace_data.index_buffers[entry.buffer_index][base + 2]);
-
-    return ray::Triangle(utils::unpack(trace_data.vertex_buffers[entry.buffer_index][entry.vertex_offset + ind.x]),
-                         utils::unpack(trace_data.vertex_buffers[entry.buffer_index][entry.vertex_offset + ind.y]),
-                         utils::unpack(trace_data.vertex_buffers[entry.buffer_index][entry.vertex_offset + ind.z]));
+    return ray::Triangle(utils::unpack(trace_data.vertex_buffers[entry->buffer_index][entry->vertex_offset + ind.x]),
+                         utils::unpack(trace_data.vertex_buffers[entry->buffer_index][entry->vertex_offset + ind.y]),
+                         utils::unpack(trace_data.vertex_buffers[entry->buffer_index][entry->vertex_offset + ind.z]));
 }
 
-float lod_constant(ray::Triangle t)
+float lod_constant(ray::entry_t *entry, ray::Triangle t)
 {
-    ray::entry_t entry = trace_data.entries[InstanceIndex()];
-    t.v0.position = utils::apply_transform(entry.transform, t.v0.position);
-    t.v1.position = utils::apply_transform(entry.transform, t.v1.position);
-    t.v2.position = utils::apply_transform(entry.transform, t.v2.position);
+    t.v0.position = utils::apply_transform(entry->transform, t.v0.position);
+    t.v1.position = utils::apply_transform(entry->transform, t.v1.position);
+    t.v2.position = utils::apply_transform(entry->transform, t.v2.position);
 
     float p_a = length(cross(t.v1.position - t.v0.position, t.v2.position - t.v0.position));
     float t_a = abs((t.v1.tex_coord.x - t.v0.tex_coord.x) * (t.v2.tex_coord.y - t.v0.tex_coord.y) -
@@ -249,11 +246,11 @@ float4 sample_texture_lod(Sampler2D tex, float2 tex_coord, float NoV, float cone
     return tex.SampleLevel(tex_coord, lambda);
 }
 
-utils::transform_t to_aabb_norm(ray::entry_t entry)
+utils::transform_t to_aabb_norm(ray::entry_t *entry)
 {
-    float3 aabb_size = float3(entry.aabb.max_x - entry.aabb.min_x, entry.aabb.max_y - entry.aabb.min_y,
-                              entry.aabb.max_z - entry.aabb.min_z);
-    utils::transform_t ret = entry.inv_transform;
+    float3 aabb_size = float3(entry->aabb.max_x - entry->aabb.min_x, entry->aabb.max_y - entry->aabb.min_y,
+                              entry->aabb.max_z - entry->aabb.min_z);
+    utils::transform_t ret = entry->inv_transform;
     ret.scale_x /= aabb_size.x;
     ret.scale_y /= aabb_size.y;
     ret.scale_z /= aabb_size.z;
@@ -262,7 +259,7 @@ utils::transform_t to_aabb_norm(ray::entry_t entry)
 
 float channel_avg(float3 v) { return (v.x + v.y + v.z) / 3.0; }
 
-utils::Vertex interpolate_vertex(ray::Triangle t, float2 bary_coords)
+utils::Vertex interpolate_vertex(ray::entry_t *entry, ray::Triangle t, float2 bary_coords)
 {
     float3 barycentric = float3(1.0 - bary_coords.x - bary_coords.y, bary_coords.x, bary_coords.y);
 
@@ -275,12 +272,11 @@ utils::Vertex interpolate_vertex(ray::Triangle t, float2 bary_coords)
     out_vert.tangent =
             normalize(t.v0.tangent * barycentric.x + t.v1.tangent * barycentric.y + t.v2.tangent * barycentric.z);
 
-    ray::entry_t entry = trace_data.entries[InstanceIndex()];
-    out_vert.position = utils::apply_transform(entry.transform, position);
-    out_vert.tex_coord = mul(entry.texture_matrix, float4(out_vert.tex_coord, 0.0, 1.0)).xy;
+    out_vert.position = utils::apply_transform(entry->transform, position);
+    out_vert.tex_coord = mul(entry->texture_matrix, float4(out_vert.tex_coord, 0.0, 1.0)).xy;
 
-    float4 quat = float4(entry.transform.rotation_x, entry.transform.rotation_y, entry.transform.rotation_z,
-                         entry.transform.rotation_w);
+    float4 quat = float4(entry->transform.rotation_x, entry->transform.rotation_y, entry->transform.rotation_z,
+                         entry->transform.rotation_w);
     out_vert.normal = utils::rotate_quat(quat, out_vert.normal);
     out_vert.normal = (HitKind() == HIT_KIND_BACK_FACE) ? -out_vert.normal : out_vert.normal;
     out_vert.tangent = utils::rotate_quat(quat, out_vert.tangent);
@@ -291,15 +287,15 @@ utils::Vertex interpolate_vertex(ray::Triangle t, float2 bary_coords)
 void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes attribs)
 {
     uint rng_state = payload.rng_state;
-    ray::Triangle triangle = get_triangle();
-    utils::Vertex v = interpolate_vertex(triangle, attribs.barycentrics);
-    float triangle_lod = lod_constant(triangle);
+    ray::entry_t *entry = trace_data.entries + InstanceIndex();
 
-    ray::entry_t entry = trace_data.entries[InstanceIndex()];
-    ray::material_t material = trace_data.materials[entry.material_index];
+    ray::Triangle triangle = get_triangle(entry);
+    utils::Vertex v = interpolate_vertex(entry, triangle, attribs.barycentrics);
+    float triangle_lod = lod_constant(entry, triangle);
+    ray::material_t material = trace_data.materials[entry->material_index];
 
     // potentially limit ray tmax
-    float tmax_inside_volume = 2 * length(entry.transform.scale() * entry.aabb.half_extents());
+    float tmax_inside_volume = 2 * length(entry->transform.scale() * entry->aabb.half_extents());
 
     float3 V = -WorldRayDirection();
     float NoV = abs(dot(V, payload.normal));
@@ -507,18 +503,18 @@ void any_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes
 {
     uint rng_state = payload.rng_state;
 
-    ray::entry_t entry = trace_data.entries[InstanceIndex()];
-    ray::material_t material = trace_data.materials[entry.material_index];
+    ray::entry_t *entry = trace_data.entries + InstanceIndex();
+    ray::material_t material = trace_data.materials[entry->material_index];
 
     if(!material.null_surface &&
        (material.blend_mode == ray::BlendMode::Mask || material.blend_mode == ray::BlendMode::Blend))
     {
         if((material.texture_type_flags & uint(ray::TextureTypeBits::Color)) != 0)
         {
-            uint base = entry.base_index + 3 * PrimitiveIndex();
-            int3 ind = int3(trace_data.index_buffers[entry.buffer_index][base + 0],
-                            trace_data.index_buffers[entry.buffer_index][base + 1],
-                            trace_data.index_buffers[entry.buffer_index][base + 2]);
+            uint base = entry->base_index + 3 * PrimitiveIndex();
+            int3 ind = int3(trace_data.index_buffers[entry->buffer_index][base + 0],
+                            trace_data.index_buffers[entry->buffer_index][base + 1],
+                            trace_data.index_buffers[entry->buffer_index][base + 2]);
 
             ray::Triangle t = ray::Triangle(
                     utils::unpack(trace_data.vertex_buffers[entry.buffer_index][entry.vertex_offset + ind.x]),
