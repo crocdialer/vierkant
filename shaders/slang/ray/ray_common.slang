@@ -135,10 +135,10 @@ public struct trace_data_t
     public media_t camera_media;
 
     // device pointers
-    public utils::packed_vertex_t **vertex_buffers;
-    public uint32_t **index_buffers;
-    public entry_t *entries;
-    public material_t *materials;
+    public Ptr<utils::packed_vertex_t, Access.Read> *vertex_buffers;
+    public Ptr<uint32_t, Access.Read> *index_buffers;
+    public Ptr<entry_t, Access.Read> entries;
+    public Ptr<material_t, Access.Read> materials;
     public pixel_data_t *out_pixels;
 };
 

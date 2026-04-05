@@ -211,7 +211,7 @@ ray::RayCone propagate(ray::RayCone cone, float surface_spread_angle, float hitT
     return new_cone;
 }
 
-ray::Triangle get_triangle(ray::entry_t *entry)
+ray::Triangle get_triangle(Ptr<ray::entry_t, Access::Read> entry)
 {
     uint base = entry->base_index + 3 * PrimitiveIndex();
     int3 ind = int3(trace_data.index_buffers[entry->buffer_index][base + 0],
@@ -223,7 +223,7 @@ ray::Triangle get_triangle(ray::entry_t *entry)
                          utils::unpack(trace_data.vertex_buffers[entry->buffer_index][entry->vertex_offset + ind.z]));
 }
 
-float lod_constant(ray::entry_t *entry, ray::Triangle t)
+float lod_constant(Ptr<ray::entry_t, Access::Read> entry, ray::Triangle t)
 {
     t.v0.position = utils::apply_transform(entry->transform, t.v0.position);
     t.v1.position = utils::apply_transform(entry->transform, t.v1.position);
@@ -246,7 +246,7 @@ float4 sample_texture_lod(Sampler2D tex, float2 tex_coord, float NoV, float cone
     return tex.SampleLevel(tex_coord, lambda);
 }
 
-utils::transform_t to_aabb_norm(ray::entry_t *entry)
+utils::transform_t to_aabb_norm(Ptr<ray::entry_t, Access::Read> entry)
 {
     float3 aabb_size = float3(entry->aabb.max_x - entry->aabb.min_x, entry->aabb.max_y - entry->aabb.min_y,
                               entry->aabb.max_z - entry->aabb.min_z);
@@ -259,7 +259,7 @@ utils::transform_t to_aabb_norm(ray::entry_t *entry)
 
 float channel_avg(float3 v) { return (v.x + v.y + v.z) / 3.0; }
 
-utils::Vertex interpolate_vertex(ray::entry_t *entry, ray::Triangle t, float2 bary_coords)
+utils::Vertex interpolate_vertex(Ptr<ray::entry_t, Access::Read> entry, ray::Triangle t, float2 bary_coords)
 {
     float3 barycentric = float3(1.0 - bary_coords.x - bary_coords.y, bary_coords.x, bary_coords.y);
 
@@ -287,7 +287,7 @@ utils::Vertex interpolate_vertex(ray::entry_t *entry, ray::Triangle t, float2 ba
 void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes attribs)
 {
     uint rng_state = payload.rng_state;
-    ray::entry_t *entry = trace_data.entries + InstanceIndex();
+    let entry = trace_data.entries + InstanceIndex();
 
     ray::Triangle triangle = get_triangle(entry);
     utils::Vertex v = interpolate_vertex(entry, triangle, attribs.barycentrics);
@@ -503,7 +503,7 @@ void any_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes
 {
     uint rng_state = payload.rng_state;
 
-    ray::entry_t *entry = trace_data.entries + InstanceIndex();
+    let entry = Ptr<ray::entry_t, Access.Read>(trace_data.entries + InstanceIndex());
     ray::material_t material = trace_data.materials[entry->material_index];
 
     if(!material.null_surface &&

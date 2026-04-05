@@ -38,7 +38,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     // create a DescriptorPool
     vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 32},
-                                                      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512},
+                                                      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2048},
                                                       {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 256},
                                                       {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
                                                       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256}};
