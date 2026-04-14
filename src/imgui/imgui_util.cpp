@@ -623,6 +623,30 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
 
         ImGui::EndTabItem();
     }
+
+    if(ImGui::BeginTabItem("textures"))
+    {
+        for(const auto &[texture_id, texture]: scene->m_texture_store)
+        {
+            if(ImGui::TreeNode(texture.get(), "%s", texture_id.str().c_str()))
+            {
+                constexpr uint32_t buf_size = 64;
+                char buf[buf_size];
+                bool is_bc7 = texture->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
+                              texture->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
+                snprintf(buf, buf_size, "%s", is_bc7 ? " - BC7" : "");
+
+                const float w = ImGui::GetContentRegionAvail().x;
+                ImVec2 sz(w, w / (static_cast<float>(texture->width()) / static_cast<float>(texture->height())));
+                ImGui::BulletText("%d x %d%s", texture->width(), texture->height(), buf);
+                strcpy(buf, texture_id.str().c_str());
+                ImGui::InputText("texture-id", buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly);
+                ImGui::Image(reinterpret_cast<ImTextureID>(texture.get()), sz);
+                ImGui::TreePop();
+            }
+        }
+        ImGui::EndTabItem();// textures
+    }
     if(ImGui::BeginTabItem("lights"))
     {
         auto view = scene->registry()->view<vierkant::Object3D *, vierkant::model::lightsource_t>();
