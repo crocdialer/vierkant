@@ -944,14 +944,15 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
     }
 
     // create materials
-    for(const auto &tiny_mat: model.materials)
+    for(uint32_t i = 0; i < model.materials.size(); ++i)
     {
+        const auto &tiny_mat = model.materials[i];
         try
         {
             auto mat = convert_material(tiny_mat, model, image_cache, tex_id_cache, sampler_id_cache);
 
             // deterministic material-ids when loading same path
-            mat.id = MaterialId::from_name(path.string() + "/" + mat.name);
+            mat.id = MaterialId::from_name(path.string() + "/" + std::to_string(i));
             out_assets.materials.push_back(std::move(mat));
         } catch(std::exception &e)
         {
