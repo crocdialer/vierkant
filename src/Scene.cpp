@@ -13,7 +13,7 @@ struct range_item_t
     inline bool operator<(const range_item_t &other) const { return distance < other.distance; }
 };
 
-vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_component)
+vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_component) const
 {
     auto object = create_object();
 
@@ -48,12 +48,7 @@ vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_com
     return object;
 }
 
-vierkant::Object3DPtr Scene::create_object()
-{
-    auto obj = m_object_store->create_object();
-    add_object(obj);
-    return obj;
-}
+vierkant::Object3DPtr Scene::create_object() const { return m_object_store->create_object(); }
 
 vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_params_variant_t &params)
 {
@@ -83,10 +78,7 @@ void Scene::clear()
     m_root->name = s_scene_root_name;
 }
 
-void Scene::add_material(material_t material)
-{
-    m_material_data.materials[material.id] = std::move(material);
-}
+void Scene::add_material(material_t material) { m_material_data.materials[material.id] = std::move(material); }
 
 const material_t *Scene::material(const vierkant::MaterialId &material_id) const
 {
