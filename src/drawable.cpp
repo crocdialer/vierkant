@@ -68,19 +68,13 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
 
         // original or override material_ids
         const auto &material_ids = mesh_component.material_ids ? *mesh_component.material_ids : mesh->material_ids;
+        const material_t *material = nullptr;
+        auto mesh_material_id = MaterialId::nil();
 
         // sanity check material-index
-        if(entry.material_index >= material_ids.size())
+        if(params.material_data && entry.material_index < material_ids.size())
         {
-            spdlog::warn("material_ids: out-of-bounds: {} / {}", entry.material_index, material_ids.size());
-            continue;
-        }
-
-        const auto &mesh_material_id = material_ids[entry.material_index];
-        const material_t *material = nullptr;
-
-        if(params.material_data)
-        {
+            mesh_material_id = material_ids[entry.material_index];
             if(auto mat_it = params.material_data->materials.find(mesh_material_id);
                mat_it != params.material_data->materials.end())
             {
