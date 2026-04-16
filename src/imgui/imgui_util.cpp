@@ -665,7 +665,11 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
     }
     if(ImGui::BeginTabItem("cameras"))
     {
-        if(ImGui::Button("add camera")) { scene->create_camera(); }
+        if(ImGui::Button("add camera"))
+        {
+            auto cam = scene->create_camera();
+            scene->add_object(cam);
+        }
 
         auto visit_fn = [&camera](Object3D &obj) {
             if(!obj.has_component<camera_component_t>()) { return true; }
