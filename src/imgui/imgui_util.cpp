@@ -708,8 +708,12 @@ bool draw_material_ui(vierkant::material_t &material,
     // name
     constexpr size_t buf_size = 4096;
     char text_buf[buf_size];
-    strcpy(text_buf, material.name.c_str());
 
+    // allow grabbing the materia-id
+    strcpy(text_buf, material.id.str().c_str());
+    ImGui::InputText("material-id", text_buf, sizeof(text_buf), ImGuiInputTextFlags_ReadOnly);
+
+    strcpy(text_buf, material.name.c_str());
     if(ImGui::InputText("name", text_buf, IM_ARRAYSIZE(text_buf), ImGuiInputTextFlags_EnterReturnsTrue))
     {
         material.name = text_buf;
@@ -973,9 +977,10 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
                 ImGui::Text("%s", mesh_info_str.c_str());
                 ImGui::Separator();
 
-                auto material_id = material_ids[e.material_index];
+                auto material_id =
+                        e.material_index < material_ids.size() ? material_ids[e.material_index] : MaterialId::nil();
 
-                strcpy(text_buf, material_ids[e.material_index].str().c_str());
+                strcpy(text_buf, material_id.str().c_str());
                 if(ImGui::InputText("material_id", text_buf, sizeof(text_buf)))
                 {
                     auto new_mat_id = vierkant::MaterialId::from_string(text_buf);
@@ -991,6 +996,9 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
 
                         // set new material-id as override
                         material_id = new_mat_id;
+
+                        // avoid overflow
+                        mesh_component.material_ids->resize(e.material_index + 1);
                         mesh_component.material_ids.value()[e.material_index] = new_mat_id;
                         material_changed = true;
                     }

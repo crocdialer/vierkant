@@ -98,6 +98,12 @@ material_t *Scene::material(const vierkant::MaterialId &material_id)
     return nullptr;
 }
 
+const mesh_asset_t *Scene::mesh_asset(const vierkant::MeshId &mesh_id)
+{
+    if(const auto it = m_mesh_map.find(mesh_id); it != m_mesh_map.end()) { return &it->second; }
+    return nullptr;
+}
+
 void Scene::add_texture(const vierkant::TextureId &texture_id, const vierkant::ImagePtr &tex)
 {
     // TODO: mutex?

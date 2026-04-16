@@ -78,7 +78,7 @@ struct mesh_t
     constexpr bool operator==(const vierkant::collision::mesh_t &other) const = default;
 };
 
-using mesh_provider_fn = std::function<vierkant::mesh_asset_t(vierkant::MeshId)>;
+using mesh_provider_fn = std::function<const vierkant::mesh_asset_t*(vierkant::MeshId)>;
 
 using shape_t = std::variant<vierkant::CollisionShapeId, collision::plane_t, collision::none_t, collision::sphere_t,
                              collision::box_t, collision::cylinder_t, collision::capsule_t, collision::mesh_t>;

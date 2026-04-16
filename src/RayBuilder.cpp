@@ -159,10 +159,14 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const SceneConstPt
 
         const auto &entry = params.mesh->entries[i];
         const auto &lod_0 = entry.lods.front();
-        const auto &mesh_material_id = params.mesh->material_ids[entry.material_index];
 
-        const auto *material = scene->material(mesh_material_id);
-        // assert(material);
+        const material_t *material = nullptr;
+
+        if(entry.material_index < params.mesh->material_ids.size())
+        {
+            const auto &mesh_material_id = params.mesh->material_ids[entry.material_index];
+            material = scene->material(mesh_material_id);
+        }
 
         // throw on non-triangle entries
         if(entry.primitive_type != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
@@ -492,9 +496,15 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
             const auto &mesh_entry = mesh->entries[i];
             const auto &lod = mesh_entry.lods.front();
             const auto &material_ids = mesh_component.material_ids ? *mesh_component.material_ids : mesh->material_ids;
-            const auto &mesh_material_id = material_ids[mesh_entry.material_index];
 
-            const auto *mat = params.scene->material(mesh_material_id);
+            auto mesh_material_id = MaterialId::nil();
+            const material_t *mat = nullptr;
+
+            if(mesh_entry.material_index < material_ids.size())
+            {
+                mesh_material_id = material_ids[mesh_entry.material_index];
+                mat = params.scene->material(mesh_material_id);
+            }
 
             const auto &asset = acceleration_assets[i];
 

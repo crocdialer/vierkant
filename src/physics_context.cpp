@@ -766,11 +766,11 @@ void PhysicsContext::step_simulation(float timestep, int max_sub_steps)
 CollisionShapeId PhysicsContext::create_collision_shape(const collision::mesh_t &mesh_cmp, const glm::vec3 &scale)
 {
     if(!mesh_provider || !mesh_cmp.mesh_id) { return CollisionShapeId::nil(); }
-    auto mesh_asset = mesh_provider(mesh_cmp.mesh_id);
-    if(!mesh_asset.bundle) { return CollisionShapeId::nil(); }
+    auto *mesh_asset = mesh_provider(mesh_cmp.mesh_id);
+    if(!mesh_asset || !mesh_asset->bundle) { return CollisionShapeId::nil(); }
 
     JPH::StaticCompoundShapeSettings compound_shape_settings;
-    const auto &mesh_bundle = *mesh_asset.bundle;
+    const auto &mesh_bundle = *mesh_asset->bundle;
 
     // avoid duplicates
     std::map<std::tuple<uint32_t, uint32_t>, JPH::Ref<JPH::Shape>> shape_map;
@@ -850,10 +850,10 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const collision::
 {
     if(!mesh_provider || !mesh_cmp.mesh_id) { return CollisionShapeId::nil(); }
     auto mesh_asset = mesh_provider(mesh_cmp.mesh_id);
-    if(!mesh_asset.bundle) { return CollisionShapeId::nil(); }
+    if(!mesh_asset || !mesh_asset->bundle) { return CollisionShapeId::nil(); }
 
     JPH::StaticCompoundShapeSettings compound_shape_settings;
-    const auto &mesh_bundle = *mesh_asset.bundle;
+    const auto &mesh_bundle = *mesh_asset->bundle;
 
     // avoid duplicates
     std::map<std::tuple<uint32_t, uint32_t>, JPH::Ref<JPH::Shape>> shape_map;
