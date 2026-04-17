@@ -57,7 +57,9 @@ ray::Ray camera_ray(float2 coord, float2 size, float2 Xi)
     {
         origin = mul(trace_data.camera.view_inverse, mul(trace_data.camera.projection_inverse, float4(d.x, d.y, 1, 1)))
                          .xyz;
-        direction = -trace_data.camera.view_inverse[2].xyz;
+        direction = -float3(trace_data.camera.view_inverse[0][2],
+                            trace_data.camera.view_inverse[1][2],
+                            trace_data.camera.view_inverse[2][2]);
     }
     else
     {

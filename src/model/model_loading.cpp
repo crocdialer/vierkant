@@ -284,8 +284,6 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
                     }
                 }
             }
-            // TODO: need image/sampler combos here
-            // material.texture_data[tex_type] = vk_img;
         }
     }
 
