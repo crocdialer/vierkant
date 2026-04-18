@@ -164,14 +164,20 @@ std::map<VkShaderStageFlagBits, shader_module_t> create_shader_stages(ShaderType
     switch(t)
     {
         case ShaderType::UNLIT:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(slang_shaders::slang::unlit_slang);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(slang_shaders::slang::unlit_slang);
-            break;
+        {
+            auto unlit_stage = create_shader_module(slang_shaders::slang::unlit_slang);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = unlit_stage;
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = unlit_stage;
+        }
+        break;
 
         case ShaderType::UNLIT_COLOR:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::unlit::color_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::unlit::color_frag);
-            break;
+        {
+            auto unlit_color_stage = create_shader_module(slang_shaders::slang::color_slang);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = unlit_color_stage;
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = unlit_color_stage;
+        }
+        break;
 
         case ShaderType::UNLIT_TEXTURE:
         {
@@ -182,29 +188,33 @@ std::map<VkShaderStageFlagBits, shader_module_t> create_shader_stages(ShaderType
         break;
 
         case ShaderType::FULLSCREEN_GRID:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::fullscreen::texture_vert);
+        {
+            auto fs_texture_module = create_shader_module(slang_shaders::slang::fs_texture_slang);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = fs_texture_module;
+        }
             ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::fullscreen::grid_frag);
             break;
 
         case ShaderType::FULLSCREEN_TEXTURE:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::fullscreen::texture_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::fullscreen::texture_frag);
-            break;
+        {
+            auto fs_texture_module = create_shader_module(slang_shaders::slang::fs_texture_slang);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = fs_texture_module;
+
+            fs_texture_module.entry_point_name = "fragment_main";
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = fs_texture_module;
+        }
+
+        break;
 
         case ShaderType::FULLSCREEN_TEXTURE_DEPTH:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::fullscreen::texture_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::fullscreen::texture_depth_frag);
-            break;
+        {
+            auto fs_texture_module = create_shader_module(slang_shaders::slang::fs_texture_slang);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = fs_texture_module;
 
-        case ShaderType::UNLIT_COLOR_SKIN:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::unlit::skin_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::unlit::color_frag);
-            break;
-
-        case ShaderType::UNLIT_TEXTURE_SKIN:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::unlit::skin_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::unlit::texture_frag);
-            break;
+            fs_texture_module.entry_point_name = "fragment_depth_main";
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = fs_texture_module;
+        }
+        break;
 
         case ShaderType::UNLIT_CUBE:
             ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::unlit::cube_vert);
