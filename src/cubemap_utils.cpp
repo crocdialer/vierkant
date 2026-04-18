@@ -1,5 +1,6 @@
 #include "vierkant/cubemap_utils.hpp"
 #include <vierkant/shaders.hpp>
+#include <vierkant/shaders_slang.hpp>
 
 namespace vierkant
 {
@@ -404,7 +405,7 @@ vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue qu
     // create a drawable
     vierkant::drawable_t drawable = {};
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-            vierkant::create_shader_module(vierkant::shaders::fullscreen::texture_vert);
+            vierkant::create_shader_module(vierkant::slang_shaders::fullscreen::texture_slang);
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
             vierkant::create_shader_module(vierkant::shaders::pbr::brdf_lut_frag);
 

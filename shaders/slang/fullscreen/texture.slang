@@ -3,7 +3,7 @@ static const float2 s_tex_coords[3] = {float2(0, 0), float2(0, 2), float2(2, 0)}
 
 enum TextureIndex { COLOR = 0, DEPTH = 1 };
 
-[[vk::binding(0, 0)]] Sampler2D u_textures[2];
+[[vk::binding(0, 0)]] Sampler2D u_textures[];
 
 struct params_t
 {

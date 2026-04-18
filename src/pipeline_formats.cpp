@@ -189,15 +189,15 @@ std::map<VkShaderStageFlagBits, shader_module_t> create_shader_stages(ShaderType
 
         case ShaderType::FULLSCREEN_GRID:
         {
-            auto fs_texture_module = create_shader_module(slang_shaders::slang::fs_texture_slang);
+            auto fs_texture_module = create_shader_module(slang_shaders::fullscreen::texture_slang);
             ret[VK_SHADER_STAGE_VERTEX_BIT] = fs_texture_module;
         }
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::fullscreen::grid_frag);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(slang_shaders::fullscreen::grid_slang);
             break;
 
         case ShaderType::FULLSCREEN_TEXTURE:
         {
-            auto fs_texture_module = create_shader_module(slang_shaders::slang::fs_texture_slang);
+            auto fs_texture_module = create_shader_module(slang_shaders::fullscreen::texture_slang);
             ret[VK_SHADER_STAGE_VERTEX_BIT] = fs_texture_module;
 
             fs_texture_module.entry_point_name = "fragment_main";
@@ -208,7 +208,7 @@ std::map<VkShaderStageFlagBits, shader_module_t> create_shader_stages(ShaderType
 
         case ShaderType::FULLSCREEN_TEXTURE_DEPTH:
         {
-            auto fs_texture_module = create_shader_module(slang_shaders::slang::fs_texture_slang);
+            auto fs_texture_module = create_shader_module(slang_shaders::fullscreen::texture_slang);
             ret[VK_SHADER_STAGE_VERTEX_BIT] = fs_texture_module;
 
             fs_texture_module.entry_point_name = "fragment_depth_main";

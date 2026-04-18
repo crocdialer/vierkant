@@ -150,7 +150,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
         // composition/fullscreen pass
         m_drawable_tonemap.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-                vierkant::create_shader_module(vierkant::shaders::fullscreen::texture_vert);
+                vierkant::create_shader_module(vierkant::slang_shaders::fullscreen::texture_slang);
         m_drawable_tonemap.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
                 vierkant::create_shader_module(vierkant::shaders::fullscreen::bloom_composition_frag);
 
