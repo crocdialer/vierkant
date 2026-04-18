@@ -7,7 +7,6 @@
 #include <vierkant/culling.hpp>
 #include <vierkant/gpu_timestamp_util.hpp>
 #include <vierkant/punctual_light.hpp>
-#include <vierkant/shaders.hpp>
 #include <vierkant/shaders_slang.hpp>
 #include <vierkant/staging_copy.hpp>
 
@@ -176,7 +175,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
                 vierkant::create_shader_module(vierkant::slang_shaders::fullscreen::texture_slang);
         fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(vierkant::shaders::pbr::lighting_environment_frag);
+                vierkant::create_shader_module(vierkant::slang_shaders::pbr::lighting_environment_slang);
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // descriptors
