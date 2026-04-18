@@ -217,9 +217,12 @@ std::map<VkShaderStageFlagBits, shader_module_t> create_shader_stages(ShaderType
         break;
 
         case ShaderType::UNLIT_CUBE:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(shaders::unlit::cube_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(shaders::unlit::cube_frag);
-            break;
+        {
+            auto cube_module = create_shader_module(slang_shaders::unlit::cube_slang);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = cube_module;
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = cube_module;
+        }
+        break;
 
         default: break;
     }
