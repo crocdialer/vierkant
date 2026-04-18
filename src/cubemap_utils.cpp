@@ -407,7 +407,7 @@ vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue qu
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
             vierkant::create_shader_module(vierkant::slang_shaders::fullscreen::texture_slang);
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(vierkant::shaders::pbr::brdf_lut_frag);
+            vierkant::create_shader_module(vierkant::slang_shaders::pbr::brdf_lut_slang);
 
     drawable.num_vertices = 3;
 
