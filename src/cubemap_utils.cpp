@@ -335,7 +335,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, const vi
     // create a drawable
     vierkant::drawable_t drawable = {};
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-            vierkant::create_shader_module(vierkant::shaders::cube::cube_vert);
+            vierkant::create_shader_module(vierkant::slang_shaders::unlit::cube_layers_slang);
     drawable.num_instances = 6;
     drawable.num_vertices = 36;
     drawable.pipeline_format.blend_state.blendEnable = false;
