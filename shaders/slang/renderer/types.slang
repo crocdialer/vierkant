@@ -35,7 +35,7 @@ public struct lod_t
     public uint num_meshlets;
 };
 
-#define MAX_NUM_MESH_LODS 8
+public static const uint MAX_NUM_MESH_LODS = 8;
 
 // Metadata for a mesh and its LODs
 public struct mesh_entry_t
