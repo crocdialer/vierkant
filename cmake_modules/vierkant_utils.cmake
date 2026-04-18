@@ -85,7 +85,7 @@ function(STRINGIFY_SLANG_SHADERS SLANG_FOLDER TARGET_NAME SLANG_COMPILER SPIRV_O
 
     # explore subdirectories under the given folder
     # subdirlist(SUBDIRS ${SLANG_FOLDER})
-    set(SUBDIRS "${SLANG_FOLDER};${SLANG_FOLDER}/fullscreen;${SLANG_FOLDER}/pbr")
+    set(SUBDIRS "${SLANG_FOLDER};${SLANG_FOLDER}/unlit;${SLANG_FOLDER}/fullscreen;${SLANG_FOLDER}/pbr")
 
     foreach (SUBDIR ${SUBDIRS})
         get_filename_component(DIR_NAME ${SUBDIR} NAME)

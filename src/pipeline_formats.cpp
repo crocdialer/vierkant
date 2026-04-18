@@ -165,7 +165,7 @@ std::map<VkShaderStageFlagBits, shader_module_t> create_shader_stages(ShaderType
     {
         case ShaderType::UNLIT:
         {
-            auto unlit_stage = create_shader_module(slang_shaders::slang::unlit_slang);
+            auto unlit_stage = create_shader_module(slang_shaders::unlit::unlit_slang);
             ret[VK_SHADER_STAGE_VERTEX_BIT] = unlit_stage;
             ret[VK_SHADER_STAGE_FRAGMENT_BIT] = unlit_stage;
         }
@@ -173,7 +173,7 @@ std::map<VkShaderStageFlagBits, shader_module_t> create_shader_stages(ShaderType
 
         case ShaderType::UNLIT_COLOR:
         {
-            auto unlit_color_stage = create_shader_module(slang_shaders::slang::color_slang);
+            auto unlit_color_stage = create_shader_module(slang_shaders::unlit::color_slang);
             ret[VK_SHADER_STAGE_VERTEX_BIT] = unlit_color_stage;
             ret[VK_SHADER_STAGE_FRAGMENT_BIT] = unlit_color_stage;
         }
@@ -181,7 +181,7 @@ std::map<VkShaderStageFlagBits, shader_module_t> create_shader_stages(ShaderType
 
         case ShaderType::UNLIT_TEXTURE:
         {
-            const auto shader_module = create_shader_module(slang_shaders::slang::texture_slang);
+            const auto shader_module = create_shader_module(slang_shaders::unlit::texture_slang);
             ret[VK_SHADER_STAGE_VERTEX_BIT] = shader_module;
             ret[VK_SHADER_STAGE_FRAGMENT_BIT] = shader_module;
         }

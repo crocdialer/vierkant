@@ -1,5 +1,5 @@
-import "renderer/types.slang";
-import "utils/transform.slang";
+import "../renderer/types.slang";
+import "../utils/transform.slang";
 
 [[vk::push_constant]]
 renderer::context_t context;
