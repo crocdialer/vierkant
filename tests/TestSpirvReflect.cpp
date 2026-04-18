@@ -1,6 +1,6 @@
 #include "test_context.hpp"
 #include "vierkant/pipeline_formats.hpp"
-#include "vierkant/shaders.hpp"
+#include "vierkant/shaders_slang.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -9,7 +9,7 @@ TEST(TestSpirvReflect, GroupCount)
     vulkan_test_context_t test_context;
 
     // overlay-compute
-    auto shader_stage = vierkant::create_shader_module(vierkant::shaders::renderer::object_overlay_comp);
+    auto shader_stage = vierkant::create_shader_module(vierkant::slang_shaders::slang::object_overlay_slang);
     EXPECT_TRUE(shader_stage.create_info.codeSize);
     EXPECT_TRUE(shader_stage.entry_points.contains(VK_SHADER_STAGE_COMPUTE_BIT));
     EXPECT_FALSE(shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT).empty());
