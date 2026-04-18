@@ -1,5 +1,5 @@
 #include <vierkant/Bloom.hpp>
-#include <vierkant/shaders.hpp>
+#include <vierkant/shaders_slang.hpp>
 
 namespace vierkant
 {
@@ -53,9 +53,9 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info)
     m_drawable.pipeline_format.depth_write = false;
 
     m_drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-            vierkant::create_shader_module(vierkant::shaders::fullscreen::texture_vert);
+            vierkant::create_shader_module(vierkant::slang_shaders::fullscreen::texture_slang);
     m_drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(vierkant::shaders::fullscreen::bloom_thresh_frag);
+            vierkant::create_shader_module(vierkant::slang_shaders::fullscreen::bloom_thresh_slang);
     m_drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     // set the specialization info

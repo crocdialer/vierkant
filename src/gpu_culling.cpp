@@ -1,4 +1,4 @@
-#include "vierkant/shaders.hpp"
+#include "vierkant/shaders_slang.hpp"
 #include <vierkant/gpu_culling.hpp>
 
 namespace vierkant
@@ -334,7 +334,7 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const glm:
     *reinterpret_cast<draw_cull_result_t *>(ret->draw_cull_result_buffer_host->map()) = {};
 
     // indirect-draw cull compute
-    auto cull_shader_stage = vierkant::create_shader_module(vierkant::shaders::pbr::indirect_cull_comp);
+    auto cull_shader_stage = vierkant::create_shader_module(vierkant::slang_shaders::pbr::indirect_cull_slang);
     ret->cull_computable.pipeline_info.shader_stage = cull_shader_stage;
     assert(cull_shader_stage.entry_points.contains(VK_SHADER_STAGE_COMPUTE_BIT));
     ret->cull_local_size = *cull_shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT)[0].group_count;
@@ -345,7 +345,7 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const glm:
     ret->cull_compute = vierkant::Compute(device, compute_info);
 
     // depth pyramid compute
-    auto shader_stage = vierkant::create_shader_module(vierkant::shaders::pbr::depth_min_reduce_comp);
+    auto shader_stage = vierkant::create_shader_module(vierkant::slang_shaders::pbr::depth_min_reduce_slang);
     ret->depth_pyramid_computable.pipeline_info.shader_stage = shader_stage;
     ret->depth_pyramid_local_size = *shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT)[0].group_count;
 

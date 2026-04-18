@@ -13,15 +13,12 @@ CollisionShapeId create_collision_shape(PhysicsContext &context, const vierkant:
     vierkant::mesh_buffer_params_t buffer_params = {};
     // buffer_params.pack_vertices = true;
 
-    auto mesh_bundle = vierkant::create_mesh_buffers({entry_create_info}, buffer_params);
     CollisionShapeId shape_id = CollisionShapeId::nil();
     collision::mesh_t mesh_cpm = {};
     mesh_cpm.mesh_id = {};
-    context.mesh_provider = [mesh_bundle = std::move(mesh_bundle)](const vierkant::MeshId &mesh_id) {
-        vierkant::mesh_asset_t ret = {};
-        ret.bundle = mesh_bundle;
-        return ret;
-    };
+    vierkant::mesh_asset_t mesh_asset = {};
+    mesh_asset.bundle = vierkant::create_mesh_buffers({entry_create_info}, buffer_params);
+    context.mesh_provider = [&mesh_asset](const vierkant::MeshId &mesh_id) { return &mesh_asset; };
     shape_id = convex ? context.create_convex_collision_shape(mesh_cpm) : context.create_collision_shape(mesh_cpm);
     EXPECT_TRUE(shape_id);
     return shape_id;

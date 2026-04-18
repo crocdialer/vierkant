@@ -1,6 +1,6 @@
 #include "vierkant/GaussianBlur.hpp"
 #include "crocore/gaussian.hpp"
-#include "vierkant/shaders.hpp"
+#include "vierkant/shaders_slang.hpp"
 
 namespace vierkant
 {
@@ -128,9 +128,9 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
         fmt.depth_write = false;
 
         fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-                vierkant::create_shader_module(vierkant::shaders::fullscreen::texture_vert);
+                vierkant::create_shader_module(vierkant::slang_shaders::fullscreen::texture_slang);
         fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(vierkant::shaders::fullscreen::gaussian_blur_frag);
+                vierkant::create_shader_module(vierkant::slang_shaders::fullscreen::gaussian_blur_slang);
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // set the specialization info
