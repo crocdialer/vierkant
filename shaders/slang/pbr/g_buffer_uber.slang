@@ -12,15 +12,6 @@ StructuredBuffer<renderer::material_t> materials;
 [[vk::binding(renderer::ResourceBinding::Textures, 1)]]
 Sampler2D textures[];
 
-struct VertexData
-{
-    float2 tex_coord;
-    float3 normal;
-    float3 tangent;
-    float4 current_position;
-    float4 last_position;
-};
-
 struct FragOutput
 {
     float4 color: SV_Target0;
@@ -39,7 +30,7 @@ uint tex_offset(uint type, uint flags)
 [[shader("pixel")]]
 FragOutput fragment_main(
     nointerpolation in renderer::index_bundle_t indices,
-    in VertexData vertex_in,
+    in renderer::g_buffer_vertex_data_t vertex_in,
     in float4 sv_position: SV_Position,
     in bool is_front_face: SV_IsFrontFace,
     in float3 bary_coord: SV_Barycentrics)

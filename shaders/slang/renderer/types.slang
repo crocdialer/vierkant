@@ -50,7 +50,7 @@ public struct mesh_entry_t
     public lod_t lods[MAX_NUM_MESH_LODS];
 };
 
-// Bundle of draw-time indices (passed between shader stages)
+// bundle of draw-time indices (passed between shader stages)
 public struct index_bundle_t
 {
     public uint mesh_draw_index;
@@ -60,7 +60,17 @@ public struct index_bundle_t
     public uint lod_count;
 };
 
-// Vertex attribute location mapping
+// g-buffer interstage vertex-data
+public struct g_buffer_vertex_data_t
+{
+    public float2 tex_coord;
+    public float3 normal;
+    public float3 tangent;
+    public float4 current_position;
+    public float4 last_position;
+};
+
+// vertex-attribute location mapping
 public enum VertexAttrib : uint
 {
     Position = 0,
@@ -72,7 +82,7 @@ public enum VertexAttrib : uint
     BoneWeights = 6,
 };
 
-// Material blend modes
+// material blend modes
 public enum BlendMode : uint
 {
     Opaque = 0,

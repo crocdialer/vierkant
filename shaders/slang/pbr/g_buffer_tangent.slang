@@ -20,17 +20,8 @@ struct camera_ubo_t
 [[vk::binding(renderer::ResourceBinding::JitterOffset, 0)]]
 ConstantBuffer<camera_ubo_t> camera_ubo;
 
-struct VertexData
-{
-    float2 tex_coord;
-    float3 normal;
-    float3 tangent;
-    float4 current_position;
-    float4 last_position;
-};
-
 [[shader("vertex")]]
-VertexData vertex_main(
+    renderer::g_buffer_vertex_data_t vertex_main(
     uint vertex_id: SV_VertexID,
     uint base_vertex: SV_StartVertexLocation,
     uint instance_id: SV_StartInstanceLocation,
@@ -48,7 +39,7 @@ VertexData vertex_main(
 
     utils::Vertex v = utils::unpack(vertex_buffers[draws[indices.mesh_draw_index].vertex_buffer_index][vertex_id + base_vertex]);
 
-    VertexData vertex_out;
+    renderer::g_buffer_vertex_data_t vertex_out;
     float3 world_pos = utils::apply_transform(m.transform, v.position);
     vertex_out.current_position = mul(camera_ubo.camera.projection, mul(camera_ubo.camera.view, float4(world_pos, 1.0)));
     float3 last_world_pos = utils::apply_transform(m_last.transform, v.position);
