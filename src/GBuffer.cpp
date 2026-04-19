@@ -87,7 +87,7 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr & /*device*/)
     // vertex
     auto pbr_vert = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_vert);
     auto pbr_tangent_morph_vert = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_tangent_morph_vert);
-    auto pbr_tangent_vert = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_tangent_vert);
+    auto pbr_tangent_vert = vierkant::create_shader_module(vierkant::slang_shaders::pbr::g_buffer_tangent_slang);
     auto pbr_tangent_skin_vert = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_tangent_skin_vert);
 
     //    auto pbr_tangent_tess_vert =
