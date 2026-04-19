@@ -3,7 +3,9 @@
 //
 
 #include <vierkant/GBuffer.hpp>
+
 #include <vierkant/shaders.hpp>
+#include <vierkant/shaders_slang.hpp>
 
 namespace vierkant
 {
@@ -97,7 +99,7 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr & /*device*/)
     auto pbr_tangent_mesh = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_mesh);
 
     // fragment
-    auto pbr_g_buffer_uber_frag = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_uber_frag);
+    auto pbr_g_buffer_uber_frag = vierkant::create_shader_module(vierkant::slang_shaders::pbr::g_buffer_uber_slang);
 
     auto &stages_default = ret[PROP_DEFAULT];
     stages_default[VK_SHADER_STAGE_VERTEX_BIT] = pbr_vert;

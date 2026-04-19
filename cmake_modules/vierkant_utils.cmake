@@ -108,7 +108,7 @@ function(STRINGIFY_SLANG_SHADERS SLANG_FOLDER TARGET_NAME SLANG_COMPILER SPIRV_O
 
             execute_process(
                     COMMAND ${CMAKE_COMMAND} -E make_directory "${SPIRV_OUT_DIR}/${SLANG_FOLDER}/"
-                    COMMAND ${SLANG_COMPILER} -target ${SLANG_TARGET} ${SLANG_EXTRA_PARAMS} ${SLANG} -o ${SPIRV}
+                    COMMAND ${SLANG_COMPILER} -target ${SLANG_TARGET} -profile spirv_1_6 ${SLANG_EXTRA_PARAMS} ${SLANG} -o ${SPIRV}
                     OUTPUT_VARIABLE slang_std_out
                     ERROR_VARIABLE slang_std_err
                     RESULT_VARIABLE ret
