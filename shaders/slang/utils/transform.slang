@@ -62,6 +62,7 @@ public transform_t transform_mult(transform_t lhs, transform_t rhs)
     return result;
 }
 
+// TODO: better document the row/col juggling here
 public float3x3 mat3_cast(float4 q)
 {
     float qxx = q.x * q.x;
@@ -79,10 +80,15 @@ public float3x3 mat3_cast(float4 q)
                     float3(2.0 * (qxz + qwy), 2.0 * (qyz - qwx), 1.0 - 2.0 * (qxx + qyy)));
 }
 
+// TODO: better document the row/col juggling here
 public float4x4 mat4_cast(transform_t t)
 {
     float3x3 rot = mat3_cast(float4(t.rotation_x, t.rotation_y, t.rotation_z, t.rotation_w));
-    return float4x4(float4(rot[0] * t.scale_x, 0.0), float4(rot[1] * t.scale_y, 0.0), float4(rot[2] * t.scale_z, 0.0),
-                    float4(t.translation_x, t.translation_y, t.translation_z, 1.0));
+    rot[0] *= t.scale_x;
+    rot[1] *= t.scale_y;
+    rot[2] *= t.scale_z;
+    rot = transpose(rot);
+    return float4x4(float4(rot[0], t.translation_x), float4(rot[1], t.translation_y), float4(rot[2], t.translation_z),
+                    float4(0.0, 0.0, 0.0, 1.0));
 }
 }

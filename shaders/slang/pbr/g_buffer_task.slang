@@ -74,7 +74,7 @@ void task_main(uint3 dispatchThreadID: SV_DispatchThreadID, uint ti: SV_GroupThr
     uint gid = dispatchThreadID.x;
 
     // init shared memory
-    if(gid == 0) { visible_meshlets_count = 0; }
+    if(ti == 0) { visible_meshlets_count = 0; }
     GroupMemoryBarrierWithGroupSync();
 
     renderer::indexed_draw_command_t draw_command = draw_commands[context.base_draw_index + draw_id];
