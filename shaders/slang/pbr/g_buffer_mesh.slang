@@ -42,8 +42,12 @@ StructuredBuffer<uint> meshlet_vertices;
 [[vk::binding(renderer::ResourceBinding::MeshletTriangles, 0)]]
 StructuredBuffer<uint8_t> meshlet_triangles;
 
-// ---- mesh shader -----------------------------------------------------------
-groupshared renderer::mesh_task_payload_t task_payload;
+// TODO: not really worth it? not sure ...
+#define CULLING 1
+
+#if CULLING
+groupshared float3 vertex_clip[renderer::MESHLET_MAX_VERTICES];
+#endif
 
 struct MeshVertex
 {
@@ -58,8 +62,9 @@ struct MeshVertex
 void mesh_main(
     uint ti    : SV_GroupThreadID,
     uint wg_id : SV_GroupID,
-    OutputVertices<MeshVertex, renderer::MESHLET_MAX_VERTICES> verts,
-    OutputIndices<uint3, renderer::MESHLET_MAX_TRIANGLES>      inds)
+    in payload renderer::mesh_task_payload_t task_payload,
+    OutputVertices<MeshVertex, renderer::MESHLET_MAX_VERTICES> out_vertices,
+    OutputIndices<uint3, renderer::MESHLET_MAX_TRIANGLES>      out_indices)
 {
     uint mi = task_payload.meshlet_base_index + uint(task_payload.meshlet_delta_indices[wg_id]);
 
@@ -82,26 +87,63 @@ void mesh_main(
                                mul(camera_ubo.last_camera.view,
                                    float4(utils::apply_transform(m_last.transform, v.position), 1.0)));
 
-        float4 jittered = cur_pos;
-        jittered.xy += 2.0 * camera_ubo.camera.sample_offset * jittered.w;
-        verts[i].position = jittered;
+        float4 jittered_position = cur_pos;
+        jittered_position.xy += 2.0 * camera_ubo.camera.sample_offset * jittered_position.w;
+        out_vertices[i].position = jittered_position;
 
-        verts[i].indices.mesh_draw_index = task_payload.object_index;
-        verts[i].indices.material_index  = draws[task_payload.object_index].material_index;
-        verts[i].indices.meshlet_index   = mi;
-        verts[i].indices.lod_index       = uint(draws[task_payload.object_index].lod_index);
-        verts[i].indices.lod_count       = uint(draws[task_payload.object_index].lod_count);
+        out_vertices[i].indices.mesh_draw_index = task_payload.object_index;
+        out_vertices[i].indices.material_index  = draws[task_payload.object_index].material_index;
+        out_vertices[i].indices.meshlet_index   = mi;
+        out_vertices[i].indices.lod_index       = uint(draws[task_payload.object_index].lod_index);
+        out_vertices[i].indices.lod_count       = uint(draws[task_payload.object_index].lod_count);
 
-        verts[i].vertex_data.current_position = cur_pos;
-        verts[i].vertex_data.last_position    = last_pos;
-        verts[i].vertex_data.tex_coord        = mul(m.texture, float4(v.tex_coord, 0, 1)).xy;
-        verts[i].vertex_data.normal           = utils::apply_rotation(m.transform, v.normal);
-        verts[i].vertex_data.tangent          = utils::apply_rotation(m.transform, v.tangent);
+        out_vertices[i].vertex_data.current_position = cur_pos;
+        out_vertices[i].vertex_data.last_position    = last_pos;
+        out_vertices[i].vertex_data.tex_coord        = mul(m.texture, float4(v.tex_coord, 0, 1)).xy;
+        out_vertices[i].vertex_data.normal           = utils::apply_rotation(m.transform, v.normal);
+        out_vertices[i].vertex_data.tangent          = utils::apply_rotation(m.transform, v.tangent);
+
+#if CULLING
+        vertex_clip[i] = float3((jittered_position.xy / jittered_position.w * 0.5 + float2(0.5)) * context.size,
+                              jittered_position.w);
+#endif
     }
+
+#if CULLING
+    GroupMemoryBarrierWithGroupSync();
+#endif
 
     for (uint i = ti; i < tcount; i += mesh_workgroup_x)
     {
-        uint base = meshlets[mi].triangle_offset + 3 * i;
-        inds[i] = uint3(meshlet_triangles[base], meshlet_triangles[base + 1], meshlet_triangles[base + 2]);
+        uint base_index = meshlets[mi].triangle_offset + 3 * i;
+        uint a = uint(meshlet_triangles[base_index]), b = uint(meshlet_triangles[base_index + 1]),
+                c = uint(meshlet_triangles[base_index + 2]);
+        out_indices[i] = uint3(a, b, c);
+
+        #if CULLING
+        bool culled = false;
+
+        float2 pa = vertex_clip[a].xy, pb = vertex_clip[b].xy, pc = vertex_clip[c].xy;
+
+        // backface culling + zero-area culling
+        float2 eb = pb - pa;
+        float2 ec = pc - pa;
+
+        culled = culled || (eb.x * ec.y >= eb.y * ec.x);
+
+        // small primitive culling
+        float2 bmin = min(pa, min(pb, pc));
+        float2 bmax = max(pa, max(pb, pc));
+        float sbprec = 1.0 / 256.0; // note: this can be set to 1/2^subpixelPrecisionBits
+
+        // note: this is slightly imprecise (doesn't fully match hw behavior and is both too loose and too strict)
+        culled = culled || (round(bmin.x - sbprec) == round(bmax.x) || round(bmin.y) == round(bmax.y + sbprec));
+
+        // the computations above are only valid if all vertices are in front of perspective plane
+        culled = culled && (vertex_clip[a].z > 0 && vertex_clip[b].z > 0 && vertex_clip[c].z > 0);
+
+        // TODO: find slang-equivalent
+        //gl_MeshPrimitivesEXT[i].gl_CullPrimitiveEXT = culled;
+        #endif
     }
 }
