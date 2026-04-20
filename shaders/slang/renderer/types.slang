@@ -236,4 +236,15 @@ public struct meshlet_t
     public float sphere_radius;
 };
 
+public static const uint MESHLET_MAX_VERTICES    = 64;
+public static const uint MESHLET_MAX_TRIANGLES   = 84;
+public static const uint MAX_MESH_WORKGROUP_SIZE = 128;
+
+public struct mesh_task_payload_t
+{
+    public uint    meshlet_base_index;
+    public uint8_t meshlet_delta_indices[MAX_MESH_WORKGROUP_SIZE];
+    public uint    object_index;
+};
+
 }// namespace renderer
