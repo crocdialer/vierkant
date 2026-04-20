@@ -14,7 +14,9 @@ public struct camera_t
     // left/right/top/bottom frustum planes
     public float4 frustum;
     public bool ortho;
-    int pad[3];
+    private int _pad0;
+    private int _pad1;
+    private int _pad2;
 };
 
 // left/right/bottom/top frustum planes
