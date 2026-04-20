@@ -668,8 +668,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
                 //layout (constant_id = 2) const bool use_culling
                 // NOTE: do not apply culling when the vertex-buffer was overridden (bounds possibly wrong)
-                pipeline_specialization.set(2, VkBool32(false));
-                // pipeline_specialization.set(2, VkBool32(use_gpu_culling && !drawable.vertex_buffer));
+                pipeline_specialization.set(2, VkBool32(use_gpu_culling && !drawable.vertex_buffer));
                 drawable.pipeline_format.specialization = std::move(pipeline_specialization);
 
                 auto &desc_depth_pyramid = drawable.descriptors[Rasterizer::BINDING_DEPTH_PYRAMID];
