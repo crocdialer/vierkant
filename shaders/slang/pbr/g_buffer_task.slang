@@ -63,7 +63,7 @@ void set_visible(uint base, uint meshlet_index, bool visible)
 
 // ---- task (amplification) shader -------------------------------------------
 
-groupshared uint shared_count;
+groupshared uint visible_meshlets_count;
 groupshared renderer::mesh_task_payload_t task_payload;
 
 [numthreads(task_workgroup_x, 1, 1)]
@@ -74,7 +74,7 @@ void task_main(uint3 dispatchThreadID: SV_DispatchThreadID, uint ti: SV_GroupThr
     uint gid = dispatchThreadID.x;
 
     // init shared memory
-    if(gid == 0) { shared_count = 0; }
+    if(gid == 0) { visible_meshlets_count = 0; }
     GroupMemoryBarrierWithGroupSync();
 
     renderer::indexed_draw_command_t draw_command = draw_commands[context.base_draw_index + draw_id];
@@ -164,11 +164,11 @@ void task_main(uint3 dispatchThreadID: SV_DispatchThreadID, uint ti: SV_GroupThr
         if(visible)
         {
             uint index;
-            InterlockedAdd(shared_count, 1u, index);
+            InterlockedAdd(visible_meshlets_count, 1u, index);
             task_payload.meshlet_delta_indices[index] = uint8_t(ti);
         }
         GroupMemoryBarrierWithGroupSync();
-        dispatch_count = shared_count;
+        dispatch_count = visible_meshlets_count;
     }
     else
     {

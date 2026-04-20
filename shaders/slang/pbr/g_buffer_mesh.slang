@@ -5,7 +5,8 @@ import "../utils/camera.slang";
 import "../utils/project_sphere.slang";
 
 // Specialization-constant IDs mirror the GLSL constant_id assignments
-[[vk::constant_id(1)]] const uint mesh_workgroup_x = renderer::MAX_MESH_WORKGROUP_SIZE;
+[[vk::constant_id(1)]]
+const uint mesh_workgroup_x = renderer::MAX_MESH_WORKGROUP_SIZE;
 
 // ---- shared bindings (set 0) -----------------------------------------------
 
@@ -43,69 +44,76 @@ StructuredBuffer<uint> meshlet_vertices;
 StructuredBuffer<uint8_t> meshlet_triangles;
 
 // TODO: not really worth it? not sure ...
-#define CULLING 1
+#define CULLING 0
 
 #if CULLING
 groupshared float3 vertex_clip[renderer::MESHLET_MAX_VERTICES];
 #endif
 
-struct MeshVertex
+struct vertex_data_t
 {
     float4 position : SV_Position;
-    [[vk::location(0)]] nointerpolation renderer::index_bundle_t  indices;
-    [[vk::location(5)]] renderer::g_buffer_vertex_data_t          vertex_data;
+
+    [[vk::location(0)]]
+    nointerpolation renderer::index_bundle_t indices;
+
+    [[vk::location(5)]]
+    renderer::g_buffer_vertex_data_t g_buffer_data;
+};
+
+struct primitive_data_t
+{
+    uint3 indices;
+    uint primitive_id : SV_PrimitiveID;
+    uint cull_primitive : SV_CullPrimitive;
 };
 
 [outputtopology("triangle")]
 [numthreads(mesh_workgroup_x, 1, 1)]
 [[shader("mesh")]]
-void mesh_main(
-    uint ti    : SV_GroupThreadID,
-    uint wg_id : SV_GroupID,
-    in payload renderer::mesh_task_payload_t task_payload,
-    OutputVertices<MeshVertex, renderer::MESHLET_MAX_VERTICES> out_vertices,
-    OutputIndices<uint3, renderer::MESHLET_MAX_TRIANGLES>      out_indices)
+void mesh_main(uint ti: SV_GroupThreadID, uint wg_id: SV_GroupID, in payload renderer::mesh_task_payload_t task_payload,
+               OutputVertices<vertex_data_t, renderer::MESHLET_MAX_VERTICES> out_vertices,
+               OutputIndices<primitive_data_t, renderer::MESHLET_MAX_TRIANGLES> out_primitives)
 {
     uint mi = task_payload.meshlet_base_index + uint(task_payload.meshlet_delta_indices[wg_id]);
 
-    uint vcount = uint(meshlets[mi].vertex_count);
-    uint tcount = uint(meshlets[mi].triangle_count);
-    SetMeshOutputCounts(vcount, tcount);
+    uint vertex_count = uint(meshlets[mi].vertex_count);
+    uint primitive_count = uint(meshlets[mi].triangle_count);
+    SetMeshOutputCounts(vertex_count, primitive_count);
 
-    renderer::matrix_struct_t m      = draws[task_payload.object_index].current_matrices;
+    renderer::matrix_struct_t m = draws[task_payload.object_index].current_matrices;
     renderer::matrix_struct_t m_last = draws[task_payload.object_index].last_matrices;
 
-    for (uint i = ti; i < vcount; i += mesh_workgroup_x)
+    for(uint i = ti; i < vertex_count; i += mesh_workgroup_x)
     {
         uint vi = meshlet_vertices[meshlets[mi].vertex_offset + i];
         utils::Vertex v = utils::unpack(vertex_buffers[draws[task_payload.object_index].vertex_buffer_index][vi]);
 
         float3 world_pos = utils::apply_transform(m.transform, v.position);
-        float4 cur_pos   = mul(camera_ubo.camera.projection,
-                               mul(camera_ubo.camera.view, float4(world_pos, 1.0)));
-        float4 last_pos  = mul(camera_ubo.last_camera.projection,
-                               mul(camera_ubo.last_camera.view,
-                                   float4(utils::apply_transform(m_last.transform, v.position), 1.0)));
+        float4 cur_pos = mul(camera_ubo.camera.projection, mul(camera_ubo.camera.view, float4(world_pos, 1.0)));
+        float4 last_pos = mul(
+                camera_ubo.last_camera.projection,
+                mul(camera_ubo.last_camera.view, float4(utils::apply_transform(m_last.transform, v.position), 1.0)));
 
         float4 jittered_position = cur_pos;
         jittered_position.xy += 2.0 * camera_ubo.camera.sample_offset * jittered_position.w;
         out_vertices[i].position = jittered_position;
 
         out_vertices[i].indices.mesh_draw_index = task_payload.object_index;
-        out_vertices[i].indices.material_index  = draws[task_payload.object_index].material_index;
-        out_vertices[i].indices.meshlet_index   = mi;
-        out_vertices[i].indices.lod_index       = uint(draws[task_payload.object_index].lod_index);
-        out_vertices[i].indices.lod_count       = uint(draws[task_payload.object_index].lod_count);
+        out_vertices[i].indices.material_index = draws[task_payload.object_index].material_index;
+        out_vertices[i].indices.meshlet_index = mi;
+        out_vertices[i].indices.lod_index = uint(draws[task_payload.object_index].lod_index);
+        out_vertices[i].indices.lod_count = uint(draws[task_payload.object_index].lod_count);
 
-        out_vertices[i].vertex_data.current_position = cur_pos;
-        out_vertices[i].vertex_data.last_position    = last_pos;
-        out_vertices[i].vertex_data.tex_coord        = mul(m.texture, float4(v.tex_coord, 0, 1)).xy;
-        out_vertices[i].vertex_data.normal           = utils::apply_rotation(m.transform, v.normal);
-        out_vertices[i].vertex_data.tangent          = utils::apply_rotation(m.transform, v.tangent);
+        out_vertices[i].g_buffer_data.current_position = cur_pos;
+        out_vertices[i].g_buffer_data.last_position = last_pos;
+        out_vertices[i].g_buffer_data.tex_coord = mul(m.texture, float4(v.tex_coord, 0, 1)).xy;
+        out_vertices[i].g_buffer_data.normal = utils::apply_rotation(m.transform, v.normal);
+        out_vertices[i].g_buffer_data.tangent = utils::apply_rotation(m.transform, v.tangent);
 
 #if CULLING
         vertex_clip[i] = float3((jittered_position.xy / jittered_position.w * 0.5 + float2(0.5)) * context.size,
-                              jittered_position.w);
+                                jittered_position.w);
 #endif
     }
 
@@ -113,14 +121,14 @@ void mesh_main(
     GroupMemoryBarrierWithGroupSync();
 #endif
 
-    for (uint i = ti; i < tcount; i += mesh_workgroup_x)
+    for(uint i = ti; i < primitive_count; i += mesh_workgroup_x)
     {
         uint base_index = meshlets[mi].triangle_offset + 3 * i;
         uint a = uint(meshlet_triangles[base_index]), b = uint(meshlet_triangles[base_index + 1]),
-                c = uint(meshlet_triangles[base_index + 2]);
-        out_indices[i] = uint3(a, b, c);
+             c = uint(meshlet_triangles[base_index + 2]);
+        out_primitives[i].indices = uint3(a, b, c);
 
-        #if CULLING
+#if CULLING
         bool culled = false;
 
         float2 pa = vertex_clip[a].xy, pb = vertex_clip[b].xy, pc = vertex_clip[c].xy;
@@ -134,7 +142,7 @@ void mesh_main(
         // small primitive culling
         float2 bmin = min(pa, min(pb, pc));
         float2 bmax = max(pa, max(pb, pc));
-        float sbprec = 1.0 / 256.0; // note: this can be set to 1/2^subpixelPrecisionBits
+        float sbprec = 1.0 / 256.0;// note: this can be set to 1/2^subpixelPrecisionBits
 
         // note: this is slightly imprecise (doesn't fully match hw behavior and is both too loose and too strict)
         culled = culled || (round(bmin.x - sbprec) == round(bmax.x) || round(bmin.y) == round(bmax.y + sbprec));
@@ -142,8 +150,12 @@ void mesh_main(
         // the computations above are only valid if all vertices are in front of perspective plane
         culled = culled && (vertex_clip[a].z > 0 && vertex_clip[b].z > 0 && vertex_clip[c].z > 0);
 
-        // TODO: find slang-equivalent
+        // TODO: slang-equivalent still has issues:
+        // "According to the Vulkan specspec BuiltIn CullPrimitiveEXT variable needs to be a either a TypeBool or an array of TypeBool. ID <650> (OpVariable) is not a bool scalar."
+        // making this a bool crashes the compiler
+
         //gl_MeshPrimitivesEXT[i].gl_CullPrimitiveEXT = culled;
-        #endif
+        out_primitives[i].cull_primitive = uint(culled);
+#endif
     }
 }
