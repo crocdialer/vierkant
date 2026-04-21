@@ -1,7 +1,7 @@
 import "../renderer/importance_sampling.slang";
 
-static const float2 s_positions[3] = {float2(-1, -1), float2(-1, 3), float2(3, -1)};
-static const float2 s_tex_coords[3] = {float2(0, 0), float2(0, 2), float2(2, 0)};
+static const float2 s_positions[3] = { float2(-1, -1), float2(-1, 3), float2(3, -1) };
+static const float2 s_tex_coords[3] = { float2(0, 0), float2(0, 2), float2(2, 0) };
 
 [[shader("vertex")]]
 void vertex_main(uint vertexID: SV_VertexID, out float2 tex_coord, out float4 sv_position: SV_Position)

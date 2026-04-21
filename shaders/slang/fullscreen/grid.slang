@@ -1,5 +1,5 @@
 import "../renderer/types.slang";
-import "../utils/color_cast.slang";
+import "../utils/color.slang";
 import "../utils/sampling.slang";
 
 struct grid_params_t

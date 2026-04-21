@@ -50,7 +50,7 @@ public struct mesh_entry_t
     public lod_t lods[MAX_NUM_MESH_LODS];
 };
 
-// Bundle of draw-time indices (passed between shader stages)
+// bundle of draw-time indices (passed between shader stages)
 public struct index_bundle_t
 {
     public uint mesh_draw_index;
@@ -60,7 +60,17 @@ public struct index_bundle_t
     public uint lod_count;
 };
 
-// Vertex attribute location mapping
+// g-buffer interstage vertex-data
+public struct g_buffer_vertex_data_t
+{
+    public float2 tex_coord;
+    public float3 normal;
+    public float3 tangent;
+    public float4 current_position;
+    public float4 last_position;
+};
+
+// vertex-attribute location mapping
 public enum VertexAttrib : uint
 {
     Position = 0,
@@ -72,7 +82,7 @@ public enum VertexAttrib : uint
     BoneWeights = 6,
 };
 
-// Material blend modes
+// material blend modes
 public enum BlendMode : uint
 {
     Opaque = 0,
@@ -224,6 +234,17 @@ public struct meshlet_t
     //! bounding sphere (center, radius), useful for frustum and occlusion culling
     public float3 sphere_center;
     public float sphere_radius;
+};
+
+public static const uint MESHLET_MAX_VERTICES    = 64;
+public static const uint MESHLET_MAX_TRIANGLES   = 84;
+public static const uint MAX_MESH_WORKGROUP_SIZE = 128;
+
+public struct mesh_task_payload_t
+{
+    public uint    meshlet_base_index;
+    public uint8_t meshlet_delta_indices[MAX_MESH_WORKGROUP_SIZE];
+    public uint    object_index;
 };
 
 }// namespace renderer

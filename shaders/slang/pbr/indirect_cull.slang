@@ -146,9 +146,9 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID)
 
     if(visible)
     {
-        InterlockedAdd(cull_data.draw_result[0].num_visible, 1u);
-        InterlockedAdd(cull_data.draw_result[0].num_triangles, draw.index_count / 3u);
-        InterlockedAdd(cull_data.draw_result[0].num_meshlets, draw.num_meshlets);
+        InterlockedAdd(cull_data.draw_result->num_visible, 1u);
+        InterlockedAdd(cull_data.draw_result->num_triangles, draw.index_count / 3u);
+        InterlockedAdd(cull_data.draw_result->num_meshlets, draw.num_meshlets);
 
         bool needs_post_draw = !renderer::has_flag(uint(draw.flags), uint(renderer::DrawCommandFlags::Visible));
 
@@ -162,7 +162,7 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID)
                                needs_post_draw || (meshlet_draw && (draw.base_meshlet != cull_data.draws_in[gid].base_meshlet)));
             draw.flags = renderer::DrawCommandFlags(draw_flags);
 
-            uint draw_cmd_index_post = (cull_data.draw_command_indices_in_post + draw.object_index)[0];
+            uint draw_cmd_index_post = cull_data.draw_command_indices_in_post[draw.object_index];
 
             let post_cmd = cull_data.draws_in_post + draw_cmd_index_post;
             draw.count_buffer_offset = post_cmd->count_buffer_offset;
