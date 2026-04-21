@@ -1,8 +1,8 @@
 module dof;
 
-import "colormap.slang";
-import "random.slang";
-import "sampling.slang";
+import color;
+import random;
+import sampling;
 
 namespace utils
 {

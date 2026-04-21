@@ -1,4 +1,4 @@
-import "../utils/color_ycc.slang";
+import "../utils/color.slang";
 import "../utils/camera.slang";
 
 enum TextureIndex { COLOR = 0, DEPTH = 1, MOTION = 2, HISTORY_COLOR = 3, HISTORY_DEPTH = 4 };

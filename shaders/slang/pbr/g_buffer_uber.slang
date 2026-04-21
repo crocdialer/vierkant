@@ -1,7 +1,7 @@
 import "../renderer/types.slang";
 import "../utils/random.slang";
 import "../utils/constants.slang";
-import "../utils/colormap.slang";
+import "../utils/color.slang";
 
 [[vk::push_constant]]
 renderer::context_t context;
