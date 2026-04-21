@@ -62,8 +62,8 @@ public transform_t transform_mult(transform_t lhs, transform_t rhs)
     return result;
 }
 
-// TODO: better document the row/col juggling here
-public float3x3 mat3_cast(float4 q)
+// return a row-major mat3x3
+float3x3 mat3_cast(float4 q)
 {
     float qxx = q.x * q.x;
     float qyy = q.y * q.y;
@@ -80,7 +80,7 @@ public float3x3 mat3_cast(float4 q)
                     float3(2.0 * (qxz + qwy), 2.0 * (qyz - qwx), 1.0 - 2.0 * (qxx + qyy)));
 }
 
-// TODO: better document the row/col juggling here
+// NOTE: this is constructing a col-major mat4x4 for backwards-compat reasons
 public float4x4 mat4_cast(transform_t t)
 {
     float3x3 rot = mat3_cast(float4(t.rotation_x, t.rotation_y, t.rotation_z, t.rotation_w));

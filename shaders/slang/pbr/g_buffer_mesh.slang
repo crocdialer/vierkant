@@ -64,8 +64,10 @@ struct vertex_data_t
 struct primitive_data_t
 {
     uint3 indices;
-    uint primitive_id : SV_PrimitiveID;
-    uint cull_primitive : SV_CullPrimitive;
+
+    // NOTE: add when we actually need those
+    //uint primitive_id : SV_PrimitiveID;
+    //uint cull_primitive : SV_CullPrimitive;
 };
 
 [outputtopology("triangle")]
