@@ -85,14 +85,9 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr & /*device*/)
     g_buffer_stage_map_t ret;
 
     // vertex
-    auto pbr_vert = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_vert);
-    auto pbr_tangent_morph_vert = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_tangent_morph_vert);
     auto pbr_tangent_vert = vierkant::create_shader_module(vierkant::slang_shaders::pbr::g_buffer_tangent_slang);
-    auto pbr_tangent_skin_vert = vierkant::create_shader_module(vierkant::shaders::pbr::g_buffer_tangent_skin_vert);
 
-    auto tess_control = vierkant::create_shader_module(vierkant::shaders::pbr::tess_pn_triangle_tesc);
-    auto tess_eval = vierkant::create_shader_module(vierkant::shaders::pbr::tess_pn_triangle_tese);
-
+    // task / mesh
     auto pbr_tangent_task = vierkant::create_shader_module(vierkant::slang_shaders::pbr::g_buffer_task_slang);
     auto pbr_tangent_mesh = vierkant::create_shader_module(vierkant::slang_shaders::pbr::g_buffer_mesh_slang);
 
@@ -100,26 +95,11 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr & /*device*/)
     auto pbr_g_buffer_uber_frag = vierkant::create_shader_module(vierkant::slang_shaders::pbr::g_buffer_uber_slang);
 
     auto &stages_default = ret[PROP_DEFAULT];
-    stages_default[VK_SHADER_STAGE_VERTEX_BIT] = pbr_vert;
+    stages_default[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
     stages_default[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
 
-    // morph
-    auto &stages_morph = ret[PROP_TANGENT_SPACE | PROP_MORPH_TARGET];
-    stages_morph[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_morph_vert;
-    stages_morph[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
-
-    //  normals
-    auto &stages_albedo_normal = ret[PROP_TANGENT_SPACE];
-    stages_albedo_normal[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
-    stages_albedo_normal[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
-
-    // skin + normals
-    auto &stages_skin_albedo = ret[PROP_TANGENT_SPACE | PROP_SKIN];
-    stages_skin_albedo[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
-    stages_skin_albedo[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
-
     // meshlet pipelines
-    auto &stages_mesh = ret[PROP_TANGENT_SPACE | PROP_MESHLETS];
+    auto &stages_mesh = ret[PROP_MESHLETS];
     stages_mesh[VK_SHADER_STAGE_TASK_BIT_EXT] = pbr_tangent_task;
     stages_mesh[VK_SHADER_STAGE_MESH_BIT_EXT] = pbr_tangent_mesh;
     stages_mesh[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
