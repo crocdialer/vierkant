@@ -416,9 +416,7 @@ void PBRPathTracer::post_fx_pass(frame_context_t &frame_context)
         vkCmdWriteTimestamp2(frame_context.cmd_post_fx.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                              frame_context.query_pool.get(), 2 * SemaphoreValue::TONEMAP);
 
-        vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
-        begin_rendering_info.commandbuffer = frame_context.cmd_post_fx.handle();
-        frame_context.post_fx_ping_pongs[0].begin_rendering(begin_rendering_info);
+        frame_context.post_fx_ping_pongs[0].begin_rendering(frame_context.cmd_post_fx.handle(), {});
 
         vierkant::Rasterizer::rendering_info_t rendering_info = {};
         rendering_info.command_buffer = frame_context.cmd_post_fx.handle();

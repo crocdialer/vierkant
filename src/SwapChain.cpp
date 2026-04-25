@@ -264,7 +264,7 @@ VkResult SwapChain::present()
     return result;
 }
 
-void swap(SwapChain &lhs, SwapChain &rhs)
+void swap(SwapChain &lhs, SwapChain &rhs) noexcept
 {
     std::swap(lhs.m_device, rhs.m_device);
     std::swap(lhs.m_num_samples, rhs.m_num_samples);
@@ -279,14 +279,6 @@ void swap(SwapChain &lhs, SwapChain &rhs)
     std::swap(lhs.m_sync_objects, rhs.m_sync_objects);
     std::swap(lhs.m_current_frame_index, rhs.m_current_frame_index);
     std::swap(lhs.m_swapchain_image_index, rhs.m_swapchain_image_index);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-VkRenderPass SwapChain::renderpass() const
-{
-    if(!m_framebuffers.empty()) { return m_framebuffers.front().renderpass().get(); }
-    return VK_NULL_HANDLE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -327,17 +319,17 @@ void SwapChain::create_framebuffers()
     attachments[vierkant::AttachmentType::DepthStencil] = {depth_image};
     if(resolve) { attachments[vierkant::AttachmentType::Resolve] = {m_images.front()}; }
 
-    // subpass is dependant on swapchain image
-    VkSubpassDependency2 dependency = {};
-    dependency.sType = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2;
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = VK_ACCESS_2_NONE;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-
-    auto renderpass = vierkant::create_renderpass(m_device, attachments, true, true, {dependency});
+    // // subpass is dependant on swapchain image
+    // VkSubpassDependency2 dependency = {};
+    // dependency.sType = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2;
+    // dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    // dependency.dstSubpass = 0;
+    // dependency.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    // dependency.srcAccessMask = VK_ACCESS_2_NONE;
+    // dependency.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    // dependency.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+    //
+    // auto renderpass = vierkant::create_renderpass(m_device, attachments, true, true, {dependency});
 
     m_framebuffers.resize(m_images.size());
 
@@ -348,7 +340,7 @@ void SwapChain::create_framebuffers()
         {
             attachments[vierkant::AttachmentType::Color] = {m_images[i]};
         }
-        m_framebuffers[i] = vierkant::Framebuffer(m_device, attachments, renderpass);
+        m_framebuffers[i] = vierkant::Framebuffer(m_device, attachments, {});
     }
 }
 

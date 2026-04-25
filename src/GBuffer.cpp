@@ -9,8 +9,7 @@
 
 namespace vierkant
 {
-vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device, const VkExtent3D &extent,
-                                      const vierkant::RenderPassPtr &renderpass)
+vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device, const VkExtent3D &extent)
 {
     std::vector<vierkant::ImagePtr> g_buffer_attachments(G_BUFFER_SIZE);
 
@@ -75,7 +74,7 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device, const V
     depth_attachment_format.name = "depth";
     attachments[AttachmentType::DepthStencil] = {vierkant::Image::create(device, depth_attachment_format)};
 
-    auto ret = vierkant::Framebuffer(device, attachments, renderpass);
+    auto ret = vierkant::Framebuffer(device, attachments, {});
     ret.clear_color = glm::vec4{0.f};
     return ret;
 }

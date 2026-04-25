@@ -213,7 +213,7 @@ void CommandBuffer::begin(VkCommandBufferUsageFlags flags, VkCommandBufferInheri
 {
     if(m_handle)
     {
-        if(inheritance && inheritance->renderPass && inheritance->framebuffer)
+        if(inheritance)
         {
             flags |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
         }

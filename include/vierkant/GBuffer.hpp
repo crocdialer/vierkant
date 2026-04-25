@@ -33,8 +33,7 @@ enum GBuffer : uint32_t
  * @return  a vierkant::Framebuffer representing a g-buffer
  */
 vierkant::Framebuffer create_g_buffer(const DevicePtr &device,
-                                      const VkExtent3D &extent,
-                                      const vierkant::RenderPassPtr &renderpass = nullptr);
+                                      const VkExtent3D &extent);
 
 enum GBufferPropertyFlagBits : uint32_t
 {

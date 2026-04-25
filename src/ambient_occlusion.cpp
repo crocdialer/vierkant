@@ -150,9 +150,7 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
     auto ao_img = context->framebuffer.color_attachment();
     ao_img->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, params.commandbuffer);
 
-    vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
-    begin_rendering_info.commandbuffer = params.commandbuffer;
-    context->framebuffer.begin_rendering(begin_rendering_info);
+    context->framebuffer.begin_rendering(params.commandbuffer, {});
 
     vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = params.commandbuffer;

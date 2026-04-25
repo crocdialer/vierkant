@@ -186,14 +186,9 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
     pipeline_info.pDynamicState = &dynamic_state_create_info;
     pipeline_info.pTessellationState = use_tesselation ? &tessellation_state_create_info : nullptr;
     pipeline_info.layout = pipeline_layout;
-    pipeline_info.renderPass = format.renderpass;
     pipeline_info.subpass = format.subpass;
     pipeline_info.basePipelineHandle = format.base_pipeline;
     pipeline_info.basePipelineIndex = format.base_pipeline_index;
-
-    bool direct_rendering = !format.renderpass && (!format.color_attachment_formats.empty() ||
-                                                   format.depth_attachment_format != VK_FORMAT_UNDEFINED ||
-                                                   format.stencil_attachment_format != VK_FORMAT_UNDEFINED);
 
     VkPipelineRenderingCreateInfo rendering_create_info = {};
     rendering_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
@@ -202,7 +197,7 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
     rendering_create_info.pColorAttachmentFormats = format.color_attachment_formats.data();
     rendering_create_info.depthAttachmentFormat = format.depth_attachment_format;
     rendering_create_info.stencilAttachmentFormat = format.stencil_attachment_format;
-    pipeline_info.pNext = direct_rendering ? &rendering_create_info : nullptr;
+    pipeline_info.pNext = &rendering_create_info;
 
     VkPipeline pipeline = VK_NULL_HANDLE;
     vkCheck(vkCreateGraphicsPipelines(device->handle(), format.pipeline_cache, 1, &pipeline_info, nullptr, &pipeline),
