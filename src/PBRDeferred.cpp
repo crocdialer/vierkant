@@ -1314,10 +1314,10 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
         frame_context.g_buffer_main = create_g_buffer(m_device, size);
         frame_context.g_buffer_main.debug_label = {.text = "g_buffer_main"};
 
-        vierkant::Framebuffer::begin_rendering_info_t rendering_info = {.clear_color_attachment = false,
-                                                                        .clear_depth_attachment = false};
+        vierkant::Framebuffer::create_info_t fb_create_info = {};
+        fb_create_info.begin_rendering_info = {.clear_color_attachment = false, .clear_depth_attachment = false};
         frame_context.g_buffer_post =
-                vierkant::Framebuffer(m_device, frame_context.g_buffer_main.attachments(), rendering_info);
+                vierkant::Framebuffer(m_device, frame_context.g_buffer_main.attachments(), fb_create_info);
         frame_context.g_buffer_post.debug_label = {.text = "g_buffer_post"};
         frame_context.g_buffer_post.clear_color = glm::vec4(0.f);
 

@@ -16,9 +16,9 @@ namespace vierkant
 /**
  * @brief   Enum to differentiate Image-Attachments
  */
-enum class AttachmentType
+enum class AttachmentType : uint32_t
 {
-    Color,
+    Color = 0,
     Resolve,
     DepthStencil
 };
@@ -38,6 +38,12 @@ public:
         VkRenderingFlags flags = 0;
     };
 
+    struct end_rendering_info_t
+    {
+        VkImageLayout final_layout_color = VK_IMAGE_LAYOUT_UNDEFINED;
+        VkImageLayout final_layout_depth = VK_IMAGE_LAYOUT_UNDEFINED;
+    };
+
     /**
      * @brief   Framebuffer::Format groups information necessary to create a set of Image-Attachments
      */
@@ -53,7 +59,8 @@ public:
         Image::Format depth_attachment_format;
         vierkant::CommandPoolPtr command_pool = nullptr;
         VkQueue queue = VK_NULL_HANDLE;
-        begin_rendering_info_t rendering_info = {};
+        begin_rendering_info_t begin_rendering_info = {};
+        end_rendering_info_t end_rendering_info = {};
         std::optional<vierkant::debug_label_t> debug_label;
     };
 
@@ -81,7 +88,7 @@ public:
      * @param   device          handle for the vierkant::Device to create the Framebuffer with
      * @param   attachments     a Framebuffer::AttachmentMap holding the desired Image-attachments
      */
-    Framebuffer(DevicePtr device, attachment_map_t attachments, const begin_rendering_info_t &begin_rendering_info);
+    Framebuffer(DevicePtr device, attachment_map_t attachments, const create_info_t &create_info);
 
     Framebuffer() = default;
 
@@ -126,7 +133,7 @@ public:
     /**
      * @brief   End a direct-rendering-pass using this Framebuffer.
      */
-    void end_rendering() const;
+    void end_rendering(const end_rendering_info_t &end_rendering_info) const;
 
     /**
      * @return  the VkExtent3D used by the Image-Attachments

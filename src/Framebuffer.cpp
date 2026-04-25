@@ -191,18 +191,16 @@ Framebuffer::Framebuffer(DevicePtr device, create_info_t create_info)
     }
 
     init(create_attachments(m_device, m_format));
-    m_format.rendering_info.flags = VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT;
+    m_format.begin_rendering_info.flags = VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Framebuffer::Framebuffer(DevicePtr device, attachment_map_t attachments,
-                         const begin_rendering_info_t &begin_rendering_info)
-    : m_device(std::move(device))
+                         const create_info_t &create_info)
+    : m_device(std::move(device)), m_format(create_info)
 {
     init(std::move(attachments));
-    m_format.rendering_info = begin_rendering_info;
-    m_format.rendering_info.flags = VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -226,7 +224,7 @@ VkCommandBuffer Framebuffer::record_commandbuffer(const std::vector<VkCommandBuf
     if(debug_label) { vierkant::begin_label(m_commandbuffer.handle(), *debug_label); }
 
     // begin rendering
-    begin_rendering(m_commandbuffer.handle(), m_format.rendering_info);
+    begin_rendering(m_commandbuffer.handle(), m_format.begin_rendering_info);
 
     // execute secondary commandbuffers
     if(!commandbuffers.empty())
@@ -234,8 +232,8 @@ VkCommandBuffer Framebuffer::record_commandbuffer(const std::vector<VkCommandBuf
         vkCmdExecuteCommands(m_commandbuffer.handle(), commandbuffers.size(), commandbuffers.data());
     }
 
-    // end dynamic rendering
-    end_rendering();
+    // TODO: pass layout-info here, end dynamic rendering
+    end_rendering(m_format.end_rendering_info);
 
     // end commandbuffer
     if(debug_label) { vierkant::end_label(m_commandbuffer.handle()); }
@@ -327,6 +325,8 @@ void Framebuffer::init(attachment_map_t attachments)
         }
     }
     m_format.color_attachment_format.num_layers = num_layers;
+
+    m_format.begin_rendering_info.flags = VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT;
 
     // now move attachments
     m_attachments = std::move(attachments);
@@ -514,11 +514,28 @@ void Framebuffer::begin_rendering(VkCommandBuffer commandbuffer, const begin_ren
     m_direct_rendering_commandbuffer = commandbuffer;
 }
 
-void Framebuffer::end_rendering() const
+void Framebuffer::end_rendering(const end_rendering_info_t &end_rendering_info) const
 {
     if(m_direct_rendering_commandbuffer)
     {
         vkCmdEndRendering(m_direct_rendering_commandbuffer);
+
+        for(auto &[type, images]: m_attachments)
+        {
+            for(auto &img: images)
+            {
+                if(type == AttachmentType::Color && end_rendering_info.final_layout_color != VK_IMAGE_LAYOUT_UNDEFINED)
+                {
+                    img->transition_layout(end_rendering_info.final_layout_color, m_direct_rendering_commandbuffer);
+                }
+                else if(type == AttachmentType::DepthStencil &&
+                        end_rendering_info.final_layout_depth != VK_IMAGE_LAYOUT_UNDEFINED)
+                {
+                    img->transition_layout(end_rendering_info.final_layout_depth, m_direct_rendering_commandbuffer);
+                }
+            }
+        }
+
         m_direct_rendering_commandbuffer = VK_NULL_HANDLE;
     }
 }
