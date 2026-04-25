@@ -89,8 +89,7 @@ TEST(Rasterizer, direct_API)
     auto cmd_buffer = vierkant::CommandBuffer(test_context.device, command_pool.get());
     cmd_buffer.begin();
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
-    begin_rendering_info.commandbuffer = cmd_buffer.handle();
-    framebuffer.begin_rendering(begin_rendering_info);
+    framebuffer.begin_rendering(cmd_buffer.handle(), begin_rendering_info);
 
     vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = cmd_buffer.handle();
@@ -98,7 +97,7 @@ TEST(Rasterizer, direct_API)
 
     // record drawing commands into an active command-buffer
     rasterizer.render(rendering_info);
-    framebuffer.end_rendering();
+    framebuffer.end_rendering({});
 
     cmd_buffer.submit(test_context.device->queue(), true);
 }

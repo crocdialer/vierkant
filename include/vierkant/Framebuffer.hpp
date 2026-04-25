@@ -78,7 +78,6 @@ public:
      *          according to the requested Framebuffer::Format and a RenderPass to match those attachments.
      *
      * @param   device      handle for the vierkant::Device to create the Framebuffer with
-     * @param   size        the desired size for the Framebuffer in pixels
      * @param   create_info      an optional Framebuffer::Format object
      */
     Framebuffer(DevicePtr device, create_info_t create_info);

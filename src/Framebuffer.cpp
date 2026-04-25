@@ -31,130 +31,6 @@ inline bool check_attachment(AttachmentType attachment, const attachment_map_t &
                        [attachment](const auto &it) { return it.first == attachment && !it.second.empty(); });
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-// RenderPassPtr create_renderpass(const vierkant::DevicePtr &device, const attachment_map_t &attachments,
-//                                 bool clear_color, bool clear_depth,
-//                                 const std::vector<VkSubpassDependency2> &subpass_dependencies)
-// {
-//     VkRenderPass renderpass = VK_NULL_HANDLE;
-//
-//     bool has_depth_stencil = check_attachment(AttachmentType::DepthStencil, attachments);
-//     bool has_resolve = check_attachment(AttachmentType::Resolve, attachments);
-//
-//     // create RenderPass according to AttachmentMap
-//     std::vector<VkAttachmentDescription2> attachment_descriptions;
-//
-//     for(const auto &[type, images]: attachments)
-//     {
-//         VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-//         VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-//         VkAttachmentLoadOp stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-//         VkAttachmentStoreOp stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-//
-//         switch(type)
-//         {
-//             case AttachmentType::Color:
-//                 loadOp = clear_color ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-//                 storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-//                 break;
-//
-//             case AttachmentType::Resolve:
-//                 loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-//                 storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-//                 break;
-//
-//             case AttachmentType::DepthStencil:
-//                 loadOp = clear_depth ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-//                 storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-//
-//                 if(has_depth_stencil)
-//                 {
-//                     stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-//                     stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-//                 }
-//                 break;
-//
-//             default: break;
-//         }
-//
-//         for(const auto &img: images)
-//         {
-//             VkAttachmentDescription2 description = {};
-//             description.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
-//             description.format = img->format().format;
-//             description.samples = img->format().sample_count;
-//             description.loadOp = loadOp;
-//             description.storeOp = storeOp;
-//             description.stencilLoadOp = stencilLoadOp;
-//             description.stencilStoreOp = stencilStoreOp;
-//             description.initialLayout = img->image_layout();//VK_IMAGE_LAYOUT_UNDEFINED;
-//             description.finalLayout = img->image_layout();
-//             attachment_descriptions.push_back(description);
-//         }
-//     }
-//
-//     uint32_t attachment_index = 0, num_color_images = 0;
-//     std::vector<VkAttachmentReference2> color_refs, depth_stencil_refs, resolve_refs;
-//
-//     auto color_it = attachments.find(AttachmentType::Color);
-//
-//     if(color_it != attachments.end()) { num_color_images = static_cast<uint32_t>(color_it->second.size()); }
-//
-//     for(uint32_t i = 0; i < num_color_images; ++i)
-//     {
-//         VkAttachmentReference2 color_attachment_ref = {};
-//         color_attachment_ref.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
-//         color_attachment_ref.attachment = i;
-//         color_attachment_ref.layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-//         color_attachment_ref.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-//         color_refs.push_back(color_attachment_ref);
-//         attachment_index++;
-//
-//         if(has_resolve)
-//         {
-//             VkAttachmentReference2 color_attachment_resolve_ref = {};
-//             color_attachment_resolve_ref.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
-//             color_attachment_resolve_ref.attachment = i + num_color_images;
-//             color_attachment_resolve_ref.layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-//             color_attachment_resolve_ref.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-//             resolve_refs.push_back(color_attachment_resolve_ref);
-//             attachment_index++;
-//         }
-//     }
-//     if(has_depth_stencil)
-//     {
-//         VkAttachmentReference2 depth_attachment_ref = {};
-//         depth_attachment_ref.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
-//         depth_attachment_ref.attachment = attachment_index;
-//         depth_attachment_ref.layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-//         depth_attachment_ref.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-//         depth_stencil_refs = {depth_attachment_ref};
-//     }
-//
-//     VkSubpassDescription2 subpass = {};
-//     subpass.sType = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2;
-//     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-//     subpass.colorAttachmentCount = static_cast<uint32_t>(color_refs.size());
-//     subpass.pColorAttachments = color_refs.data();
-//     subpass.pDepthStencilAttachment = depth_stencil_refs.empty() ? nullptr : depth_stencil_refs.data();
-//     subpass.pResolveAttachments = resolve_refs.empty() ? nullptr : resolve_refs.data();
-//
-//     VkRenderPassCreateInfo2 render_pass_info = {};
-//     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2;
-//     render_pass_info.attachmentCount = static_cast<uint32_t>(attachment_descriptions.size());
-//     render_pass_info.pAttachments = attachment_descriptions.data();
-//     render_pass_info.subpassCount = 1;
-//     render_pass_info.pSubpasses = &subpass;
-//     render_pass_info.dependencyCount = static_cast<uint32_t>(subpass_dependencies.size());
-//     render_pass_info.pDependencies = subpass_dependencies.data();
-//
-//     vkCheck(vkCreateRenderPass2(device->handle(), &render_pass_info, nullptr, &renderpass),
-//             "failed to create render pass!");
-//
-//     return {renderpass, [device](VkRenderPass p) { vkDestroyRenderPass(device->handle(), p, nullptr); }};
-// }
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Framebuffer::Framebuffer(DevicePtr device, create_info_t create_info)
@@ -196,12 +72,9 @@ Framebuffer::Framebuffer(DevicePtr device, create_info_t create_info)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Framebuffer::Framebuffer(DevicePtr device, attachment_map_t attachments,
-                         const create_info_t &create_info)
+Framebuffer::Framebuffer(DevicePtr device, attachment_map_t attachments, const create_info_t &create_info)
     : m_device(std::move(device)), m_format(create_info)
-{
-    init(std::move(attachments));
-}
+{ init(std::move(attachments)); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -232,7 +105,7 @@ VkCommandBuffer Framebuffer::record_commandbuffer(const std::vector<VkCommandBuf
         vkCmdExecuteCommands(m_commandbuffer.handle(), commandbuffers.size(), commandbuffers.data());
     }
 
-    // TODO: pass layout-info here, end dynamic rendering
+    // passing optional final layout-info here, end dynamic rendering
     end_rendering(m_format.end_rendering_info);
 
     // end commandbuffer

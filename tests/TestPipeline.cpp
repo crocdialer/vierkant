@@ -90,7 +90,6 @@ TEST(TestPipeline, PipelineCache)
     vierkant::graphics_pipeline_info_t fmt;
     fmt.viewport.width = static_cast<float>(framebuffer.extent().width);
     fmt.viewport.height = static_cast<float>(framebuffer.extent().height);
-    fmt.renderpass = framebuffer.renderpass().get();
     fmt.shader_stages = vierkant::create_shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
 
     // TODO: we expected errors here already, but Mesa/radv 25 just crashes instead of returning an error :(
