@@ -647,16 +647,12 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         {
             uint32_t shader_flags = PROP_DEFAULT;
 
-            // check if tangents are available
-            if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT)) { shader_flags |= PROP_TANGENT_SPACE; }
-
             // attribute/binding descriptions obsolete here
             drawable.pipeline_format.attribute_descriptions.clear();
             drawable.pipeline_format.binding_descriptions.clear();
 
-            const bool use_meshlet_pipeline = drawable.mesh->meshlets && frame_context.settings.use_meshlet_pipeline;
-
-            if(use_meshlet_pipeline)
+            // use_meshlet_pipeline
+            if(drawable.mesh->meshlets && frame_context.settings.use_meshlet_pipeline)
             {
                 shader_flags |= PROP_MESHLETS;
                 camera_desc.stage_flags |= VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
