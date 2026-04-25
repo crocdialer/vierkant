@@ -49,11 +49,10 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
     fb_attachments_ping[vierkant::AttachmentType::Color] = {vierkant::Image::create(device, img_fmt)};
     fb_attachments_pong[vierkant::AttachmentType::Color] = {vierkant::Image::create(device, img_fmt)};
 
-    vierkant::RenderPassPtr renderpass;
-    renderpass = vierkant::create_renderpass(device, fb_attachments_ping, true, false);
-
-    m_ping_pongs[0].framebuffer = vierkant::Framebuffer(device, fb_attachments_ping, renderpass);
-    m_ping_pongs[1].framebuffer = vierkant::Framebuffer(device, fb_attachments_pong, renderpass);
+    vierkant::Framebuffer::create_info_t fb_create_info = {};
+    fb_create_info.begin_rendering_info = {.clear_color_attachment = true, .clear_depth_attachment = false};
+    m_ping_pongs[0].framebuffer = vierkant::Framebuffer(device, fb_attachments_ping, fb_create_info);
+    m_ping_pongs[1].framebuffer = vierkant::Framebuffer(device, fb_attachments_pong, fb_create_info);
 
     m_command_buffer = vierkant::CommandBuffer(device, command_pool.get());
 
@@ -182,9 +181,6 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkComma
     // debug label
     vierkant::begin_label(commandbuffer, {std::format("GaussianBlur_<{}>::apply>", NUM_TAPS)});
 
-    vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
-    begin_rendering_info.commandbuffer = commandbuffer;
-
     for(uint32_t i = 0; i < m_num_iterations; ++i)
     {
         ping.drawable.descriptors[0].images = {current_img};
@@ -198,7 +194,7 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkComma
         m_renderer.stage_drawable(ping.drawable);
         current_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, commandbuffer);
         ping.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, commandbuffer);
-        ping.framebuffer.begin_rendering(begin_rendering_info);
+        ping.framebuffer.begin_rendering(commandbuffer, {});
         m_renderer.render(rendering_info);
         vkCmdEndRendering(commandbuffer);
 
@@ -206,7 +202,7 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkComma
         m_renderer.stage_drawable(pong.drawable);
         ping.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, commandbuffer);
         pong.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, commandbuffer);
-        pong.framebuffer.begin_rendering(begin_rendering_info);
+        pong.framebuffer.begin_rendering(commandbuffer, {});
         m_renderer.render(rendering_info);
         vkCmdEndRendering(commandbuffer);
         current_img = pong.framebuffer.color_attachment();

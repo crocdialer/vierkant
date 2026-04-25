@@ -1054,13 +1054,12 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         m_renderer_lighting.stage_drawable(drawable);
 
         vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
-        begin_rendering_info.commandbuffer = frame_context.cmd_lighting.handle();
         begin_rendering_info.use_depth_attachment = false;
         begin_rendering_info.clear_depth_attachment = false;
 
         vkCmdWriteTimestamp2(frame_context.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                              frame_context.query_pool.get(), 2 * SemaphoreValue::LIGHTING);
-        frame_context.lighting_buffer.begin_rendering(begin_rendering_info);
+        frame_context.lighting_buffer.begin_rendering(frame_context.cmd_lighting.handle(), begin_rendering_info);
 
         m_renderer_lighting.render(rendering_info);
         vkCmdEndRendering(frame_context.cmd_lighting.handle());
@@ -1074,7 +1073,8 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
                 begin_rendering_info.clear_color_attachment = false;
                 begin_rendering_info.use_depth_attachment = true;
-                frame_context.lighting_buffer.begin_rendering(begin_rendering_info);
+                frame_context.lighting_buffer.begin_rendering(frame_context.cmd_lighting.handle(),
+                                                              begin_rendering_info);
                 m_renderer_lighting.render(rendering_info);
                 vkCmdEndRendering(frame_context.cmd_lighting.handle());
             }
@@ -1137,9 +1137,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const Object3DPtr &cam, const vierk
         drawable.pipeline_format.scissor.extent.width = color_attachment->width();
         drawable.pipeline_format.scissor.extent.height = color_attachment->height();
 
-        vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
-        begin_rendering_info.commandbuffer = cmd;
-        framebuffer->begin_rendering(begin_rendering_info);
+        framebuffer->begin_rendering(cmd, {});
         renderer.stage_drawable(drawable);
 
         vierkant::Rasterizer::rendering_info_t rendering_info = {};
@@ -1316,10 +1314,10 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
         frame_context.g_buffer_main = create_g_buffer(m_device, size);
         frame_context.g_buffer_main.debug_label = {.text = "g_buffer_main"};
 
-        auto renderpass_no_clear_depth =
-                vierkant::create_renderpass(m_device, frame_context.g_buffer_main.attachments(), false, false);
+        vierkant::Framebuffer::create_info_t fb_create_info = {};
+        fb_create_info.begin_rendering_info = {.clear_color_attachment = false, .clear_depth_attachment = false};
         frame_context.g_buffer_post =
-                vierkant::Framebuffer(m_device, frame_context.g_buffer_main.attachments(), renderpass_no_clear_depth);
+                vierkant::Framebuffer(m_device, frame_context.g_buffer_main.attachments(), fb_create_info);
         frame_context.g_buffer_post.debug_label = {.text = "g_buffer_post"};
         frame_context.g_buffer_post.clear_color = glm::vec4(0.f);
 
@@ -1345,7 +1343,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
 
         // use depth from g_buffer
         lighting_attachments[vierkant::AttachmentType::DepthStencil] = {frame_context.g_buffer_post.depth_attachment()};
-        frame_context.lighting_buffer = vierkant::Framebuffer(m_device, lighting_attachments);
+        frame_context.lighting_buffer = vierkant::Framebuffer(m_device, lighting_attachments, {});
         frame_context.lighting_buffer.debug_label = {.text = "lighting_buffer"};
 
         // resize ambient occlusion context

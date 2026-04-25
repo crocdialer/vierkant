@@ -73,11 +73,6 @@ public:
     [[nodiscard]] DevicePtr device() const { return m_device; }
 
     /**
-     * @return  handle for the shared VkRenderPass, used by all contained Framebuffers
-     */
-    [[nodiscard]] VkRenderPass renderpass() const;
-
-    /**
      * @return  a reference for the contained array of Framebuffers
      */
     std::vector<vierkant::Framebuffer> &framebuffers() { return m_framebuffers; }
@@ -122,7 +117,7 @@ public:
      */
     [[nodiscard]] uint32_t image_index() const { return m_swapchain_image_index; }
 
-    friend void swap(SwapChain &lhs, SwapChain &rhs);
+    friend void swap(SwapChain &lhs, SwapChain &rhs) noexcept;
 
     inline explicit operator bool() const { return static_cast<bool>(m_swap_chain); };
 

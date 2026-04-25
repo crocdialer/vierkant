@@ -88,9 +88,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkCommandBuffer commandbu
     vierkant::begin_label(commandbuffer, {"Bloom::apply"});
 
     // threshold
-    vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
-    begin_rendering_info.commandbuffer = commandbuffer;
-    m_thresh_framebuffer.begin_rendering(begin_rendering_info);
+    m_thresh_framebuffer.begin_rendering(commandbuffer, {});
 
     vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = commandbuffer;

@@ -211,7 +211,7 @@ struct graphics_pipeline_info_t
     // optional attachment-specific blendStates (will override global state if present)
     std::vector<VkPipelineColorBlendAttachmentState> attachment_blend_states;
 
-    VkRenderPass renderpass = VK_NULL_HANDLE;
+    // VkRenderPass renderpass = VK_NULL_HANDLE;
 
     // direct rendering
     uint32_t view_mask = 0;

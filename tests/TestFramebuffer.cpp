@@ -207,7 +207,7 @@ TEST(TestFramebuffer, Manual_Attachments)
                                               {vierkant::AttachmentType::DepthStencil, {depth_stencil_img}},
                                               {vierkant::AttachmentType::Resolve, {resolve_img}}};
 
-    auto framebuffer = vierkant::Framebuffer(test_context.device, attachments);
+    auto framebuffer = vierkant::Framebuffer(test_context.device, attachments, {});
     EXPECT_TRUE(framebuffer);
     EXPECT_EQ(framebuffer.num_attachments(vierkant::AttachmentType::Color), 1);
     EXPECT_EQ(framebuffer.num_attachments(vierkant::AttachmentType::Resolve), 1);
@@ -253,9 +253,8 @@ TEST(TestFramebuffer, DirectRendering)
     // record direct rendering-pass
     cmd_buffer.begin();
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
-    begin_rendering_info.commandbuffer = cmd_buffer.handle();
-    framebuffer.begin_rendering(begin_rendering_info);
-    framebuffer.end_rendering();
+    framebuffer.begin_rendering(cmd_buffer.handle(), begin_rendering_info);
+    framebuffer.end_rendering({});
 
     // submit to queue
     VkQueue queue = test_context.device->queue();
@@ -292,9 +291,8 @@ TEST(TestFramebuffer, DirectRendering_MSAA)
     // record direct rendering-pass
     cmd_buffer.begin();
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
-    begin_rendering_info.commandbuffer = cmd_buffer.handle();
-    framebuffer.begin_rendering(begin_rendering_info);
-    framebuffer.end_rendering();
+    framebuffer.begin_rendering(cmd_buffer.handle(), begin_rendering_info);
+    framebuffer.end_rendering({});
 
     // submit to queue
     VkQueue queue = test_context.device->queue();

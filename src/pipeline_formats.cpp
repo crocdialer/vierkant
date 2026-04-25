@@ -274,7 +274,6 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
     if(min_sample_shading != other.min_sample_shading) { return false; }
     if(memcmp(&blend_state, &other.blend_state, sizeof(VkPipelineColorBlendAttachmentState)) != 0) { return false; }
     if(attachment_blend_states != other.attachment_blend_states) { return false; }
-    if(renderpass != other.renderpass) { return false; }
     if(view_mask != other.view_mask) { return false; }
     if(color_attachment_formats != other.color_attachment_formats) { return false; }
     if(depth_attachment_format != other.depth_attachment_format) { return false; }
@@ -463,7 +462,6 @@ std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graphics_pip
     hash_combine(h, fmt.min_sample_shading);
     hash_combine(h, fmt.blend_state);
     for(const auto &bs: fmt.attachment_blend_states) { hash_combine(h, bs); }
-    hash_combine(h, fmt.renderpass);
     hash_combine(h, fmt.view_mask);
     for(const auto &caf: fmt.color_attachment_formats) { hash_combine(h, caf); }
     hash_combine(h, fmt.depth_attachment_format);
