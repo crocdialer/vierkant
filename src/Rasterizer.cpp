@@ -182,6 +182,7 @@ VkCommandBuffer Rasterizer::render(const vierkant::Framebuffer &framebuffer, boo
 
     VkFormat depth_attachment_format =
             framebuffer.depth_attachment() ? framebuffer.depth_attachment()->format().format : VK_FORMAT_UNDEFINED;
+    VkFormat stencil_format = is_stencil(depth_attachment_format) ? depth_attachment_format : VK_FORMAT_UNDEFINED;
 
     // inject renderpass-handle
     for(auto &drawable: frame_assets.drawables)
@@ -189,6 +190,7 @@ VkCommandBuffer Rasterizer::render(const vierkant::Framebuffer &framebuffer, boo
         auto &pipeline_format = drawable.pipeline_format;
         pipeline_format.color_attachment_formats = framebuffer.color_attachment_formats();
         pipeline_format.depth_attachment_format = depth_attachment_format;
+        pipeline_format.stencil_attachment_format = stencil_format;
     }
 
     // pass inheritance-info for secondary command-buffer
@@ -198,6 +200,7 @@ VkCommandBuffer Rasterizer::render(const vierkant::Framebuffer &framebuffer, boo
     inheritance_rendering_info.pColorAttachmentFormats = framebuffer.color_attachment_formats().data();
     inheritance_rendering_info.colorAttachmentCount = framebuffer.color_attachment_formats().size();
     inheritance_rendering_info.depthAttachmentFormat = depth_attachment_format;
+    inheritance_rendering_info.stencilAttachmentFormat = stencil_format;
     inheritance_rendering_info.rasterizationSamples = framebuffer.num_attachments(AttachmentType::Color)
                                                               ? framebuffer.color_attachment(0)->format().sample_count
                                                               : VK_SAMPLE_COUNT_1_BIT;

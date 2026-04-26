@@ -25,6 +25,9 @@ enum class AttachmentType : uint32_t
 
 using attachment_map_t = std::map<AttachmentType, std::vector<vierkant::ImagePtr>>;
 
+bool is_depth(VkFormat fmt);
+bool is_stencil(VkFormat fmt);
+
 class Framebuffer
 {
 public:

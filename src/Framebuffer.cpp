@@ -7,7 +7,7 @@ namespace vierkant
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline bool is_depth(VkFormat fmt)
+bool is_depth(VkFormat fmt)
 {
     constexpr VkFormat depth_formats[] = {VK_FORMAT_D16_UNORM, VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT,
                                           VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT};
@@ -16,7 +16,7 @@ inline bool is_depth(VkFormat fmt)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline bool is_stencil(VkFormat fmt)
+bool is_stencil(VkFormat fmt)
 {
     constexpr VkFormat stencil_formats[] = {VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT,
                                             VK_FORMAT_D32_SFLOAT_S8_UINT};
