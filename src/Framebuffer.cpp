@@ -198,8 +198,20 @@ void Framebuffer::init(attachment_map_t attachments)
         }
     }
     m_format.color_attachment_format.num_layers = num_layers;
-
     m_format.begin_rendering_info.flags = VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT;
+
+    // populate/update m_color_attachment_formats
+    for(const auto &[type, images]: attachments)
+    {
+        if(type == AttachmentType::Color)
+        {
+            m_color_attachment_formats.resize(images.size());
+            for(uint32_t i = 0; i < m_color_attachment_formats.size(); ++i)
+            {
+                m_color_attachment_formats[i] = images[i]->format().format;
+            }
+        }
+    }
 
     // now move attachments
     m_attachments = std::move(attachments);
@@ -312,6 +324,7 @@ void swap(Framebuffer &lhs, Framebuffer &rhs) noexcept
     std::swap(lhs.m_commandbuffer, rhs.m_commandbuffer);
     std::swap(lhs.m_active_commandbuffer, rhs.m_active_commandbuffer);
     std::swap(lhs.m_format, rhs.m_format);
+    std::swap(lhs.m_color_attachment_formats, rhs.m_color_attachment_formats);
 }
 
 void Framebuffer::begin_rendering(VkCommandBuffer commandbuffer, const begin_rendering_info_t &info) const

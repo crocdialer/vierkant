@@ -180,27 +180,14 @@ VkCommandBuffer Rasterizer::render(const vierkant::Framebuffer &framebuffer, boo
         return frame_assets.command_buffer.handle();
     }
 
-    std::vector<VkFormat> color_attachment_formats;
     VkFormat depth_attachment_format =
             framebuffer.depth_attachment() ? framebuffer.depth_attachment()->format().format : VK_FORMAT_UNDEFINED;
-    ;
-    for(const auto &[type, images]: framebuffer.attachments())
-    {
-        if(type == AttachmentType::Color)
-        {
-            color_attachment_formats.resize(images.size());
-            for(uint32_t i = 0; i < color_attachment_formats.size(); ++i)
-            {
-                color_attachment_formats[i] = images[i]->format().format;
-            }
-        }
-    }
 
     // inject renderpass-handle
     for(auto &drawable: frame_assets.drawables)
     {
         auto &pipeline_format = drawable.pipeline_format;
-        pipeline_format.color_attachment_formats = color_attachment_formats;
+        pipeline_format.color_attachment_formats = framebuffer.color_attachment_formats();
         pipeline_format.depth_attachment_format = depth_attachment_format;
     }
 
@@ -208,8 +195,8 @@ VkCommandBuffer Rasterizer::render(const vierkant::Framebuffer &framebuffer, boo
     VkCommandBufferInheritanceRenderingInfo inheritance_rendering_info = {};
     inheritance_rendering_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_RENDERING_INFO;
     inheritance_rendering_info.flags = VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT;
-    inheritance_rendering_info.pColorAttachmentFormats = color_attachment_formats.data();
-    inheritance_rendering_info.colorAttachmentCount = color_attachment_formats.size();
+    inheritance_rendering_info.pColorAttachmentFormats = framebuffer.color_attachment_formats().data();
+    inheritance_rendering_info.colorAttachmentCount = framebuffer.color_attachment_formats().size();
     inheritance_rendering_info.depthAttachmentFormat = depth_attachment_format;
     inheritance_rendering_info.rasterizationSamples = framebuffer.num_attachments(AttachmentType::Color)
                                                               ? framebuffer.color_attachment(0)->format().sample_count

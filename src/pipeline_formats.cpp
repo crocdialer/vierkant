@@ -275,7 +275,13 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
     if(memcmp(&blend_state, &other.blend_state, sizeof(VkPipelineColorBlendAttachmentState)) != 0) { return false; }
     if(attachment_blend_states != other.attachment_blend_states) { return false; }
     if(view_mask != other.view_mask) { return false; }
-    if(color_attachment_formats != other.color_attachment_formats) { return false; }
+
+    if(color_attachment_formats.size() != other.color_attachment_formats.size()) { return false; }
+    for(uint32_t i = 0; i < color_attachment_formats.size(); ++i)
+    {
+        if(color_attachment_formats[i] != other.color_attachment_formats[i]) { return false; }
+    }
+
     if(depth_attachment_format != other.depth_attachment_format) { return false; }
     if(stencil_attachment_format != other.stencil_attachment_format) { return false; }
     if(subpass != other.subpass) { return false; }

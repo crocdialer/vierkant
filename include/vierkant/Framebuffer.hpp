@@ -156,6 +156,9 @@ public:
      */
     vierkant::ImagePtr color_attachment(uint32_t index = 0) const;
 
+    //! @return an array with used color-attachment formats
+    const std::vector<VkFormat> &color_attachment_formats() const { return m_color_attachment_formats; };
+
     /**
      * @return  the depth-attachment or nullptr if not found.
      */
@@ -200,6 +203,9 @@ private:
     mutable VkCommandBuffer m_active_commandbuffer = VK_NULL_HANDLE, m_direct_rendering_commandbuffer = VK_NULL_HANDLE;
 
     Framebuffer::create_info_t m_format;
+
+    //! keep an array of color-formats to avoid adhoc allocations
+    std::vector<VkFormat> m_color_attachment_formats;
 };
 
 }// namespace vierkant

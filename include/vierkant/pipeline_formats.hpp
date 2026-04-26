@@ -215,7 +215,9 @@ struct graphics_pipeline_info_t
 
     // direct rendering
     uint32_t view_mask = 0;
-    std::vector<VkFormat> color_attachment_formats;
+
+    // note we don't own this range, so avoid pointing at stack-memory
+    std::span<const VkFormat> color_attachment_formats;
     VkFormat depth_attachment_format = VK_FORMAT_UNDEFINED;
     VkFormat stencil_attachment_format = VK_FORMAT_UNDEFINED;
 
