@@ -394,8 +394,9 @@ void Framebuffer::begin_rendering(VkCommandBuffer commandbuffer, const begin_ren
     pass_info.pColorAttachments = color_attachments.empty() ? nullptr : color_attachments.data();
     pass_info.pDepthAttachment = depth_attachments.empty() ? nullptr : depth_attachments.data();
 
-    // TODO: check actual VK_FORMAT and figure our if stencil is required
-    //    pass_info.pStencilAttachment = depth_attachments.empty() ? nullptr : depth_attachments.data();
+    // check actual VK_FORMAT and figure our if stencil is required
+    pass_info.pStencilAttachment =
+            depth_attachment() && is_stencil(depth_attachment()->format().format) ? depth_attachments.data() : nullptr;
     vkCmdBeginRendering(commandbuffer, &pass_info);
     m_direct_rendering_commandbuffer = commandbuffer;
 }
