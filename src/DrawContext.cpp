@@ -98,7 +98,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
                 m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_TEXTURE_DEPTH);
     }
 
-    vierkant::create_drawables_params_t drawable_params = {};
+    vierkant::create_mesh_drawables_params_t drawable_params = {};
 
     // request vertex-colors
     vierkant::Mesh::create_info_t mesh_create_info = {};
@@ -109,8 +109,8 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         // unit cube
         auto geom = vierkant::Geometry::BoxOutline();
         m_drawable_aabb =
-                vierkant::create_drawables({vierkant::Mesh::create_from_geometry(m_device, geom, mesh_create_info)},
-                                           drawable_params)
+                vierkant::create_mesh_drawables(
+                        {vierkant::Mesh::create_from_geometry(m_device, geom, mesh_create_info)}, drawable_params)
                         .front();
         m_drawable_aabb.pipeline_format.shader_stages =
                 m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_COLOR);
@@ -137,7 +137,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         box->tangents.clear();
         box->normals.clear();
         vierkant::mesh_component_t mesh_component = {vierkant::Mesh::create_from_geometry(m_device, box, {})};
-        m_drawable_skybox = vierkant::create_drawables(mesh_component, drawable_params).front();
+        m_drawable_skybox = vierkant::create_mesh_drawables(mesh_component, drawable_params).front();
         m_drawable_skybox.pipeline_format.depth_write = false;
         m_drawable_skybox.pipeline_format.depth_test = true;
         m_drawable_skybox.pipeline_format.cull_mode = VK_CULL_MODE_FRONT_BIT;
@@ -151,8 +151,8 @@ void DrawContext::draw_mesh(vierkant::Rasterizer &renderer, const vierkant::Mesh
                             vierkant::ShaderType shader_type, const std::optional<glm::vec4> &color, bool depth_test,
                             bool depth_write)
 {
-    vierkant::create_drawables_params_t drawable_params = {};
-    auto drawables = vierkant::create_drawables({mesh}, drawable_params);
+    vierkant::create_mesh_drawables_params_t drawable_params = {};
+    auto drawables = vierkant::create_mesh_drawables({mesh}, drawable_params);
 
     for(auto &drawable: drawables)
     {

@@ -36,13 +36,6 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
 
     for(uint32_t i = 0; i < physics_debug_result.aabbs.size(); ++i)
     {
-        if(frame_context.settings.draw_aabbs)
-        {
-            const auto &aabb = physics_debug_result.aabbs[i];
-            m_draw_context.draw_boundingbox(m_rasterizer, aabb, camera::view_transform(cam.get()),
-                                            camera::projection_matrix(cam.get()));
-        }
-
         if(frame_context.settings.draw_meshes)
         {
             const auto &[transform, geom] = physics_debug_result.triangle_meshes[i];
@@ -63,15 +56,19 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
                 vierkant::Mesh::create_info_t mesh_create_info = {};
                 mesh_create_info.mesh_buffer_params.use_vertex_colors = true;
                 mesh = vierkant::Mesh::create_from_geometry(m_rasterizer.device(), geom, mesh_create_info);
-
-                // TODO: add new material with blending to scene
-                // mesh->materials.front()->m.blend_mode = vierkant::BlendMode::Blend;
                 frame_context.physics_meshes[geom.get()] = mesh;
             }
             auto color = settings.use_mesh_colors ? physics_debug_result.colors[i] : glm::vec4(1.f);
             m_draw_context.draw_mesh(m_rasterizer, mesh, camera::view_transform(cam.get()) * transform,
                                      camera::projection_matrix(cam.get()), vierkant::ShaderType::UNLIT_COLOR, color,
                                      true, true);
+        }
+
+        if(frame_context.settings.draw_aabbs)
+        {
+            // const auto &aabb = physics_debug_result.aabbs[i];
+            // m_draw_context.draw_boundingbox(m_rasterizer, aabb, camera::view_transform(cam.get()),
+            //                                 camera::projection_matrix(cam.get()));
         }
     }
 

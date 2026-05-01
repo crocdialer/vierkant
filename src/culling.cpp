@@ -47,7 +47,7 @@ public:
                 m_cull_result.meshes.insert(mesh_component->mesh.get());
 
                 // create drawables
-                vierkant::create_drawables_params_t drawable_params = {};
+                vierkant::create_mesh_drawables_params_t drawable_params = {};
                 drawable_params.material_data = m_scene->material_data();
                 drawable_params.texture_store = m_scene->texture_store();
                 drawable_params.transform = model_view;
@@ -58,7 +58,7 @@ public:
                     drawable_params.animation_index = animation_state.index;
                     drawable_params.animation_time = static_cast<float>(animation_state.current_time);
                 }
-                auto mesh_drawables = vierkant::create_drawables(*mesh_component, drawable_params);
+                auto mesh_drawables = vierkant::create_mesh_drawables(*mesh_component, drawable_params);
 
                 for(uint32_t i = 0; i < mesh_drawables.size(); ++i)
                 {

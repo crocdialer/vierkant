@@ -21,8 +21,8 @@ std::vector<vierkant::drawable_t> create_test_drawables(const vierkant::DevicePt
     EXPECT_EQ(1, mesh->entries.size());
     EXPECT_EQ(1, mesh->material_ids.size());
 
-    vierkant::create_drawables_params_t drawable_params = {};
-    auto drawables = vierkant::create_drawables({mesh}, drawable_params);
+    vierkant::create_mesh_drawables_params_t drawable_params = {};
+    auto drawables = vierkant::create_mesh_drawables({mesh}, drawable_params);
 
     // manually inject shader-stages which cannot be just guessed by above utility
     auto unlit_shader_stages = vierkant::create_shader_stages(vierkant::ShaderType::UNLIT_COLOR);

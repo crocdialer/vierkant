@@ -31,8 +31,8 @@ void update_material(const vierkant::material_t *mat_in, vierkant::material_stru
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_component_t &mesh_component,
-                                                   const create_drawables_params_t &params)
+std::vector<vierkant::drawable_t> create_mesh_drawables(const vierkant::mesh_component_t &mesh_component,
+                                                        const create_mesh_drawables_params_t &params)
 {
     const auto &mesh = mesh_component.mesh;
     if(!mesh) { return {}; }
@@ -64,7 +64,11 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
     {
         if(mesh_component.entry_indices && !mesh_component.entry_indices->contains(i)) { continue; }
         const auto &entry = mesh->entries[i];
-        const auto &lod_0 = mesh->entries[i].lods.front();
+
+        const uint32_t lod_index = std::clamp<uint32_t>(
+                params.lod_index >= 0 ? params.lod_index : mesh->entries[i].lods.size() + params.lod_index, 0,
+                mesh->entries[i].lods.size() - 1);
+        const auto &lod = mesh->entries[i].lods[lod_index];
 
         // original or override material_ids
         const auto &material_ids = mesh_component.material_ids ? *mesh_component.material_ids : mesh->material_ids;
@@ -107,15 +111,15 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
             update_material(material, drawable.material);
         }
 
-        drawable.base_index = lod_0.base_index;
-        drawable.num_indices = lod_0.num_indices;
+        drawable.base_index = lod.base_index;
+        drawable.num_indices = lod.num_indices;
         drawable.vertex_offset = entry.vertex_offset;
         drawable.num_vertices = entry.num_vertices;
         drawable.morph_vertex_offset = entry.morph_vertex_offset;
         drawable.morph_weights =
                 (node_morph_weights.empty() ? entry.morph_weights : node_morph_weights[entry.node_index]);
-        drawable.base_meshlet = lod_0.base_meshlet;
-        drawable.num_meshlets = lod_0.num_meshlets;
+        drawable.base_meshlet = lod.base_meshlet;
+        drawable.num_meshlets = lod.num_meshlets;
 
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
         drawable.pipeline_format.blend_state.blendEnable =
