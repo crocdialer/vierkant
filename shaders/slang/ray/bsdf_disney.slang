@@ -78,9 +78,11 @@ float3 EvalDielectricRefraction(float roughness, float3 color, float eta, float3
     pdf = 0.0;
     if(dot(N, L) >= 0.0) return float3(0.0);
 
+    float denomSqrt = dot(L, H) + dot(V, H) * eta;
+    if(abs(denomSqrt) < 1e-7) return float3(0.0);
+
     float F = utils::DielectricFresnel(abs(dot(V, H)), eta);
     float D = utils::GTR2(dot(N, H), roughness);
-    float denomSqrt = dot(L, H) + dot(V, H) * eta;
     pdf = D * dot(N, H) * (1.0 - F) * abs(dot(L, H)) / (denomSqrt * denomSqrt);
 
     float G = utils::SmithGGX(abs(dot(N, L)), roughness) * utils::SmithGGX(abs(dot(N, V)), roughness);
@@ -200,10 +202,20 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
         }
         else// Transmission
         {
-            ret.direction = normalize(refract(-V, H, eta));
-            ret.F = EvalDielectricRefraction(material.roughness, material.color.rgb, eta, V, N, ret.direction, H,
-                                             ret.pdf);
-            ret.transmission = true;
+            float3 refracted = refract(-V, H, eta);
+            if(dot(refracted, refracted) < 1e-7)// TIR with H (mismatch with H_vndf TIR check above)
+            {
+                ret.direction = normalize(reflect(-V, H));
+                ret.F = EvalDielectricReflection(material.roughness, material.color.rgb, eta, V, N, ret.direction, H,
+                                                 ret.pdf);
+            }
+            else
+            {
+                ret.direction = normalize(refracted);
+                ret.F = EvalDielectricRefraction(material.roughness, material.color.rgb, eta, V, N, ret.direction, H,
+                                                 ret.pdf);
+                ret.transmission = true;
+            }
         }
 
         ret.F *= trans_weight;
@@ -264,7 +276,10 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
 public float3 eval_disney(material_t material, float3 L, float3 N, float3 V, float eta, inout float pdf)
 {
     bool refl = dot(N, L) > 0.0;
-    float3 H = normalize(refl ? L + V : L + V * eta);
+    float3 LpV = refl ? L + V : L + V * eta;
+    float LpV_len = length(LpV);
+    if(LpV_len < 1e-7) { pdf = 0.0; return float3(0.0); }
+    float3 H = LpV / LpV_len;
     if(dot(V, H) < 0.0) H = -H;
 
     float diffuseRatio = 0.5 * (1.0 - material.metalness);
