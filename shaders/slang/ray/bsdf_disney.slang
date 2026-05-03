@@ -41,94 +41,95 @@ public struct bsdf_sample_t
     public bool transmission;
 };
 
-float3 EvalDielectricReflection(material_t material, float eta, float3 V, float3 N, float3 L, float3 H, out float pdf)
+float3 EvalDielectricReflection(float roughness, float3 color, float eta, float3 V, float3 N, float3 L, float3 H,
+                                out float pdf)
 {
     pdf = 0.0;
     if(dot(N, L) <= 0.0) return float3(0.0);
 
     float F = utils::DielectricFresnel(dot(V, H), eta);
-    float D = utils::GTR2(dot(N, H), material.roughness);
+    float D = utils::GTR2(dot(N, H), roughness);
     pdf = D * dot(N, H) * F / (4.0 * abs(dot(V, H)));
 
-    float G = utils::SmithGGX(abs(dot(N, L)), material.roughness) * utils::SmithGGX(abs(dot(N, V)), material.roughness);
-    return material.color.rgb * F * D * G;
+    float G = utils::SmithGGX(abs(dot(N, L)), roughness) * utils::SmithGGX(abs(dot(N, V)), roughness);
+    return color * F * D * G;
 }
 
-float3 EvalDielectricReflectionIridescence(material_t material, float3 Cspec0, float eta, float3 V, float3 N, float3 L,
-                                           float3 H, out float pdf)
+float3 EvalDielectricReflectionIridescence(float roughness, float3 color, float iridescence_ior,
+                                           float iridescence_thickness, float3 Cspec0, float eta, float3 V, float3 N,
+                                           float3 L, float3 H, out float pdf)
 {
     pdf = 0.0;
     if(dot(N, L) <= 0.0) return float3(0.0);
 
     float VoH = dot(V, H);
     float F = utils::DielectricFresnel(VoH, eta);
-    float D = utils::GTR2(dot(N, H), material.roughness);
+    float D = utils::GTR2(dot(N, H), roughness);
     pdf = D * dot(N, H) * F / (4.0 * abs(dot(V, H)));
 
-    float G = utils::SmithGGX(abs(dot(N, L)), material.roughness) * utils::SmithGGX(abs(dot(N, V)), material.roughness);
-    float3 irF = utils::iridescent_fresnel(1.0, material.iridescence_ior, Cspec0,
-                                           material.iridescence_thickness_range.y, VoH);
-    return material.color.rgb * irF * D * G;
+    float G = utils::SmithGGX(abs(dot(N, L)), roughness) * utils::SmithGGX(abs(dot(N, V)), roughness);
+    float3 irF = utils::iridescent_fresnel(1.0, iridescence_ior, Cspec0, iridescence_thickness, VoH);
+    return color * irF * D * G;
 }
 
-float3 EvalDielectricRefraction(material_t material, float eta, float3 V, float3 N, float3 L, float3 H, out float pdf)
+float3 EvalDielectricRefraction(float roughness, float3 color, float eta, float3 V, float3 N, float3 L, float3 H,
+                                out float pdf)
 {
     pdf = 0.0;
     if(dot(N, L) >= 0.0) return float3(0.0);
 
     float F = utils::DielectricFresnel(abs(dot(V, H)), eta);
-    float D = utils::GTR2(dot(N, H), material.roughness);
+    float D = utils::GTR2(dot(N, H), roughness);
     float denomSqrt = dot(L, H) + dot(V, H) * eta;
     pdf = D * dot(N, H) * (1.0 - F) * abs(dot(L, H)) / (denomSqrt * denomSqrt);
 
-    float G = utils::SmithGGX(abs(dot(N, L)), material.roughness) * utils::SmithGGX(abs(dot(N, V)), material.roughness);
-    return material.color.rgb * (1.0 - F) * D * G * abs(dot(V, H)) * abs(dot(L, H)) * 4.0 * eta * eta /
-           (denomSqrt * denomSqrt);
+    float G = utils::SmithGGX(abs(dot(N, L)), roughness) * utils::SmithGGX(abs(dot(N, V)), roughness);
+    return color * (1.0 - F) * D * G * abs(dot(V, H)) * abs(dot(L, H)) * 4.0 * eta * eta / (denomSqrt * denomSqrt);
 }
 
-float3 EvalSpecular(material_t material, float3 Cspec0, float3 V, float3 N, float3 L, float3 H, out float pdf)
+float3 EvalSpecular(float roughness, float3 Cspec0, float3 V, float3 N, float3 L, float3 H, out float pdf)
 {
     pdf = 0.0;
     if(dot(N, L) <= 0.0) return float3(0.0);
 
-    float D = utils::GTR2(dot(N, H), material.roughness);
+    float D = utils::GTR2(dot(N, H), roughness);
     pdf = D * dot(N, H) / (4.0 * dot(V, H));
 
     float FH = utils::SchlickFresnel(dot(L, H));
     float3 F = lerp(Cspec0, float3(1.0), FH);
-    float G = utils::SmithGGX(abs(dot(N, L)), material.roughness) * utils::SmithGGX(abs(dot(N, V)), material.roughness);
+    float G = utils::SmithGGX(abs(dot(N, L)), roughness) * utils::SmithGGX(abs(dot(N, V)), roughness);
     return F * D * G;
 }
 
-float3 EvalSpecularIridescence(material_t material, float3 Cspec0, float3 V, float3 N, float3 L, float3 H,
-                               out float pdf)
+float3 EvalSpecularIridescence(float roughness, float iridescence_ior, float iridescence_thickness, float3 Cspec0,
+                               float3 V, float3 N, float3 L, float3 H, out float pdf)
 {
     pdf = 0.0;
     if(dot(N, L) <= 0.0) return float3(0.0);
 
     float VoH = dot(V, H);
-    float D = utils::GTR2(dot(N, H), material.roughness);
+    float D = utils::GTR2(dot(N, H), roughness);
     pdf = D * dot(N, H) / (4.0 * VoH);
-    float3 F = utils::iridescent_fresnel(1.0, material.iridescence_ior, Cspec0, material.iridescence_thickness_range.y,
-                                         VoH);
-    float G = utils::SmithGGX(abs(dot(N, L)), material.roughness) * utils::SmithGGX(abs(dot(N, V)), material.roughness);
+    float3 F = utils::iridescent_fresnel(1.0, iridescence_ior, Cspec0, iridescence_thickness, VoH);
+    float G = utils::SmithGGX(abs(dot(N, L)), roughness) * utils::SmithGGX(abs(dot(N, V)), roughness);
     return F * D * G;
 }
 
-float3 EvalClearcoat(material_t material, float3 V, float3 N, float3 L, float3 H, out float pdf)
+float3 EvalClearcoat(float clearcoat_roughness, float clearcoat, float3 V, float3 N, float3 L, float3 H, out float pdf)
 {
     pdf = 0.0;
     if(dot(N, L) <= 0.0) return float3(0.0);
 
-    float D = utils::GTR2(dot(N, H), material.clearcoat_roughness);
+    float D = utils::GTR2(dot(N, H), clearcoat_roughness);
     pdf = D * dot(N, H) / (4.0 * dot(V, H));
     float FH = utils::SchlickFresnel(dot(L, H));
     float F = lerp(0.04, 1.0, FH);
     float G = utils::SmithGGX(dot(N, L), 0.25) * utils::SmithGGX(dot(N, V), 0.25);
-    return float3(0.25 * material.clearcoat * F * D * G);
+    return float3(0.25 * clearcoat * F * D * G);
 }
 
-float3 EvalDiffuse(material_t material, float3 V, float3 N, float3 L, float3 H, out float pdf)
+float3 EvalDiffuse(float roughness, float sheen_roughness, float3 color, float3 sheen_color, float metalness, float3 V,
+                   float3 N, float3 L, float3 H, out float pdf)
 {
     pdf = 0.0;
     float NoL = dot(N, L);
@@ -140,11 +141,11 @@ float3 EvalDiffuse(material_t material, float3 V, float3 N, float3 L, float3 H, 
     float FL = utils::SchlickFresnel(NoL);
     float FV = utils::SchlickFresnel(dot(N, V));
     float FH = utils::SchlickFresnel(LoH);
-    float Fd90 = 0.5 + 2.0 * LoH * LoH * material.roughness;
+    float Fd90 = 0.5 + 2.0 * LoH * LoH * roughness;
     float Fd = lerp(1.0, Fd90, FL) * lerp(1.0, Fd90, FV);
 
-    float3 Fsheen = FH * material.sheen_roughness * material.sheen_color.rgb;
-    return utils::ONE_OVER_PI * (Fd * material.color.rgb + Fsheen) * (1.0 - material.metalness);
+    float3 Fsheen = FH * sheen_roughness * sheen_color;
+    return utils::ONE_OVER_PI * (Fd * color + Fsheen) * (1.0 - metalness);
 }
 
 public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, float eta, inout uint rng_state)
@@ -185,21 +186,23 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
 
             if(utils::rnd(rng_state) < material.iridescence_strength)
             {
-                ret.F = EvalDielectricReflectionIridescence(material, spec_color, eta, V, N, ret.direction, H_vndf,
-                                                            ret.pdf);
+                ret.F = EvalDielectricReflectionIridescence(
+                        material.roughness, material.color.rgb, material.iridescence_ior,
+                        material.iridescence_thickness_range.y, spec_color, eta, V, N, ret.direction, H_vndf, ret.pdf);
                 ret.pdf *= material.iridescence_strength;
             }
             else
             {
-                ret.F = EvalDielectricReflection(material, eta, V, N, ret.direction, H_vndf, ret.pdf);
+                ret.F = EvalDielectricReflection(material.roughness, material.color.rgb, eta, V, N, ret.direction,
+                                                 H_vndf, ret.pdf);
                 ret.pdf *= 1.0 - material.iridescence_strength;
             }
         }
         else// Transmission
         {
-            material.roughness = min(material.roughness, 0.4);
             ret.direction = normalize(refract(-V, H, eta));
-            ret.F = EvalDielectricRefraction(material, eta, V, N, ret.direction, H, ret.pdf);
+            ret.F = EvalDielectricRefraction(material.roughness, material.color.rgb, eta, V, N, ret.direction, H,
+                                             ret.pdf);
             ret.transmission = true;
         }
 
@@ -213,7 +216,8 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
         {
             ret.direction = mul(utils::sample_hemisphere_cosine(Xi), frame);
             H = normalize(ret.direction + V);
-            ret.F = EvalDiffuse(material, V, N, ret.direction, H, ret.pdf);
+            ret.F = EvalDiffuse(material.roughness, material.sheen_roughness, material.color.rgb,
+                                material.sheen_color.rgb, material.metalness, V, N, ret.direction, H, ret.pdf);
             ret.pdf *= diffuseRatio;
         }
         else// specular
@@ -227,12 +231,14 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
 
                 if(utils::rnd(rng_state) < material.iridescence_strength)
                 {
-                    ret.F = EvalSpecularIridescence(material, spec_color, V, N, ret.direction, H_vndf, ret.pdf);
+                    ret.F = EvalSpecularIridescence(material.roughness, material.iridescence_ior,
+                                                    material.iridescence_thickness_range.y, spec_color, V, N,
+                                                    ret.direction, H_vndf, ret.pdf);
                     ret.pdf *= primarySpecRatio * (1.0 - diffuseRatio) * material.iridescence_strength;
                 }
                 else
                 {
-                    ret.F = EvalSpecular(material, spec_color, V, N, ret.direction, H_vndf, ret.pdf);
+                    ret.F = EvalSpecular(material.roughness, spec_color, V, N, ret.direction, H_vndf, ret.pdf);
                     ret.pdf *= primarySpecRatio * (1.0 - diffuseRatio) * (1.0 - material.iridescence_strength);
                 }
             }
@@ -241,7 +247,8 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
                 H = mul(utils::sample_GTR1(Xi, lerp(0.1, 0.001, material.clearcoat)), frame);
                 if(dot(V, H) < 0.0) { H = -H; }
                 ret.direction = normalize(reflect(-V, H));
-                ret.F = EvalClearcoat(material, V, N, ret.direction, H, ret.pdf);
+                ret.F = EvalClearcoat(material.clearcoat_roughness, material.clearcoat, V, N, ret.direction, H,
+                                      ret.pdf);
                 ret.pdf *= (1.0 - primarySpecRatio) * (1.0 - diffuseRatio);
             }
         }
@@ -279,30 +286,36 @@ public float3 eval_disney(material_t material, float3 L, float3 N, float3 V, flo
     {
         if(refl)
         {
-            bsdf += EvalDielectricReflection(material, eta, V, N, L, H, m_pdf) * (1.0 - material.iridescence_strength);
+            bsdf += EvalDielectricReflection(material.roughness, material.color.rgb, eta, V, N, L, H, m_pdf) *
+                    (1.0 - material.iridescence_strength);
             bsdfPdf += m_pdf * (1.0 - material.iridescence_strength);
-            bsdf += EvalDielectricReflectionIridescence(material, spec_color, eta, V, N, L, H, m_pdf) *
+            bsdf += EvalDielectricReflectionIridescence(
+                            material.roughness, material.color.rgb, material.iridescence_ior,
+                            material.iridescence_thickness_range.y, spec_color, eta, V, N, L, H, m_pdf) *
                     material.iridescence_strength;
             bsdfPdf += m_pdf * material.iridescence_strength;
         }
         else
         {
-            bsdf = EvalDielectricRefraction(material, eta, V, N, L, H, bsdfPdf);
+            bsdf = EvalDielectricRefraction(material.roughness, material.color.rgb, eta, V, N, L, H, bsdfPdf);
         }
     }
 
     if(trans_weight < 1.0)
     {
-        brdf += EvalDiffuse(material, V, N, L, H, m_pdf);
+        brdf += EvalDiffuse(material.roughness, material.sheen_roughness, material.color.rgb, material.sheen_color.rgb,
+                            material.metalness, V, N, L, H, m_pdf);
         brdfPdf += m_pdf * diffuseRatio;
 
-        brdf += EvalSpecular(material, spec_color, V, N, L, H, m_pdf) * (1.0 - material.iridescence_strength);
+        brdf += EvalSpecular(material.roughness, spec_color, V, N, L, H, m_pdf) * (1.0 - material.iridescence_strength);
         brdfPdf += m_pdf * primarySpecRatio * (1.0 - diffuseRatio) * (1.0 - material.iridescence_strength);
 
-        brdf += EvalSpecularIridescence(material, spec_color, V, N, L, H, m_pdf) * material.iridescence_strength;
+        brdf += EvalSpecularIridescence(material.roughness, material.iridescence_ior,
+                                        material.iridescence_thickness_range.y, spec_color, V, N, L, H, m_pdf) *
+                material.iridescence_strength;
         brdfPdf += m_pdf * primarySpecRatio * (1.0 - diffuseRatio) * material.iridescence_strength;
 
-        brdf += EvalClearcoat(material, V, N, L, H, m_pdf);
+        brdf += EvalClearcoat(material.clearcoat_roughness, material.clearcoat, V, N, L, H, m_pdf);
         brdfPdf += m_pdf * (1.0 - primarySpecRatio) * (1.0 - diffuseRatio);
     }
 

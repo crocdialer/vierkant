@@ -487,6 +487,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.trace_params.max_trace_depth = frame_context.settings.max_trace_depth;
     trace_data.trace_params.disable_material = frame_context.settings.disable_material;
     trace_data.trace_params.draw_skybox = frame_context.settings.draw_skybox;
+    trace_data.trace_params.environment = frame_context.settings.environment_factor;
     trace_data.trace_params.random_seed = m_random_engine();
 
     trace_data.camera_params = camera_params;

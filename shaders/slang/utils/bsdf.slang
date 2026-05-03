@@ -94,7 +94,7 @@ public float3 iridescent_fresnel(float outsideIOR, float iridescenceIOR, float3 
     if(baseIOR.z < iridescenceIOR) phi23.z = PI;
 
     float3 phi = float3(phi21) + phi23;
-    float OPD = 2.0 * iridescenceIOR * iridescenceThickness * cosTheta1;
+    float OPD = 2.0 * iridescenceIOR * iridescenceThickness * cosTheta2;
 
     float3 R123 = clamp(R12 * R23, 1e-5, 0.9999);
     float3 r123 = sqrt(R123);

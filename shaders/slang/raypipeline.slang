@@ -19,7 +19,7 @@ import "utils/procedural_environment";
 
 static const uint MAX_MEDIA_STACK_SIZE = 4;
 
-#define USE_DIRECT_LIGHTING 0
+#define USE_DIRECT_LIGHTING 1
 
 [[vk::binding(0, 0)]]
 RaytracingAccelerationStructure topLevelAS;
@@ -360,19 +360,20 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             const float g = payload.media.phase_g;
             float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
             payload.ray.origin += payload.ray.direction * t;
-            float phase_pdf;
-            payload.ray.direction =
-                    mul(utils::sample_phase_hg(Xi, g, phase_pdf), utils::local_frame(payload.ray.direction));
 
 #if USE_DIRECT_LIGHTING
             ray::sunlight_params_t sun_params;
             sun_params.color = float3(1.0, 0.6, 0.4);
-            sun_params.intensity = 1.0;
+            sun_params.intensity = 25000.0;
             sun_params.direction = normalize(float3(0.4, 1.0, 0.7));
             sun_params.angular_size = 0.524167 * utils::PI / 180.0;
-            float3 sun_L = phase_pdf * ray::sample_sun_light_phase(payload.ray, sun_params, topLevelAS, rng_state);
+            float3 sun_L = ray::sample_sun_light_phase(payload.ray, sun_params, topLevelAS, g, rng_state);
             payload.radiance += payload.beta * sun_L;
 #endif
+
+            float phase_pdf;
+            payload.ray.direction =
+                    mul(utils::sample_phase_hg(Xi, g, phase_pdf), utils::local_frame(payload.ray.direction));
         }
     }
 
@@ -471,7 +472,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         {
             ray::sunlight_params_t sun_params;
             sun_params.color = float3(1.0, 0.6, 0.4);
-            sun_params.intensity = 1.0;
+            sun_params.intensity = 25000.0;
             sun_params.direction = normalize(float3(0.4, 1.0, 0.7));
             sun_params.angular_size = 0.524167 * utils::PI / 180.0;
             float3 sun_L = ray::sample_sun_light(material, sun_params, topLevelAS, payload.position, payload.normal, V,
