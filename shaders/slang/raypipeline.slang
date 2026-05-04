@@ -311,7 +311,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     float tmax_inside_volume = 2 * length(entry->transform.scale() * entry->aabb.half_extents());
 
     float3 V = -WorldRayDirection();
-    float NoV = abs(dot(V, payload.normal));
+    float NoV = abs(dot(V, v.normal));
 
     payload.entity_index = InstanceIndex();
     payload.position = v.position;
@@ -410,17 +410,18 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         if((material.texture_type_flags & uint(ray::TextureTypeBits::Normal)) != 0)
         {
-            v.tangent = normalize(v.tangent);
             float3 normal;
             normal.xy = 2.0 * (sample_texture_lod(u_textures[NonUniformResourceIndex(material.normalmap_index)],
                                                   v.tex_coord, NoV, payload.cone.width, triangle_lod)
                                        .xy -
                                float2(0.5));
-            normal.z = sqrt(1.0 - normal.x * normal.x - normal.y * normal.y);
+            normal.z = sqrt(max(0.0, 1.0 - normal.x * normal.x - normal.y * normal.y));
 
             float3 b = normalize(cross(v.normal, v.tangent));
-            normal = mul(normal, float3x3(v.tangent, b, payload.normal));
-            payload.normal = dot(payload.normal, normal) > 0.0 ? normal : payload.normal;
+            normal = normalize(mul(normal, float3x3(v.tangent, b, v.normal)));
+
+            // hemisphere clamp 
+            payload.normal = normalize(normal + max(0, -dot(normal, v.normal) + 1e-3) * v.normal);
         }
 
         float3 ff_normal = faceforward(payload.normal, WorldRayDirection(), payload.normal);
@@ -458,7 +459,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
 #if USE_DIRECT_LIGHTING
         payload.radiance += payload.beta * ray::sample_sun_light(material, sun_params, topLevelAS, payload.position,
-                                                                  payload.normal, V, eta, rng_state);
+                                                                 payload.normal, V, eta, rng_state);
 #endif
 
         if(bsdf_sample.pdf <= 0.0)
