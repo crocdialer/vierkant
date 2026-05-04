@@ -397,7 +397,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     payload.media.ior = sample_surface ? material.ior : payload.media.ior;
 
     // determine next media-op
-    let next_media_op = sample_medium ? ray::MediaOp::NoOp : (backface ? ray::MediaOp::Leave : ray::MediaOp::Enter);
+    payload.media_op = sample_medium ? ray::MediaOp::NoOp : (backface ? ray::MediaOp::Leave : ray::MediaOp::Enter);
 
     if(sample_surface)
     {
@@ -474,9 +474,9 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         if(bsdf_sample.transmission)
         {
             // examine next media-op, limit ray.tmax when entering a volume
-            payload.ray.tmax = next_media_op == ray::MediaOp::Enter ? tmax_inside_volume : ray::DEFAULT_TMAX;
+            payload.ray.tmax = payload.media_op == ray::MediaOp::Enter ? tmax_inside_volume : ray::DEFAULT_TMAX;
         }
-        payload.media_op = bsdf_sample.transmission ? next_media_op : ray::MediaOp::NoOp;
+        payload.media_op = bsdf_sample.transmission ? payload.media_op : ray::MediaOp::NoOp;
     }
 
     // Russian roulette
