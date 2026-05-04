@@ -68,7 +68,7 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
     {
         case VK_IMAGE_LAYOUT_UNDEFINED:
             barrier.srcAccessMask = VK_ACCESS_2_NONE;
-            barrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
+            barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
             break;
 
         case VK_IMAGE_LAYOUT_GENERAL:
@@ -101,7 +101,8 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
         {
             if(aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
             {
-                barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+                barrier.srcAccessMask =
+                        VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
                 barrier.srcStageMask = VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
             }
             else
@@ -111,6 +112,12 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
             }
         }
         break;
+
+        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+            // semaphore from vkAcquireNextImageKHR provides memory visibility; only execution dep needed
+            barrier.srcAccessMask = VK_ACCESS_2_NONE;
+            barrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+            break;
 
         default: break;
     }
@@ -136,7 +143,8 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
         {
             if(aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
             {
-                barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+                barrier.dstAccessMask =
+                        VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
                 barrier.dstStageMask =
                         VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
             }
@@ -211,23 +219,17 @@ VmaPoolPtr Image::create_pool(const DevicePtr &device, const Image::Format &form
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 ImagePtr Image::create(DevicePtr device, const void *data, Format format)
-{
-    return ImagePtr(new Image(std::move(device), data, VK_NULL_HANDLE, std::move(format)));
-}
+{ return ImagePtr(new Image(std::move(device), data, VK_NULL_HANDLE, std::move(format))); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 ImagePtr Image::create(DevicePtr device, Format format)
-{
-    return ImagePtr(new Image(std::move(device), nullptr, VK_NULL_HANDLE, std::move(format)));
-}
+{ return ImagePtr(new Image(std::move(device), nullptr, VK_NULL_HANDLE, std::move(format))); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 ImagePtr Image::create(DevicePtr device, const VkImagePtr &shared_image, Format format)
-{
-    return ImagePtr(new Image(std::move(device), nullptr, shared_image, std::move(format)));
-}
+{ return ImagePtr(new Image(std::move(device), nullptr, shared_image, std::move(format))); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -409,7 +411,8 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer, VkDependencyFlags dependency_flags, bool force)
+void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer, VkDependencyFlags dependency_flags,
+                              bool force)
 {
     if(force || new_layout != *m_image_layout)
     {
