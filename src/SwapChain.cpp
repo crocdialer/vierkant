@@ -168,6 +168,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     fmt.format = surface_fmt.format;
     fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     fmt.initial_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    fmt.initial_layout_transition = false;
     m_images.resize(imageCount);
 
     for(size_t i = 0; i < m_images.size(); i++)

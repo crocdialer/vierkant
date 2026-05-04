@@ -73,10 +73,6 @@ VkPhysicalDeviceProperties2 device_properties(VkPhysicalDevice physical_device)
     return device_props;
 }
 
-////////////////////////////// VALIDATION LAYER ////////////////////////////////////////////////////////////////////////
-
-const char *g_validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const std::vector<Device::queue_asset_t> g_empty_queue;
@@ -211,8 +207,8 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     // shader barycentric
     enable_extension(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
 
-    // TODO: use KHR_unified_image_layouts when available
-    // enable_extension(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME);
+    // use KHR_unified_image_layouts when available
+    enable_extension(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME);
 
     // TODO: present fifo-latest-ready
     // enable_extension(VK_EXT_PRESENT_MODE_FIFO_LATEST_READY_EXTENSION_NAME);
@@ -334,6 +330,11 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
             VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_RELAXED_EXTENDED_INSTRUCTION_FEATURES_KHR;
     update_pnext(extended_instruction_features, VK_KHR_SHADER_RELAXED_EXTENDED_INSTRUCTION_EXTENSION_NAME);
 
+    //------------------------------------ VK_EXT_ray_tracing_invocation_reorder ------------------------------------
+    VkPhysicalDeviceRayTracingInvocationReorderFeaturesEXT invocation_reorder_features = {};
+    invocation_reorder_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_INVOCATION_REORDER_FEATURES_EXT;
+    update_pnext(invocation_reorder_features, VK_EXT_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME);
+
     //------------------------------------ VK_KHR_present_mode_fifo_latest_ready ----------------------------------
     // VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR present_mode_fifo_latest_features = {};
     // present_mode_fifo_latest_features.sType =
@@ -365,17 +366,6 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     device_create_info.pEnabledFeatures = &query_features.features;
     device_create_info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     device_create_info.ppEnabledExtensionNames = extensions.data();
-
-    if(create_info.use_validation)
-    {
-        device_create_info.enabledLayerCount =
-                static_cast<uint32_t>(sizeof(g_validation_layers) / sizeof(const char *));
-        device_create_info.ppEnabledLayerNames = g_validation_layers;
-    }
-    else
-    {
-        device_create_info.enabledLayerCount = 0;
-    }
 
     spdlog::debug("device-extensions: {}", extensions);
 

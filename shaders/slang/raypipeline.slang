@@ -138,6 +138,9 @@ trace_result_t trace(uint2 coord, uint2 size)
             ray_desc.Direction = next_ray.direction;
             ray_desc.TMax = next_ray.tmax;
 
+            //let hit = HitObject.TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
+            //ReorderThread(hit);
+            //HitObject.Invoke(topLevelAS, hit, payload);
             TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
 
             cone = payload.cone;
