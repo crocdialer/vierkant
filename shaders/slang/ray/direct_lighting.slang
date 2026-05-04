@@ -44,19 +44,25 @@ public float3 sample_sun_light(material_t material, sunlight_params_t p, Raytrac
     return radiance;
 }
 
-public float3 sample_sun_light_phase(Ray ray, sunlight_params_t p, RaytracingAccelerationStructure as,
-                                     float phase_g, inout uint rng_state)
+public float3 sample_sun_light_phase(Ray ray, sunlight_params_t p, RaytracingAccelerationStructure as, float phase_g,
+                                     inout uint rng_state)
 {
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
     float3 light_dir = mul(utils::sample_unit_sphere_cap(Xi, p.angular_size), utils::local_frame(p.direction));
 
-    Ray light_ray;
-    light_ray.origin = ray.origin;
-    light_ray.direction = light_dir;
-    light_ray.tmin = 0;
-    light_ray.tmax = 10000.0;
+    // shadow ray from inside volume: cull back faces from enclosing mesh
+    RayDesc shadow_desc;
+    shadow_desc.Origin = ray.origin;
+    shadow_desc.Direction = light_dir;
+    shadow_desc.TMin = EPS;
+    shadow_desc.TMax = 10000.0;
 
-    if(!visibility_test(light_ray, as)) return float3(0);
+    RayQuery<RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER |
+             RAY_FLAG_CULL_BACK_FACING_TRIANGLES> shadow_query;
+    shadow_query.TraceRayInline(as, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
+                                0xFF, shadow_desc);
+    shadow_query.Proceed();
+    if(shadow_query.CommittedStatus() != COMMITTED_NOTHING) return float3(0);
 
     float phase = utils::phase_hg(dot(ray.direction, light_dir), phase_g);
     float pdf_light = 1.0 / (2.0 * utils::PI * (1.0 - cos(p.angular_size)));
