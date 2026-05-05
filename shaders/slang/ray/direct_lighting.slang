@@ -30,6 +30,10 @@ public float3 sample_sun_light(material_t material, sunlight_params_t p, Raytrac
         float unused_pdf = 0.0;
         float cos_theta = max(dot(N, light_dir), 0.0);
         float3 F = eval_disney(material, light_dir, N, V, eta, unused_pdf);
+
+        // NOTE: not nice. returning early here causing artifacts
+        F = unused_pdf > 0 ? F : float3(0.0);
+
         float pdf_light = 1.0 / (2.0 * utils::PI * (1.0 - cos(p.angular_size)));
         radiance = p.color * p.intensity * F * cos_theta / pdf_light;
     }
