@@ -19,8 +19,6 @@ import "utils/procedural_environment";
 
 static const uint MAX_MEDIA_STACK_SIZE = 4;
 
-#define USE_DIRECT_LIGHTING 0
-
 [[vk::binding(0, 0)]]
 RaytracingAccelerationStructure topLevelAS;
 
@@ -57,8 +55,7 @@ ray::Ray camera_ray(float2 coord, float2 size, float2 Xi)
     {
         origin = mul(trace_data.camera.view_inverse, mul(trace_data.camera.projection_inverse, float4(d.x, d.y, 1, 1)))
                          .xyz;
-        direction = -float3(trace_data.camera.view_inverse[0][2],
-                            trace_data.camera.view_inverse[1][2],
+        direction = -float3(trace_data.camera.view_inverse[0][2], trace_data.camera.view_inverse[1][2],
                             trace_data.camera.view_inverse[2][2]);
     }
     else
@@ -294,14 +291,6 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     uint rng_state = payload.rng_state;
     let entry = trace_data.entries + InstanceIndex();
 
-#if USE_DIRECT_LIGHTING
-    ray::sunlight_params_t sun_params;
-    sun_params.color = float3(1.0, 0.6, 0.4);
-    sun_params.intensity = 25000.0;
-    sun_params.direction = normalize(float3(0.4, 1.0, 0.7));
-    sun_params.angular_size = 0.524167 * utils::PI / 180.0;
-#endif
-
     ray::Triangle triangle = get_triangle(entry);
     utils::Vertex v = interpolate_vertex(entry, triangle, attribs.barycentrics);
     float triangle_lod = lod_constant(entry, triangle);
@@ -320,6 +309,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     // participating media
     bool sample_medium = false;
     float3 sigma_t = payload.media.sigma_s + payload.media.sigma_a;
+
+    bool use_direct_lighting = trace_data.sunlight_params.intensity > 0.0;
 
     if(any(sigma_t > float3(0)))
     {
@@ -372,9 +363,11 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
             payload.ray.origin += payload.ray.direction * t;
 
-#if USE_DIRECT_LIGHTING
-            payload.radiance += payload.beta * ray::sample_sun_light_phase(payload.ray, sun_params, topLevelAS, g, rng_state);
-#endif
+            if(use_direct_lighting)
+            {
+                payload.radiance += payload.beta * ray::sample_sun_light_phase(payload.ray, trace_data.sunlight_params,
+                                                                               topLevelAS, g, rng_state);
+            }
 
             float phase_pdf;
             payload.ray.direction =
@@ -420,7 +413,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             float3 b = normalize(cross(v.normal, v.tangent));
             normal = normalize(mul(normal, float3x3(v.tangent, b, v.normal)));
 
-            // hemisphere clamp 
+            // hemisphere clamp
             payload.normal = normalize(normal + max(0, -dot(normal, v.normal) + 1e-3) * v.normal);
         }
 
@@ -457,10 +450,12 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         ray::bsdf_sample_t bsdf_sample = ray::sample_disney(material, payload.normal, V, eta, rng_state);
 
-#if USE_DIRECT_LIGHTING
-        payload.radiance += payload.beta * ray::sample_sun_light(material, sun_params, topLevelAS, payload.position,
-                                                                 payload.normal, V, eta, rng_state);
-#endif
+        if(use_direct_lighting)
+        {
+            payload.radiance +=
+                    payload.beta * ray::sample_sun_light(material, trace_data.sunlight_params, topLevelAS,
+                                                         payload.position, payload.normal, V, eta, rng_state);
+        }
 
         if(bsdf_sample.pdf <= 0.0)
         {

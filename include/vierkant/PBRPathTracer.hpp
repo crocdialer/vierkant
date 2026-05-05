@@ -251,13 +251,22 @@ private:
         float phase_g = 0.f;
     };
 
+    struct sunlight_params_t
+    {
+        glm::vec3 color = glm::vec3(0.f);
+        float intensity = 0.f;
+        glm::vec3 direction = glm::vec3(0.f);
+
+        // solid angle in radians
+        float angular_size;
+    };
+
     struct trace_data_t
     {
         trace_params_t trace_params;
-
         camera_params_t camera_params;
-
         media_t camera_media;
+        sunlight_params_t sunlight_params;
 
         VkDeviceAddress vertex_buffers{};
         VkDeviceAddress index_buffers{};

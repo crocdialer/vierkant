@@ -49,6 +49,14 @@ public struct media_t
     public float phase_g;
 };
 
+public struct sunlight_params_t
+{
+    public float3 color;
+    public float intensity;
+    public float3 direction;
+    public float angular_size;
+};
+
 //! simple struct to group rayhit-parameters
 public struct payload_t
 {
@@ -133,6 +141,7 @@ public struct trace_data_t
     public trace_params_t params;
     public camera_ubo_t camera;
     public media_t camera_media;
+    public sunlight_params_t sunlight_params;
 
     // device pointers
     public Ptr<utils::packed_vertex_t, Access.Read> *vertex_buffers;

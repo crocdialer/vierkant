@@ -12,14 +12,6 @@ import "../utils/phase_function.slang";
 namespace ray
 {
 
-public struct sunlight_params_t
-{
-    public float3 color;
-    public float intensity;
-    public float3 direction;
-    public float angular_size;
-};
-
 public float3 sample_sun_light(material_t material, sunlight_params_t p, RaytracingAccelerationStructure as, float3 pos,
                                float3 N, float3 V, float eta, inout uint rng_state)
 {
