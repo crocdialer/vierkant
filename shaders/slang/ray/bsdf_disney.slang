@@ -169,9 +169,6 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
 
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
 
-    float3 H = mul(utils::sample_GGX(Xi, material.roughness), frame);
-    if(dot(V, H) < 0.0) { H = -H; }
-
     float3 H_vndf = mul(utils::sample_GGX_VNDF(Xi, mul(frame, V), float2(material.roughness)), frame);
     if(dot(V, H_vndf) < 0.0) { H_vndf = -H_vndf; }
 
@@ -202,18 +199,18 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
         }
         else// Transmission
         {
-            float3 refracted = refract(-V, H, eta);
-            if(dot(refracted, refracted) < 1e-7)// TIR with H (mismatch with H_vndf TIR check above)
+            float3 refracted = refract(-V, H_vndf, eta);
+            if(dot(refracted, refracted) < 1e-7)// TIR
             {
-                ret.direction = normalize(reflect(-V, H));
-                ret.F = EvalDielectricReflection(material.roughness, material.color.rgb, eta, V, N, ret.direction, H,
-                                                 ret.pdf);
+                ret.direction = normalize(reflect(-V, H_vndf));
+                ret.F = EvalDielectricReflection(material.roughness, material.color.rgb, eta, V, N, ret.direction,
+                                                 H_vndf, ret.pdf);
             }
             else
             {
                 ret.direction = normalize(refracted);
-                ret.F = EvalDielectricRefraction(material.roughness, material.color.rgb, eta, V, N, ret.direction, H,
-                                                 ret.pdf);
+                ret.F = EvalDielectricRefraction(material.roughness, material.color.rgb, eta, V, N, ret.direction,
+                                                 H_vndf, ret.pdf);
                 ret.transmission = true;
             }
         }
@@ -227,7 +224,7 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
         if(utils::rnd(rng_state) < diffuseRatio)
         {
             ret.direction = mul(utils::sample_hemisphere_cosine(Xi), frame);
-            H = normalize(ret.direction + V);
+            float3 H = normalize(ret.direction + V);
             ret.F = EvalDiffuse(material.roughness, material.sheen_roughness, material.color.rgb,
                                 material.sheen_color.rgb, material.metalness, V, N, ret.direction, H, ret.pdf);
             ret.pdf *= diffuseRatio;
@@ -256,7 +253,7 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
             }
             else// clearcoat
             {
-                H = mul(utils::sample_GTR1(Xi, lerp(0.1, 0.001, material.clearcoat)), frame);
+                float3 H = mul(utils::sample_GTR1(Xi, lerp(0.1, 0.001, material.clearcoat)), frame);
                 if(dot(V, H) < 0.0) { H = -H; }
                 ret.direction = normalize(reflect(-V, H));
                 ret.F = EvalClearcoat(material.clearcoat_roughness, material.clearcoat, V, N, ret.direction, H,
