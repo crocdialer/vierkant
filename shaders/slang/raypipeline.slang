@@ -449,7 +449,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         payload.cone = propagate(payload.cone, 0.0, RayTCurrent());
 
         // increase material-roughness for longer paths, reduce fireflies
-        material.roughness = pow(material.roughness, 1.0 / (1.0 + payload.depth));
+        //material.roughness = pow(material.roughness, 1.0 / (1.0 + payload.depth));
 
         ray::bsdf_sample_t bsdf_sample = ray::sample_disney(material, payload.normal, V, eta, rng_state);
 
