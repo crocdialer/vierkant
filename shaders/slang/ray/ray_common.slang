@@ -123,6 +123,11 @@ public struct trace_params_t
 
     //! a provided random seed
     public uint random_seed;
+
+    //! clamp indirect path-throughput
+    public float max_path_beta;
+
+    private int pad0, pad1, pad2;
 };
 
 public struct camera_ubo_t

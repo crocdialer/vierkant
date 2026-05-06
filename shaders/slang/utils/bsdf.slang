@@ -24,7 +24,7 @@ public float3 F_SchlickR(float cosTheta, float3 F0, float roughness)
 public float DielectricFresnel(float cos_theta_i, float eta)
 {
     float sinThetaTSq = eta * eta * (1.0 - cos_theta_i * cos_theta_i);
-    if(sinThetaTSq > 1.0) return 1.0;
+    if(sinThetaTSq >= 1.0) return 1.0;
 
     float cos_theta_t = sqrt(max(1.0 - sinThetaTSq, 0.0));
     float rs = (eta * cos_theta_t - cos_theta_i) / (eta * cos_theta_t + cos_theta_i);

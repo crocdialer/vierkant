@@ -39,6 +39,9 @@ public:
         //! spp - samples per pixel
         uint32_t max_trace_depth = 6;
 
+        //! optionally clamp indirect path-throughput
+        float max_path_beta = 0.f;
+
         //! flag indicating if path-tracing should be suspended after processing 'max_num_batches'
         bool suspend_trace_when_done = true;
 
@@ -224,6 +227,9 @@ private:
 
         //! a provided random seed
         uint32_t random_seed = 0;
+
+        //! optionally clamp indirect path-throughput
+        float max_path_beta = 0.f;
     };
 
     struct denoise_params_t

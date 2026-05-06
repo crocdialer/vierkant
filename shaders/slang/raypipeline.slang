@@ -448,6 +448,9 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         payload.cone = propagate(payload.cone, 0.0, RayTCurrent());
 
+        // increase material-roughness for longer paths, reduce fireflies
+        material.roughness = pow(material.roughness, 1.0 / (1.0 + payload.depth));
+
         ray::bsdf_sample_t bsdf_sample = ray::sample_disney(material, payload.normal, V, eta, rng_state);
 
         if(use_direct_lighting)
@@ -465,7 +468,15 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         payload.ray.direction = bsdf_sample.direction;
         float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
-        payload.beta *= bsdf_sample.F * cos_theta / max(bsdf_sample.pdf, ray::PDF_EPS);
+
+        float3 path_throughput = bsdf_sample.F * cos_theta / max(bsdf_sample.pdf, ray::PDF_EPS);
+
+        // optionally clamp path-throughput to suppress fireflies
+        if(payload.depth >= 1 && trace_data.params.max_path_beta > 0.0)
+        {
+            path_throughput = min(path_throughput, trace_data.params.max_path_beta);
+        }
+        payload.beta *= path_throughput;
 
         if(bsdf_sample.transmission)
         {

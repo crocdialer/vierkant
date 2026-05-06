@@ -126,7 +126,7 @@ float3 EvalClearcoat(float clearcoat_roughness, float clearcoat, float3 V, float
     pdf = D * dot(N, H) / (4.0 * dot(V, H));
     float FH = utils::SchlickFresnel(dot(L, H));
     float F = lerp(0.04, 1.0, FH);
-    float G = utils::SmithGGX(dot(N, L), 0.25) * utils::SmithGGX(dot(N, V), 0.25);
+    float G = utils::SmithGGX(dot(N, L), 0.25) * utils::SmithGGX(abs(dot(N, V)), 0.25);
     return float3(0.25 * clearcoat * F * D * G);
 }
 
@@ -279,6 +279,9 @@ public float3 eval_disney(material_t material, float3 L, float3 N, float3 V, flo
     float3 H = LpV / LpV_len;
     if(dot(V, H) < 0.0) H = -H;
 
+    // not sure if necessary
+    if(refl && dot(N, H) <= 0.0) { pdf = 0.0; return float3(0.0); }
+
     float diffuseRatio = 0.5 * (1.0 - material.metalness);
     float primarySpecRatio = 1.0 / (1.0 + material.clearcoat);
     float trans_weight = (1.0 - material.metalness) * material.transmission;
@@ -292,7 +295,7 @@ public float3 eval_disney(material_t material, float3 L, float3 N, float3 V, flo
     float3 bsdf = float3(0.0);
     float brdfPdf = 0.0;
     float bsdfPdf = 0.0;
-    float m_pdf;
+    float m_pdf = 0.0;
 
     if(trans_weight > 0.0)
     {

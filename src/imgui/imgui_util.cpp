@@ -428,6 +428,7 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     int max_num_batches = static_cast<int>(path_tracer->settings.max_num_batches);
     int num_samples = static_cast<int>(path_tracer->settings.num_samples);
     int max_trace_depth = static_cast<int>(path_tracer->settings.max_trace_depth);
+    float max_path_beta = path_tracer->settings.max_path_beta;
 
     if(ImGui::InputInt("num batches", &max_num_batches) && max_num_batches >= 0)
     {
@@ -441,7 +442,10 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     {
         path_tracer->settings.max_trace_depth = max_trace_depth;
     }
-
+    if(ImGui::InputFloat("max_path_beta", &max_path_beta) && max_path_beta >= 0.f)
+    {
+        path_tracer->settings.max_path_beta = max_path_beta;
+    }
     ImGui::Checkbox("skybox", &path_tracer->settings.draw_skybox);
     ImGui::Checkbox("suspend_trace_when_done", &path_tracer->settings.suspend_trace_when_done);
     ImGui::Checkbox("disable material", &path_tracer->settings.disable_material);
