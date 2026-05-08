@@ -357,18 +357,18 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
             ImPlot::SetupAxes("frames", "count", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
             ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_draws, ImPlotCond_Always);
 
-            ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
+            ImPlotSpec cull_spec(ImPlotProp_FillAlpha, 0.5f,
+                                 ImPlotProp_Stride, static_cast<int>(sizeof(PBRDeferred::statistics_t)));
             ImPlot::PlotShaded("frustum culled",
                                reinterpret_cast<const uint32_t *>(
                                        (uint8_t *) values.data() +
                                        offsetof(PBRDeferred::statistics_t, draw_cull_result.num_frustum_culled)),
-                               static_cast<int>(stats.size()), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
+                               static_cast<int>(stats.size()), 0.0, 1.0, 0.0, cull_spec);
             ImPlot::PlotShaded("occluded",
                                reinterpret_cast<const uint32_t *>(
                                        (uint8_t *) values.data() +
                                        offsetof(PBRDeferred::statistics_t, draw_cull_result.num_occlusion_culled)),
-                               static_cast<int>(stats.size()), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
-            ImPlot::PopStyleVar();
+                               static_cast<int>(stats.size()), 0.0, 1.0, 0.0, cull_spec);
             ImPlot::EndPlot();
         }
         ImGui::TreePop();
@@ -401,13 +401,11 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
 
             ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
             ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_ms, ImPlotCond_Always);
-            ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
-
+            ImPlotSpec timing_spec(ImPlotProp_FillAlpha, 0.5f,
+                                   ImPlotProp_Stride, static_cast<int>(sizeof(PBRDeferred::statistics_t)));
             const auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
                                                          offsetof(PBRDeferred::statistics_t, timings.total_ms));
-            ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0,
-                               sizeof(PBRDeferred::statistics_t));
-            ImPlot::PopStyleVar();
+            ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0.0, 1.0, 0.0, timing_spec);
             ImPlot::EndPlot();
         }
         ImGui::TreePop();
