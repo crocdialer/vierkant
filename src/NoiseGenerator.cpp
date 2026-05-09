@@ -28,7 +28,7 @@ NoiseGenerator::NoiseGenerator(const DevicePtr &device, const create_info_t &cre
     fb_info.begin_rendering_info = {.clear_color_attachment = true, .clear_depth_attachment = false};
     m_framebuffer = vierkant::Framebuffer(device, fb_info);
 
-    m_params_buffer = vierkant::Buffer::create(device, nullptr, sizeof(params_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+    m_params_buffer = vierkant::Buffer::create(device, nullptr, sizeof(params_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     vierkant::drawable_t drawable = {};
@@ -43,7 +43,7 @@ NoiseGenerator::NoiseGenerator(const DevicePtr &device, const create_info_t &cre
     drawable.use_own_buffers = true;
 
     vierkant::descriptor_t desc_params = {};
-    desc_params.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    desc_params.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_params.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     desc_params.buffers = {m_params_buffer};
     drawable.descriptors[0] = std::move(desc_params);

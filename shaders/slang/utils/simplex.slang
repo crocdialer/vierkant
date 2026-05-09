@@ -151,4 +151,46 @@ public float simplex(float4 v)
                    dot(m1 * m1, float2(dot(p3, x3), dot(p4, x4))));
 }
 
+float4 _fade4(float4 t) { return t * t * t * (t * (t * 6.0 - 15.0) + 10.0); }
+
+float _gdot4(float4 i, float4 f)
+{
+    const float4 ip = float4(1.0 / 294.0, 1.0 / 49.0, 1.0 / 7.0, 0.0);
+    float h = _permute(_permute(_permute(_permute(_mod289(i.w) + _mod289(i.z)) + _mod289(i.y)) + _mod289(i.x)));
+    return dot(normalize(_grad4(h, ip)), f);
+}
+
+public float perlin(float4 v)
+{
+    float4 i  = floor(v);
+    float4 f  = frac(v);
+    float4 u  = _fade4(f);
+    float4 f1 = f - 1.0;
+
+    float n0000 = _gdot4(i,                        f);
+    float n1000 = _gdot4(i + float4(1,0,0,0), float4(f1.x, f.y,  f.z,  f.w ));
+    float n0100 = _gdot4(i + float4(0,1,0,0), float4(f.x,  f1.y, f.z,  f.w ));
+    float n1100 = _gdot4(i + float4(1,1,0,0), float4(f1.x, f1.y, f.z,  f.w ));
+    float n0010 = _gdot4(i + float4(0,0,1,0), float4(f.x,  f.y,  f1.z, f.w ));
+    float n1010 = _gdot4(i + float4(1,0,1,0), float4(f1.x, f.y,  f1.z, f.w ));
+    float n0110 = _gdot4(i + float4(0,1,1,0), float4(f.x,  f1.y, f1.z, f.w ));
+    float n1110 = _gdot4(i + float4(1,1,1,0), float4(f1.x, f1.y, f1.z, f.w ));
+    float n0001 = _gdot4(i + float4(0,0,0,1), float4(f.x,  f.y,  f.z,  f1.w));
+    float n1001 = _gdot4(i + float4(1,0,0,1), float4(f1.x, f.y,  f.z,  f1.w));
+    float n0101 = _gdot4(i + float4(0,1,0,1), float4(f.x,  f1.y, f.z,  f1.w));
+    float n1101 = _gdot4(i + float4(1,1,0,1), float4(f1.x, f1.y, f.z,  f1.w));
+    float n0011 = _gdot4(i + float4(0,0,1,1), float4(f.x,  f.y,  f1.z, f1.w));
+    float n1011 = _gdot4(i + float4(1,0,1,1), float4(f1.x, f.y,  f1.z, f1.w));
+    float n0111 = _gdot4(i + float4(0,1,1,1), float4(f.x,  f1.y, f1.z, f1.w));
+    float n1111 = _gdot4(i + float4(1,1,1,1), float4(f1.x, f1.y, f1.z, f1.w));
+
+    float4 lx  = lerp(float4(n0000, n0100, n0010, n0110), float4(n1000, n1100, n1010, n1110), u.x);
+    float4 lx1 = lerp(float4(n0001, n0101, n0011, n0111), float4(n1001, n1101, n1011, n1111), u.x);
+    float2 ly  = lerp(lx.xz, lx.yw, u.y);
+    float2 ly1 = lerp(lx1.xz, lx1.yw, u.y);
+    float  lz  = lerp(ly.x, ly.y, u.z);
+    float  lz1 = lerp(ly1.x, ly1.y, u.z);
+    return lerp(lz, lz1, u.w);
+}
+
 }// namespace utils
