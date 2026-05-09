@@ -93,7 +93,7 @@ TEST(Rasterizer, direct_API)
 
     vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = cmd_buffer.handle();
-    rendering_info.color_attachment_formats = {framebuffer_info.color_attachment_format.format};
+    rendering_info.color_attachment_formats = framebuffer.color_attachment_formats();
 
     // record drawing commands into an active command-buffer
     rasterizer.render(rendering_info);
