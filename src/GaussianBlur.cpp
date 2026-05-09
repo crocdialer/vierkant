@@ -64,7 +64,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
 
     auto create_weights = [&size](const auto &kernel, bool horizontal) -> ubo_t {
         // [-NUM_TAPS / 2, ..., NUM_TAPS / 2]
-        std::array<float, NUM_TAPS> offsets;
+        std::array<float, NUM_TAPS> offsets{};
         std::iota(offsets.begin(), offsets.end(), -static_cast<float>(NUM_TAPS / 2.f));
 
         ubo_t ubo = {};
@@ -196,7 +196,7 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkComma
         ping.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, commandbuffer);
         ping.framebuffer.begin_rendering(commandbuffer, {});
         m_renderer.render(rendering_info);
-        vkCmdEndRendering(commandbuffer);
+        ping.framebuffer.end_rendering({});
 
         // vertical pass
         m_renderer.stage_drawable(pong.drawable);
@@ -204,7 +204,7 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkComma
         pong.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, commandbuffer);
         pong.framebuffer.begin_rendering(commandbuffer, {});
         m_renderer.render(rendering_info);
-        vkCmdEndRendering(commandbuffer);
+        pong.framebuffer.end_rendering({});
         current_img = pong.framebuffer.color_attachment();
     }
     current_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, commandbuffer);
