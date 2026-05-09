@@ -980,7 +980,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
     vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = frame_context.cmd_lighting.handle();
-    rendering_info.color_attachment_formats = {frame_context.lighting_buffer.color_attachment()->format().format};
+    rendering_info.color_attachment_formats = frame_context.lighting_buffer.color_attachment_formats();
     rendering_info.depth_attachment_format = frame_context.lighting_buffer.depth_attachment()->format().format;
     // rendering_info.recycle_commands = frame_context.recycle_commands;
 
@@ -1142,7 +1142,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const Object3DPtr &cam, const vierk
 
         vierkant::Rasterizer::rendering_info_t rendering_info = {};
         rendering_info.command_buffer = cmd;
-        rendering_info.color_attachment_formats = {color_attachment->format().format};
+        rendering_info.color_attachment_formats = framebuffer->color_attachment_formats();
         renderer.render(rendering_info);
         vkCmdEndRendering(cmd);
 

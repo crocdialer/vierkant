@@ -65,7 +65,7 @@ vierkant::ImagePtr NoiseGenerator::generate(VkCommandBuffer commandbuffer, glm::
 
     vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = commandbuffer;
-    rendering_info.color_attachment_formats = {m_color_format};
+    rendering_info.color_attachment_formats = m_framebuffer.color_attachment_formats();
 
     m_renderer.stage_drawable(m_drawable);
     m_framebuffer.begin_rendering(commandbuffer, {});

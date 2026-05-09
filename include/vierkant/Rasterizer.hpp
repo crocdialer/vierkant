@@ -167,7 +167,8 @@ public:
     {
         VkCommandBuffer command_buffer = VK_NULL_HANDLE;
         uint32_t view_mask = 0;
-        std::vector<VkFormat> color_attachment_formats;
+        // non-owning: caller must ensure the referenced array outlives any pipeline-cache lookup
+        std::span<const VkFormat> color_attachment_formats;
         VkFormat depth_attachment_format = VK_FORMAT_UNDEFINED;
         VkFormat stencil_attachment_format = VK_FORMAT_UNDEFINED;
 

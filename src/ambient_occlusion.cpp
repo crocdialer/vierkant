@@ -154,7 +154,7 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
 
     vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = params.commandbuffer;
-    rendering_info.color_attachment_formats = {context->framebuffer.color_attachment()->format().format};
+    rendering_info.color_attachment_formats = context->framebuffer.color_attachment_formats();
 
     context->renderer.stage_drawable(drawable);
     context->renderer.render(rendering_info);

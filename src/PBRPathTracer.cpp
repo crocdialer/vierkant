@@ -420,7 +420,7 @@ void PBRPathTracer::post_fx_pass(frame_context_t &frame_context)
 
         vierkant::Rasterizer::rendering_info_t rendering_info = {};
         rendering_info.command_buffer = frame_context.cmd_post_fx.handle();
-        rendering_info.color_attachment_formats = {frame_context.out_image->format().format};
+        rendering_info.color_attachment_formats = frame_context.post_fx_ping_pongs[0].color_attachment_formats();
 
         frame_context.post_fx_renderer.stage_drawable(drawable);
         frame_context.post_fx_renderer.render(rendering_info);

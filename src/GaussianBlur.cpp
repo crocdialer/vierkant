@@ -188,7 +188,7 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkComma
 
         vierkant::Rasterizer::rendering_info_t rendering_info = {};
         rendering_info.command_buffer = commandbuffer;
-        rendering_info.color_attachment_formats = {m_color_format};
+        rendering_info.color_attachment_formats = ping.framebuffer.color_attachment_formats();
 
         // horizontal pass
         m_renderer.stage_drawable(ping.drawable);
