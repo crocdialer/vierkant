@@ -83,7 +83,8 @@ float3 EvalDielectricRefraction(float roughness, float3 color, float eta, float3
 
     float F = utils::DielectricFresnel(abs(dot(V, H)), eta);
     float D = utils::GTR2(dot(N, H), roughness);
-    pdf = D * dot(N, H) * (1.0 - F) * abs(dot(L, H)) / (denomSqrt * denomSqrt);
+    // VNDF sampling PDF: p(H) = G1(V)*D*dot(V,H)/dot(N,V); refraction Jacobian: |dot(L,H)|*eta²/denom²
+    pdf = 2.0 * utils::SmithGGX(abs(dot(N, V)), roughness) * D * abs(dot(V, H)) * (1.0 - F) * abs(dot(L, H)) * eta * eta / (denomSqrt * denomSqrt);
 
     float G = utils::SmithGGX(abs(dot(N, L)), roughness) * utils::SmithGGX(abs(dot(N, V)), roughness);
     return color * (1.0 - F) * D * G * abs(dot(V, H)) * abs(dot(L, H)) * 4.0 * eta * eta / (denomSqrt * denomSqrt);
