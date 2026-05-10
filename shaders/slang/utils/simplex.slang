@@ -190,7 +190,8 @@ public float perlin(float4 v)
     float2 ly1 = lerp(lx1.xz, lx1.yw, u.y);
     float  lz  = lerp(ly.x, ly.y, u.z);
     float  lz1 = lerp(ly1.x, ly1.y, u.z);
-    return lerp(lz, lz1, u.w);
+    // scale factor matches GLM reference (gtc/noise.inl) to bring output into approx [-1, 1]
+    return 2.2 * lerp(lz, lz1, u.w);
 }
 
 }// namespace utils
