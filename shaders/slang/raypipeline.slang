@@ -396,16 +396,20 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     {
         if((material.texture_type_flags & uint(ray::TextureTypeBits::Color)) != 0)
         {
-            material.color *= sample_texture_lod(u_textures[NonUniformResourceIndex(material.albedo_index)],
-                                                 v.tex_coord, NoV, payload.cone.width, triangle_lod);
+            uint tex_index = material.texture_base_index +
+                             ray::tex_offset(material.texture_type_flags, ray::TextureTypeBits::Color);
+            material.color *= sample_texture_lod(u_textures[NonUniformResourceIndex(tex_index)], v.tex_coord, NoV,
+                                                 payload.cone.width, triangle_lod);
         }
         material.color = trace_data.params.disable_material ? float4(float3(0.8), 1.0) : material.color;
 
         if((material.texture_type_flags & uint(ray::TextureTypeBits::Normal)) != 0)
         {
+            uint tex_index = material.texture_base_index +
+                             ray::tex_offset(material.texture_type_flags, ray::TextureTypeBits::Normal);
             float3 normal;
-            normal.xy = 2.0 * (sample_texture_lod(u_textures[NonUniformResourceIndex(material.normalmap_index)],
-                                                  v.tex_coord, NoV, payload.cone.width, triangle_lod)
+            normal.xy = 2.0 * (sample_texture_lod(u_textures[NonUniformResourceIndex(tex_index)], v.tex_coord, NoV,
+                                                  payload.cone.width, triangle_lod)
                                        .xy -
                                float2(0.5));
             normal.z = sqrt(max(0.0, 1.0 - normal.x * normal.x - normal.y * normal.y));
@@ -421,18 +425,22 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         if((material.texture_type_flags & uint(ray::TextureTypeBits::Emission)) != 0)
         {
-            material.emission.rgb = max(material.emission.rgb,
-                                        sample_texture_lod(u_textures[NonUniformResourceIndex(material.emission_index)],
-                                                           v.tex_coord, NoV, payload.cone.width, triangle_lod)
-                                                .rgb);
+            uint tex_index = material.texture_base_index +
+                             ray::tex_offset(material.texture_type_flags, ray::TextureTypeBits::Emission);
+            material.emission.rgb =
+                    max(material.emission.rgb, sample_texture_lod(u_textures[NonUniformResourceIndex(tex_index)],
+                                                                  v.tex_coord, NoV, payload.cone.width, triangle_lod)
+                                                       .rgb);
         }
         material.emission.rgb *= dot(payload.normal, ff_normal) > 0 ? material.emission.a : 0.0;
         payload.radiance += payload.beta * material.emission.rgb;
 
         if((material.texture_type_flags & uint(ray::TextureTypeBits::AoRoughMetal)) != 0)
         {
-            float2 rough_metal = sample_texture_lod(u_textures[NonUniformResourceIndex(material.ao_rough_metal_index)],
-                                                    v.tex_coord, NoV, payload.cone.width, triangle_lod)
+            uint tex_index = material.texture_base_index +
+                             ray::tex_offset(material.texture_type_flags, ray::TextureTypeBits::AoRoughMetal);
+            float2 rough_metal = sample_texture_lod(u_textures[NonUniformResourceIndex(tex_index)], v.tex_coord, NoV,
+                                                    payload.cone.width, triangle_lod)
                                          .gb;
             material.roughness *= rough_metal.x;
             material.metalness *= rough_metal.y;
@@ -440,10 +448,11 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         if((material.texture_type_flags & uint(ray::TextureTypeBits::Transmission)) != 0)
         {
-            material.transmission *=
-                    sample_texture_lod(u_textures[NonUniformResourceIndex(material.transmission_index)], v.tex_coord,
-                                       NoV, payload.cone.width, triangle_lod)
-                            .x;
+            uint tex_index = material.texture_base_index +
+                             ray::tex_offset(material.texture_type_flags, ray::TextureTypeBits::Transmission);
+            material.transmission *= sample_texture_lod(u_textures[NonUniformResourceIndex(tex_index)], v.tex_coord,
+                                                        NoV, payload.cone.width, triangle_lod)
+                                             .x;
         }
 
         payload.cone = propagate(payload.cone, 0.0, RayTCurrent());
@@ -532,7 +541,10 @@ void any_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes
                                         attribs.barycentrics.y);
             float2 tex_coord =
                     t.v0.tex_coord * barycentric.x + t.v1.tex_coord * barycentric.y + t.v2.tex_coord * barycentric.z;
-            material.color *= u_textures[NonUniformResourceIndex(material.albedo_index)].SampleLevel(tex_coord, 0);
+
+            uint tex_index = material.texture_base_index +
+                             ray::tex_offset(material.texture_type_flags, ray::TextureTypeBits::Color);
+            material.color *= u_textures[NonUniformResourceIndex(tex_index)].SampleLevel(tex_coord, 0);
         }
         material.color = trace_data.params.disable_material ? float4(float3(0.8), 1.0) : material.color;
 

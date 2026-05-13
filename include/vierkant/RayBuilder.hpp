@@ -75,15 +75,7 @@ public:
         // range of thin-film thickness in nanometers (nm)
         glm::vec2 iridescence_thickness_range = {100.f, 400.f};
 
-        uint32_t albedo_index = 0;
-
-        uint32_t normalmap_index = 0;
-
-        uint32_t emission_index = 0;
-
-        uint32_t ao_rough_metal_index = 0;
-
-        uint32_t transmission_index = 0;
+        uint32_t texture_base_index = 0;
 
         uint32_t texture_type_flags = 0;
 

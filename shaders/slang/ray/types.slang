@@ -48,6 +48,8 @@ public enum TextureTypeBits : uint
     Environment = 0x800,
 };
 
+public uint tex_offset(uint type, uint flags) { return countbits(flags & (type - 1)); }
+
 //! blend-mode definitions
 public enum BlendMode : uint
 {
@@ -77,12 +79,7 @@ public struct material_t
     public float iridescence_ior;
     public float2 iridescence_thickness_range;
 
-    public uint albedo_index;
-    public uint normalmap_index;
-    public uint emission_index;
-    public uint ao_rough_metal_index;
-
-    public uint transmission_index;
+    public uint texture_base_index;
     public uint texture_type_flags;
     public BlendMode blend_mode;
     public float alpha_cutoff;
