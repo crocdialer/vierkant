@@ -252,6 +252,8 @@ public:
      */
     [[nodiscard]] ImagePtr clone() const;
 
+    [[nodiscard]] ImagePtr clone(VkComponentMapping cmp_map) const;
+
     /**
      * @return  the vierkant::DevicePtr used to create the image.
      */

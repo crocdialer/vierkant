@@ -2,8 +2,8 @@ import "../utils/simplex.slang";
 
 struct params_t
 {
+    float4 seed;
     float2 scale;
-    float seed;
 };
 
 [[shader("pixel")]]

@@ -745,6 +745,35 @@ ImagePtr Image::clone() const { return ImagePtr(new Image(*this)); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+ImagePtr Image::clone(VkComponentMapping cmp_map) const
+{
+    auto ret = clone();
+
+    // create a swizzle-able imageview
+    VkImageViewCreateInfo view_create_info = {};
+    view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view_create_info.image = ret->image();
+    view_create_info.viewType = ret->format().view_type;
+    view_create_info.format = ret->format().format;
+    view_create_info.components = cmp_map;
+    view_create_info.subresourceRange.aspectMask = ret->format().aspect;
+    view_create_info.subresourceRange.baseMipLevel = 0;
+    view_create_info.subresourceRange.levelCount = ret->num_mip_levels();
+    view_create_info.subresourceRange.baseArrayLayer = 0;
+    view_create_info.subresourceRange.layerCount = ret->num_layers();
+
+    VkImageView image_view;
+    vkCheck(vkCreateImageView(m_device->handle(), &view_create_info, nullptr, &image_view),
+            "failed to create texture image view!");
+    const vierkant::VkImageViewPtr swizzle_view = {
+            image_view, [device = m_device](VkImageView v) { vkDestroyImageView(device->handle(), v, nullptr); }};
+
+    ret->set_image_view(swizzle_view);
+    return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool Image::Format::operator==(const Image::Format &other) const
 {
     if(aspect != other.aspect) { return false; }

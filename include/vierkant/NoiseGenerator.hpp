@@ -18,7 +18,7 @@ public:
         VkExtent3D size = {};
 
         //! output color-format
-        VkFormat color_format = VK_FORMAT_R8G8B8A8_UNORM;
+        VkFormat color_format = VK_FORMAT_R16_UNORM;
 
         //! optional shared pipeline-cache
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
@@ -34,14 +34,15 @@ public:
 private:
     struct params_t
     {
+        glm::vec4 seed;
         glm::vec2 scale;
-        float seed;
     };
 
     NoiseGenerator(const DevicePtr &device, const create_info_t &create_info);
 
     vierkant::DevicePtr m_device;
     vierkant::Framebuffer m_framebuffer;
+    vierkant::ImagePtr m_out_image;
     vierkant::Rasterizer m_renderer;
     vierkant::BufferPtr m_params_buffer;
     vierkant::drawable_t m_drawable;

@@ -78,27 +78,8 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
     img_fmt.initial_layout_transition = false;
     ret->result = vierkant::Image::create(device, img_fmt);
 
-    // create a swizzle-able imageview
-    VkImageViewCreateInfo view_create_info = {};
-    view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    view_create_info.image = ret->result->image();
-    view_create_info.viewType = ret->result->format().view_type;
-    view_create_info.format = ret->result->format().format;
-    view_create_info.components = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
-                                   VK_COMPONENT_SWIZZLE_R};
-    view_create_info.subresourceRange.aspectMask = ret->result->format().aspect;
-    view_create_info.subresourceRange.baseMipLevel = 0;
-    view_create_info.subresourceRange.levelCount = 1;
-    view_create_info.subresourceRange.baseArrayLayer = 0;
-    view_create_info.subresourceRange.layerCount = 1;
-
-    VkImageView image_view;
-    vkCheck(vkCreateImageView(device->handle(), &view_create_info, nullptr, &image_view),
-            "failed to create texture image view!");
-    vierkant::VkImageViewPtr swizzle_view = {
-            image_view, [device](VkImageView v) { vkDestroyImageView(device->handle(), v, nullptr); }};
-    ret->result_swizzle = ret->result->clone();
-    ret->result_swizzle->set_image_view(swizzle_view);
+    ret->result_swizzle = ret->result->clone(
+            {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_R});
     return ret;
 }
 

@@ -28,6 +28,10 @@ NoiseGenerator::NoiseGenerator(const DevicePtr &device, const create_info_t &cre
     fb_info.begin_rendering_info = {.clear_color_attachment = true, .clear_depth_attachment = false};
     m_framebuffer = vierkant::Framebuffer(device, fb_info);
 
+    // clone fb-attachment, swizzle to (r, r, r, 1)
+    m_out_image = m_framebuffer.color_attachment()->clone(
+            {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ONE});
+
     m_params_buffer = vierkant::Buffer::create(device, nullptr, sizeof(params_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                VMA_MEMORY_USAGE_CPU_TO_GPU);
 
@@ -54,14 +58,11 @@ NoiseGenerator::NoiseGenerator(const DevicePtr &device, const create_info_t &cre
 vierkant::ImagePtr NoiseGenerator::generate(VkCommandBuffer commandbuffer, glm::vec2 scale, float seed)
 {
     auto *p = static_cast<params_t *>(m_params_buffer->map());
+    p->seed = glm::vec4(seed);
     p->scale = scale;
-    p->seed = seed;
     m_params_buffer->unmap();
 
     vierkant::begin_label(commandbuffer, {"NoiseGenerator::generate"});
-
-    auto output = m_framebuffer.color_attachment();
-    output->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, commandbuffer);
 
     vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = commandbuffer;
@@ -72,7 +73,7 @@ vierkant::ImagePtr NoiseGenerator::generate(VkCommandBuffer commandbuffer, glm::
     m_renderer.render(rendering_info);
     m_framebuffer.end_rendering({.final_layout_color = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL});
     vierkant::end_label(commandbuffer);
-    return output;
+    return m_out_image;
 }
 
 }// namespace vierkant
