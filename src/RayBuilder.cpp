@@ -398,6 +398,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
     std::vector<entry_t> entries;
     std::vector<material_struct_t> materials;
     std::vector<vierkant::ImagePtr> textures = {m_placeholder_solid_white};
+    std::unordered_map<const vierkant::Image *, uint32_t> texture_indices;
 
     //! vertex- and index-buffers for the entire scene
     std::vector<vierkant::BufferPtr> vertex_buffers;
@@ -570,20 +571,45 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                     material.iridescence_ior = mat->iridescence_ior;
                     material.iridescence_thickness_range = mat->iridescence_thickness_range;
 
-                    uint32_t texture_base_index = textures.size();
-
                     for(const auto &[type_flag, tex_data]: mat->texture_data)
                     {
                         const auto &tex = params.scene->texture(tex_data.texture_id);
-                        material.texture_type_flags |= static_cast<uint32_t>(type_flag);
-                        textures.push_back(tex);
 
-                        if(type_flag == vierkant::TextureType::Color && tex_data.texture_transform)
+                        material.texture_type_flags |= static_cast<uint32_t>(type_flag);
+
+                        uint32_t texture_index;
+                        if(auto idx_it = texture_indices.find(tex.get()); idx_it != texture_indices.end())
                         {
-                            texture_transform = *tex_data.texture_transform;
+                            texture_index = idx_it->second;
+                        }
+                        else
+                        {
+                            texture_index = textures.size();
+                            texture_indices[tex.get()] = texture_index;
+                            textures.push_back(tex);
+                        }
+
+                        switch(type_flag)
+                        {
+                            case vierkant::TextureType::Color:
+                                material.albedo_index = texture_index;
+                                if(tex_data.texture_transform) { texture_transform = *tex_data.texture_transform; }
+                                break;
+
+                            case vierkant::TextureType::Normal: material.normalmap_index = texture_index; break;
+
+                            case vierkant::TextureType::Emission: material.emission_index = texture_index; break;
+
+                            case vierkant::TextureType::Ao_rough_metal:
+                                material.ao_rough_metal_index = texture_index;
+                                break;
+
+                            case vierkant::TextureType::Transmission:
+                                material.transmission_index = texture_index;
+                                break;
+                            default: break;
                         }
                     }
-                    material.texture_base_index = texture_base_index;
                 }
 
                 materials.push_back(material);
