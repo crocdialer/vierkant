@@ -206,7 +206,10 @@ static const uint HIT_KIND_BACK_FACE = 0xFF;
 float max3(float3 v) { return v.x > v.y ? max(v.x, v.z) : max(v.y, v.z); }
 
 uint tex_index(ray::material_t material, ray::TextureTypeBits tex_type_flag)
-{ return material.texture_base_index + ray::tex_offset(tex_type_flag, material.texture_type_flags); }
+{
+    return NonUniformResourceIndex(material.texture_base_index +
+                                   ray::tex_offset(tex_type_flag, material.texture_type_flags));
+}
 
 ray::RayCone propagate(ray::RayCone cone, float surface_spread_angle, float hitT)
 {
