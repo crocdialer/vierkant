@@ -20,12 +20,12 @@ float sobel_edge(utils::hashmap_t<uint, uint> object_id_map, int2 coord)
 {
     // sobel
     float nw = float(object_id_map.contains(in_object_id_img[coord + int2(-1, -1)]));
-    float n  = float(object_id_map.contains(in_object_id_img[coord + int2(0, -1)]));
+    float n = float(object_id_map.contains(in_object_id_img[coord + int2(0, -1)]));
     float ne = float(object_id_map.contains(in_object_id_img[coord + int2(1, -1)]));
-    float w  = float(object_id_map.contains(in_object_id_img[coord + int2(-1, 0)]));
-    float e  = float(object_id_map.contains(in_object_id_img[coord + int2(1, 0)]));
+    float w = float(object_id_map.contains(in_object_id_img[coord + int2(-1, 0)]));
+    float e = float(object_id_map.contains(in_object_id_img[coord + int2(1, 0)]));
     float sw = float(object_id_map.contains(in_object_id_img[coord + int2(-1, 1)]));
-    float s  = float(object_id_map.contains(in_object_id_img[coord + int2(0, 1)]));
+    float s = float(object_id_map.contains(in_object_id_img[coord + int2(0, 1)]));
     float se = float(object_id_map.contains(in_object_id_img[coord + int2(1, 1)]));
     float sobel_edge_h = ne + (2.0 * e) + se - (nw + (2.0 * w) + sw);
     float sobel_edge_v = nw + (2.0 * n) + ne - (sw + (2.0 * s) + se);
