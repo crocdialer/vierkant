@@ -206,8 +206,9 @@ static const uint HIT_KIND_BACK_FACE = 0xFF;
 float max3(float3 v) { return v.x > v.y ? max(v.x, v.z) : max(v.y, v.z); }
 
 // Workaround for https://github.com/shader-slang/slang/issues/9849:
-// NonUniformResourceIndex only decorates AccessChain/Load, not the IAdd result itself.
-// Declare ShaderNonUniform capability and decorate the IAdd result directly via spirv_asm.
+// RADV requires NonUniform on an OpCopyObject that flows into the descriptor AccessChain.
+// __copyObject() is eliminated by the Slang optimizer, so emit OpCopyObject directly in
+// spirv_asm and assign its result back to a Slang variable, bypassing the optimizer.
 [ForceInline]
 uint tex_index(ray::material_t material, ray::TextureTypeBits tex_type_flag)
 {
@@ -215,11 +216,12 @@ uint tex_index(ray::material_t material, ray::TextureTypeBits tex_type_flag)
     __target_switch
     {
         case spirv:
-            const uint idx_copy = __copyObject(idx);
+            uint idx_copy;
             spirv_asm
             {
                 OpCapability ShaderNonUniform;
                 OpDecorate $idx NonUniform;
+                $idx_copy = OpCopyObject $idx;
                 OpDecorate $idx_copy NonUniform;
             };
             return idx_copy;
