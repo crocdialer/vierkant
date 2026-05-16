@@ -24,6 +24,19 @@ execute_process(
         OUTPUT_VARIABLE GIT_COMMIT_DATE
         OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+# retrieve slangc version used to compile shaders
+find_program(SLANGC_BINARY slangc)
+if (SLANGC_BINARY)
+    execute_process(
+            COMMAND ${SLANGC_BINARY} -v
+            OUTPUT_VARIABLE SLANGC_VERSION
+            ERROR_VARIABLE SLANGC_VERSION
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_STRIP_TRAILING_WHITESPACE)
+else ()
+    set(SLANGC_VERSION "unknown")
+endif ()
+
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/vierkant/git_hash.h.in"
         "${CMAKE_CURRENT_BINARY_DIR}/include/vierkant/git_hash.h" @ONLY)
 

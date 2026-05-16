@@ -58,9 +58,9 @@ std::string device_info(VkPhysicalDevice physical_device)
         driver_info = std::format("{}.{}.{:02}", VK_VERSION_MAJOR(versionraw), VK_VERSION_MINOR(versionraw),
                                   VK_VERSION_PATCH(versionraw));
     }
-    return std::format("Vulkan {}.{}.{} - {} (driver: {}) - vierkant: {} | {} | {}", version_major, version_minor,
-                       version_patch, physical_device_properties.properties.deviceName, driver_info, GIT_BRANCH_NAME,
-                       GIT_COMMIT_HASH, GIT_COMMIT_DATE);
+    return std::format("Vulkan {}.{}.{} - {} (driver: {}) - vierkant: {} | {} | {} - slang: {}", version_major,
+                       version_minor, version_patch, physical_device_properties.properties.deviceName, driver_info,
+                       GIT_BRANCH_NAME, GIT_COMMIT_HASH, GIT_COMMIT_DATE, SLANGC_VERSION);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
