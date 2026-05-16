@@ -79,7 +79,12 @@ public struct material_t
     public float iridescence_ior;
     public float2 iridescence_thickness_range;
 
-    public uint texture_base_index;
+    public uint albedo_index;
+    public uint normalmap_index;
+    public uint emission_index;
+    public uint ao_rough_metal_index;
+
+    public uint transmission_index;
     public uint texture_type_flags;
     public BlendMode blend_mode;
     public float alpha_cutoff;
