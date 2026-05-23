@@ -309,14 +309,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
         }
     }
 
-    auto vertex_layout = VertexLayout::ADHOC;
-
-    if(params.pack_vertices)
-    {
-        vertex_layout = VertexLayout::PACKED;
-        spdlog::debug("using quantized/packed vertex-layout");
-    }
-
+    auto vertex_layout = params.pack_vertices ? VertexLayout::PACKED : VertexLayout::ADHOC;
     ret.vertex_buffer = splicer.create_vertex_buffer(vertex_layout);
     ret.index_buffer = splicer.index_buffer;
     ret.vertex_stride = params.pack_vertices ? sizeof(packed_vertex_t) : splicer.vertex_stride;

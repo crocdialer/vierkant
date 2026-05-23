@@ -96,9 +96,16 @@ FragOutput fragment_main(nointerpolation in renderer::index_bundle_t indices,
         if((material.texture_type_flags & (uint) renderer::TextureType::Emission) != 0)
         {
             uint offset = tex_offset((uint) renderer::TextureType::Emission, material.texture_type_flags);
-            result.emission.rgb = textures[NonUniformResourceIndex(material.base_texture_index + offset)]
+            float3 emmision_tex = textures[NonUniformResourceIndex(material.base_texture_index + offset)]
                                           .Sample(vertex_in.tex_coord)
                                           .rgb;
+
+            if(any(material.emission.rgb > 0.0)) { material.emission.rgb *= emmision_tex; }
+            else
+            {
+                material.emission.rgb = emmision_tex;
+            }
+            result.emission.rgb = material.emission.rgb;
         }
         result.emission.rgb *= result.emission.a;
     }

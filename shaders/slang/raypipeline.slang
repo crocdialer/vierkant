@@ -421,10 +421,14 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         if((material.texture_type_flags & uint(ray::TextureTypeBits::Emission)) != 0)
         {
-            material.emission.rgb = max(material.emission.rgb,
-                                        sample_texture_lod(u_textures[NonUniformResourceIndex(material.emission_index)],
-                                                           v.tex_coord, NoV, payload.cone.width, triangle_lod)
-                                                .rgb);
+            float3 emmision_tex = sample_texture_lod(u_textures[NonUniformResourceIndex(material.emission_index)],
+                                                     v.tex_coord, NoV, payload.cone.width, triangle_lod)
+                                          .rgb;
+            if(any(material.emission.rgb > 0.0)) { material.emission.rgb *= emmision_tex; }
+            else
+            {
+                material.emission.rgb = emmision_tex;
+            }
         }
         material.emission.rgb *= dot(payload.normal, ff_normal) > 0 ? material.emission.a : 0.0;
         payload.radiance += payload.beta * material.emission.rgb;
