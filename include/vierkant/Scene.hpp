@@ -16,6 +16,12 @@ namespace vierkant
 DEFINE_NAMED_UUID(SceneId)
 DEFINE_CLASS_PTR(Scene)
 
+//! define an object-component, used to identify sub-scenes
+struct subscene_component_t
+{
+    VIERKANT_ENABLE_AS_COMPONENT();
+    vierkant::SceneId scene_id = vierkant::SceneId::nil();
+};
 
 class Scene
 {

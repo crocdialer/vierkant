@@ -521,15 +521,18 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
 
     if(!is_enabled) { ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
+    bool is_sub_scene = obj->has_component<vierkant::subscene_component_t>();
+    std::string obj_name_str = std::format("{}{}", obj->name, is_sub_scene ? " (read-only)" : "");
+
     if(obj->children.empty())
     {
         node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;// ImGuiTreeNodeFlags_Bullet
-        ImGui::TreeNodeEx((void *) (uintptr_t) obj->id(), node_flags, "%s", obj->name.c_str());
+        ImGui::TreeNodeEx((void *) (uintptr_t) obj->id(), node_flags, "%s", obj_name_str.c_str());
         if(ImGui::IsItemClicked()) { ret = obj; }
     }
     else
     {
-        bool is_open = ImGui::TreeNodeEx((void *) (uintptr_t) obj->id(), node_flags, "%s", obj->name.c_str());
+        bool is_open = ImGui::TreeNodeEx((void *) (uintptr_t) obj->id(), node_flags, "%s", obj_name_str.c_str());
         if(ImGui::IsItemClicked()) { ret = obj; }
 
         if(is_open)
