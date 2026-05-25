@@ -2,6 +2,8 @@
 #include "vierkant/Visitor.hpp"
 #include "vierkant/physics_context.hpp"
 
+#include <ranges>
+
 namespace vierkant
 {
 
@@ -114,6 +116,54 @@ vierkant::ImagePtr Scene::texture(const vierkant::TextureId &texture_id) const
 {
     if(const auto it = m_texture_store.find(texture_id); it != m_texture_store.end()) { return it->second; }
     return nullptr;
+}
+
+void Scene::prune_unused_material_data()
+{
+    std::unordered_map<vierkant::MaterialId, vierkant::material_t> pruned_materials;
+
+    LambdaVisitor visitor;
+    visitor.traverse(*root(), [this, &pruned_materials](auto &obj) {
+        if(auto *mesh_cmp = obj.template get_component_ptr<vierkant::mesh_component_t>(); mesh_cmp && mesh_cmp->mesh)
+        {
+            auto &material_ids = mesh_cmp->material_ids ? *mesh_cmp->material_ids : mesh_cmp->mesh->material_ids;
+            for(const auto &mat_id: material_ids)
+            {
+                if(!pruned_materials.contains(mat_id))
+                {
+                    if(auto *scene_mat = material(mat_id)) pruned_materials[mat_id] = std::move(*scene_mat);
+                }
+            }
+        }
+        return true;
+    });
+
+    std::unordered_map<vierkant::TextureId, vierkant::texture_variant_t> pruned_textures;
+    std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> pruned_tex_store;
+
+    for(const auto &mat: pruned_materials | std::views::values)
+    {
+        for(const auto &tex_data: mat.texture_data | std::views::values)
+        {
+            if(!pruned_tex_store.contains(tex_data.texture_id))
+            {
+                if(auto tex = texture(tex_data.texture_id))
+                {
+                    if(m_material_data.textures.contains(tex_data.texture_id))
+                    {
+                        pruned_textures[tex_data.texture_id] = m_material_data.textures[tex_data.texture_id];
+                    }
+
+                    pruned_tex_store[tex_data.texture_id] = std::move(tex);
+                }
+            }
+        }
+    }
+
+    // move back
+    m_material_data.materials = std::move(pruned_materials);
+    m_material_data.textures = std::move(pruned_textures);
+    m_texture_store = std::move(pruned_tex_store);
 }
 
 void Scene::update(double time_delta)

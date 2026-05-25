@@ -357,8 +357,8 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
             ImPlot::SetupAxes("frames", "count", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
             ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_draws, ImPlotCond_Always);
 
-            ImPlotSpec cull_spec(ImPlotProp_FillAlpha, 0.5f,
-                                 ImPlotProp_Stride, static_cast<int>(sizeof(PBRDeferred::statistics_t)));
+            ImPlotSpec cull_spec(ImPlotProp_FillAlpha, 0.5f, ImPlotProp_Stride,
+                                 static_cast<int>(sizeof(PBRDeferred::statistics_t)));
             ImPlot::PlotShaded("frustum culled",
                                reinterpret_cast<const uint32_t *>(
                                        (uint8_t *) values.data() +
@@ -401,8 +401,8 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
 
             ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
             ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_ms, ImPlotCond_Always);
-            ImPlotSpec timing_spec(ImPlotProp_FillAlpha, 0.5f,
-                                   ImPlotProp_Stride, static_cast<int>(sizeof(PBRDeferred::statistics_t)));
+            ImPlotSpec timing_spec(ImPlotProp_FillAlpha, 0.5f, ImPlotProp_Stride,
+                                   static_cast<int>(sizeof(PBRDeferred::statistics_t)));
             const auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
                                                          offsetof(PBRDeferred::statistics_t, timings.total_ms));
             ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0.0, 1.0, 0.0, timing_spec);
@@ -584,6 +584,8 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
     }
     if(ImGui::BeginTabItem("materials"))
     {
+        if(ImGui::Button("prune unused")) { scene->prune_unused_material_data(); }
+
         for(auto &[mat_id, mat]: scene->m_material_data.materials)
         {
             auto draw_texture = [&scene, &mat](vierkant::TextureType type, const std::string &text) {

@@ -71,6 +71,8 @@ public:
     vierkant::Object3DPtr
     create_camera(const vierkant::camera_params_variant_t &params = vierkant::physical_camera_params_t{});
 
+    // TODO: rework this entire material-storage thingy as separate module
+
     void add_material(material_t material);
 
     const material_t *material(const vierkant::MaterialId &material_id) const;
@@ -87,6 +89,13 @@ public:
 
     const std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> *texture_store() const
     { return &m_texture_store; }
+
+    /**
+     * @brief   prune_unused_material_data iterates all scene-graph nodes, identifies all live material/texture-data
+     *          and updates internal material/texture store.
+     *          this result in a pruning-operation, leaving only required data.
+     */
+    void prune_unused_material_data();
 
     vierkant::material_data_t m_material_data;
     std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> m_texture_store;
