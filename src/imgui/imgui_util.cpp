@@ -633,24 +633,71 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
 
     if(ImGui::BeginTabItem("textures"))
     {
+        constexpr float thumb_size = 80.0f;
+        constexpr float thumb_padding = 4.0f;
+        static vierkant::TextureId selected_texture_id = vierkant::TextureId::nil();
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+
+        const float cell_width = thumb_size + thumb_padding;
+        const int cols = std::max(1, static_cast<int>(ImGui::GetContentRegionAvail().x / cell_width));
+
+        int col = 0;
         for(const auto &[texture_id, texture]: scene->m_texture_store)
         {
-            if(ImGui::TreeNode(texture.get(), "%s", texture_id.str().c_str()))
-            {
-                constexpr uint32_t buf_size = 64;
-                char buf[buf_size];
-                bool is_bc7 = texture->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
-                              texture->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
-                snprintf(buf, buf_size, "%s", is_bc7 ? " - BC7" : "");
+            if(col > 0) { ImGui::SameLine(0.0f, thumb_padding); }
 
-                const float w = ImGui::GetContentRegionAvail().x;
-                ImVec2 sz(w, w / (static_cast<float>(texture->width()) / static_cast<float>(texture->height())));
-                ImGui::BulletText("%d x %d%s", texture->width(), texture->height(), buf);
-                strcpy(buf, texture_id.str().c_str());
-                ImGui::InputText("texture-id", buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly);
-                ImGui::Image(reinterpret_cast<ImTextureID>(texture.get()), sz);
-                ImGui::TreePop();
+            ImGui::PushID(texture.get());
+            const bool selected = (selected_texture_id == texture_id);
+            if(selected)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
+                ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
             }
+
+            if(ImGui::ImageButton("##t", reinterpret_cast<ImTextureID>(texture.get()), ImVec2(thumb_size, thumb_size)))
+            {
+                selected_texture_id = selected ? vierkant::TextureId::nil() : texture_id;
+            }
+            if(selected)
+            {
+                ImGui::PopStyleVar(2);
+                ImGui::PopStyleColor();
+            }
+
+            if(ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::TextUnformatted(texture_id.str().c_str());
+                ImGui::Text("%d x %d", texture->width(), texture->height());
+                ImGui::EndTooltip();
+            }
+            ImGui::PopID();
+
+            if(++col >= cols) { col = 0; }
+        }
+        ImGui::PopStyleVar(2);
+
+        if(const auto it = scene->m_texture_store.find(selected_texture_id); it != scene->m_texture_store.end())
+        {
+            const auto &[texture_id, texture] = *it;
+            ImGui::Separator();
+
+            constexpr uint32_t buf_size = 64;
+            char buf[buf_size];
+            const bool is_bc7 = texture->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
+                                texture->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
+            snprintf(buf, buf_size, "%s", is_bc7 ? " - BC7" : "");
+            ImGui::BulletText("%d x %d%s", texture->width(), texture->height(), buf);
+
+            strcpy(buf, texture_id.str().c_str());
+            ImGui::InputText("texture-id", buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly);
+
+            const float w = ImGui::GetContentRegionAvail().x;
+            const ImVec2 sz(w, w / (static_cast<float>(texture->width()) / static_cast<float>(texture->height())));
+            ImGui::Image(reinterpret_cast<ImTextureID>(texture.get()), sz);
         }
         ImGui::EndTabItem();// textures
     }
