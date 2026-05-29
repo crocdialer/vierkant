@@ -685,12 +685,15 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
             const auto &[texture_id, texture] = *it;
             ImGui::Separator();
 
-            constexpr uint32_t buf_size = 64;
+            constexpr uint32_t buf_size = 128;
             char buf[buf_size];
+            const bool is_bc5 = texture->format().format == VK_FORMAT_BC5_UNORM_BLOCK ||
+                                texture->format().format == VK_FORMAT_BC5_SNORM_BLOCK;
             const bool is_bc7 = texture->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
                                 texture->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
-            snprintf(buf, buf_size, "%s", is_bc7 ? " - BC7" : "");
+            snprintf(buf, buf_size, "%s", is_bc7 ? " - BC7" : is_bc5 ? " - BC5" : "");
             ImGui::BulletText("%d x %d%s", texture->width(), texture->height(), buf);
+            ImGui::BulletText("mipmaps: %d - layers: %d", texture->num_mip_levels(), texture->num_layers());
 
             strcpy(buf, texture_id.str().c_str());
             ImGui::InputText("texture-id", buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly);
