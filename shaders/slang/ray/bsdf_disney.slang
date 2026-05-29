@@ -336,7 +336,8 @@ public float3 eval_disney(material_t material, float3 L, float3 N, float3 V, flo
     }
 
     pdf = lerp(brdfPdf, bsdfPdf, trans_weight);
-    return lerp(brdf, bsdf, trans_weight);
+    pdf = isnan(pdf) ? 0.0 : pdf;
+    return pdf > 0 ? lerp(brdf, bsdf, trans_weight) : float3(0.0);
 }
 
 }// namespace ray
