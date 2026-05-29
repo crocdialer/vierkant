@@ -75,6 +75,15 @@ public:
         //! enable depth of field
         bool depth_of_field = false;
 
+        //! enable ReSTIR GI (reservoir-based indirect lighting reuse)
+        bool restir_gi = false;
+
+        //! number of initial RIS candidates per pixel (Phase 1+)
+        uint32_t restir_candidates = 4;
+
+        //! temporal reservoir M-cap: max history-weight multiple (Phase 2+)
+        uint32_t restir_temporal_M_cap = 20;
+
         //! max number stored timing-values
         uint32_t timing_history_size = 300;
     };
@@ -163,6 +172,17 @@ private:
         MAX_VALUE
     };
 
+    struct alignas(16) camera_params_t
+    {
+        glm::mat4 projection_view{};
+        glm::mat4 projection_inverse{};
+        glm::mat4 view_inverse{};
+        float fov = glm::quarter_pi<float>();
+        float aperture = 0.f;
+        float focal_distance = 1.f;
+        VkBool32 ortho = false;
+    };
+
     struct frame_context_t
     {
         settings_t settings;
@@ -197,6 +217,9 @@ private:
         std::array<vierkant::Framebuffer, 2> post_fx_ping_pongs;
         vierkant::Rasterizer post_fx_renderer;
 
+        // previous-frame camera for temporal reprojection (Phase 2)
+        camera_params_t prev_camera_params;
+
         // gpu timings/statistics
         vierkant::QueryPoolPtr query_pool;
         statistics_t statistics = {};
@@ -230,23 +253,21 @@ private:
 
         //! optionally clamp indirect path-throughput
         float max_path_beta = 0.f;
+
+        //! enable ReSTIR GI path resampling
+        uint32_t restir_gi = 0;
+
+        //! number of initial RIS candidates
+        uint32_t restir_candidates = 4;
+
+        //! temporal reservoir M-cap
+        uint32_t restir_temporal_M_cap = 20;
     };
 
     struct denoise_params_t
     {
         glm::uvec2 size;
         VkBool32 denoise;
-    };
-
-    struct alignas(16) camera_params_t
-    {
-        glm::mat4 projection_view{};
-        glm::mat4 projection_inverse{};
-        glm::mat4 view_inverse{};
-        float fov = glm::quarter_pi<float>();
-        float aperture = 0.f;
-        float focal_distance = 1.f;
-        VkBool32 ortho = false;
     };
 
     struct alignas(16) media_t
@@ -279,6 +300,13 @@ private:
         VkDeviceAddress entries{};
         VkDeviceAddress materials{};
         VkDeviceAddress out_pixels{};
+
+        // padding: 8 bytes to align prev_camera_params to 16-byte boundary
+        uint64_t _pad0{};
+
+        camera_params_t prev_camera_params;
+        VkDeviceAddress reservoirs_curr{};
+        VkDeviceAddress reservoirs_prev{};
     };
 
     struct alignas(16) composition_ubo_t
@@ -329,6 +357,7 @@ private:
         vierkant::BufferPtr pixel_buffer;
         vierkant::BufferPtr depth;
         vierkant::ImagePtr object_ids;
+        std::array<vierkant::BufferPtr, 2> reservoir_buffer;
     } m_storage;
 
     //! owns raytracing pipelines and shader-bindingtables

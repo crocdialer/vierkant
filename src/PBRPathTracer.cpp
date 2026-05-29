@@ -21,6 +21,17 @@ struct alignas(16) pixel_buffer_t
     uint32_t object_id;
 };
 
+struct packed_reservoir_t
+{
+    glm::vec3 position;
+    uint16_t age;
+    uint16_t M;
+    uint32_t packed_radiance;
+    float weight;
+    uint32_t packed_normal;
+    float unused;
+};
+
 PBRPathTracerPtr PBRPathTracer::create(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info)
 { return vierkant::PBRPathTracerPtr(new PBRPathTracer(device, create_info)); }
 
@@ -490,8 +501,13 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.trace_params.draw_skybox = frame_context.settings.draw_skybox;
     trace_data.trace_params.environment = frame_context.settings.environment_factor;
     trace_data.trace_params.random_seed = m_random_engine();
+    trace_data.trace_params.restir_gi = frame_context.settings.restir_gi;
+    trace_data.trace_params.restir_candidates = frame_context.settings.restir_candidates;
+    trace_data.trace_params.restir_temporal_M_cap = frame_context.settings.restir_temporal_M_cap;
 
     trace_data.camera_params = camera_params;
+    trace_data.prev_camera_params = frame_context.prev_camera_params;
+    frame_context.prev_camera_params = camera_params;
 
     // default media: air
     trace_data.camera_media = {};
@@ -508,6 +524,10 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.entries = frame_context.scene_ray_acceleration.entry_buffer->device_address();
     trace_data.materials = frame_context.scene_ray_acceleration.material_buffer->device_address();
     trace_data.out_pixels = m_storage.pixel_buffer->device_address();
+
+    const uint32_t curr_idx = m_batch_index % 2;
+    trace_data.reservoirs_curr = m_storage.reservoir_buffer[curr_idx]->device_address();
+    trace_data.reservoirs_prev = m_storage.reservoir_buffer[1 - curr_idx]->device_address();
 
     // upload data
     frame_context.trace_data_ubo->set_data(&trace_data, sizeof(trace_data_t));
@@ -574,6 +594,19 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         pix_buf_info.device = m_device;
         pix_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
         m_storage.pixel_buffer = vierkant::Buffer::create(pix_buf_info);
+
+        vierkant::Buffer::create_info_t reservoir_buf_info;
+        reservoir_buf_info.usage =
+                VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT_KHR;
+        reservoir_buf_info.device = m_device;
+        reservoir_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        reservoir_buf_info.num_bytes = size.width * size.height * sizeof(packed_reservoir_t);
+        for(uint32_t i = 0; i < 2; ++i)
+        {
+            reservoir_buf_info.name = "reservoir buffer " + std::to_string(i);
+            m_storage.reservoir_buffer[i] = vierkant::Buffer::create(reservoir_buf_info);
+        }
+
         m_batch_index = 0;
     }
 

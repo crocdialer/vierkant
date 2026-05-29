@@ -2,6 +2,7 @@ module ray_common;
 
 import "../utils/packed_vertex.slang";
 import "pixel_data.slang";
+import "reservoir.slang";
 import "types.slang";
 
 namespace ray
@@ -127,7 +128,14 @@ public struct trace_params_t
     //! clamp indirect path-throughput
     public float max_path_beta;
 
-    private int pad0, pad1, pad2;
+    //! enable ReSTIR GI path resampling
+    public uint restir_gi;
+
+    //! number of initial RIS candidates per pixel
+    public uint restir_candidates;
+
+    //! M-cap: max multiple of current M allowed from temporal reservoir
+    public uint restir_temporal_M_cap;
 };
 
 public struct camera_ubo_t
@@ -154,6 +162,13 @@ public struct trace_data_t
     public Ptr<entry_t, Access.Read> entries;
     public Ptr<material_t, Access.Read> materials;
     public pixel_data_t *out_pixels;
+
+    // previous-frame camera for reprojection (Phase 2 temporal reuse)
+    public camera_ubo_t prev_camera;
+
+    // ping-pong reservoir buffers
+    public packed_reservoir_t *reservoirs_curr;
+    public packed_reservoir_t *reservoirs_prev;
 };
 
 }// namespace ray
