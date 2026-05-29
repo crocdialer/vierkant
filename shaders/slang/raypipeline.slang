@@ -3,6 +3,7 @@ module raypipeline;
 import "ray/types";
 import "ray/ray_common";
 import "ray/pixel_data";
+import "ray/reservoir";
 import "ray/bsdf_disney";
 import "ray/direct_lighting";
 
@@ -90,6 +91,186 @@ trace_result_t trace(uint2 coord, uint2 size)
     float sample_offset = 2.0 * utils::rnd(rng_state) - 1.0;
 
     float spread_angle = atan(2.0 * tan(trace_data.camera.fov / 2.0) / float(size.y));
+
+    if(trace_data.params.restir_gi != 0)
+    {
+        // -----------------------------------------------------------------
+        // Phase 1: reservoir-based importance sampling at the first indirect
+        // bounce.  One primary ray establishes the visible point; then
+        // restir_candidates sub-paths from x_v build a reservoir.  The
+        // selected sample shades the pixel; the reservoir is written for
+        // Phase 2 temporal reuse.
+        // -----------------------------------------------------------------
+
+        // --- Primary ray (depth 0) — fixed sub-pixel offset so all candidates
+        //     share the same visible-point surface.
+        float2 rnd_coord = float2(coord) +
+                           frac(utils::Hammersley(0, trace_data.params.num_samples) + float2(sample_offset));
+        float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
+        ray::Ray vis_ray = camera_ray(rnd_coord, float2(size), Xi);
+
+        ray::RayCone vis_cone;
+        vis_cone.spread_angle = spread_angle;
+        vis_cone.width = 0.0;
+
+        ray::payload_t vis_p;
+        vis_p.rng_state    = utils::xxhash32(rng_state, 0u);
+        vis_p.depth        = 0;
+        vis_p.stop         = false;
+        vis_p.radiance     = float3(0);
+        vis_p.beta         = float3(1);
+        vis_p.media        = trace_data.camera_media;
+        vis_p.last_ior     = trace_data.camera_media.ior;
+        vis_p.ray          = vis_ray;
+        vis_p.cone         = vis_cone;
+        vis_p.entity_index = utils::MAX_UINT16;
+        vis_p.media_op     = ray::MediaOp::NoOp;
+        {
+            RayDesc d;
+            d.Origin    = vis_ray.origin;
+            d.TMin      = vis_ray.tmin;
+            d.Direction = vis_ray.direction;
+            d.TMax      = vis_ray.tmax;
+            TraceRay(topLevelAS, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xff, 0, 0,
+                     ray::MISS_INDEX_DEFAULT, d, vis_p);
+        }
+
+        // Populate G-buffer (mirrors the i==0 block in the original path)
+        result.entity_index = vis_p.entity_index;
+        result.normal       = vis_p.normal;
+        result.position     = vis_p.position;
+        {
+            float4 dp = mul(trace_data.camera.projection_view, float4(result.position, 1.0));
+            bool miss = vis_p.entity_index == utils::MAX_UINT16;
+            result.depth    = miss ? 0.0 : dp.z / dp.w;
+            result.coverage = miss ? 0.0 : 1.0;
+        }
+
+        // Sky hit: nothing to resample, return sky radiance directly.
+        if(vis_p.entity_index == utils::MAX_UINT16)
+        {
+            result.radiance = vis_p.radiance;
+            return result;
+        }
+
+        float3       x_v      = vis_p.position;
+        float3       n_v      = vis_p.normal;
+        float3       V_v      = -vis_ray.direction;
+        float3       depth0_L = vis_p.radiance;   // emission + direct at x_v
+        ray::media_t vis_media = vis_p.media;
+
+        // --- Build reservoir by streaming restir_candidates sub-paths ---
+        ray::ReservoirGI reservoir;
+        reservoir.position   = float3(0);
+        reservoir.normal     = float3(0, 1, 0);
+        reservoir.radiance   = float3(0);
+        reservoir.weight_sum = 0.0;
+        reservoir.M         = 0;
+        reservoir.age       = 0;
+
+        uint num_cands = max(1u, trace_data.params.restir_candidates);
+        for(uint k = 0; k < num_cands; k++)
+        {
+            // Per-candidate seed (prime offset avoids correlation with depth seeds).
+            uint cand_rng = utils::xxhash32(rng_state, k + 7919u);
+
+            ray::bsdf_sample_t bsdf_k = ray::sample_disney(
+                vis_p.vis_material, n_v, V_v, vis_p.vis_eta, cand_rng);
+
+            if(bsdf_k.pdf <= ray::PDF_EPS) { continue; }
+
+            float cos_k = abs(dot(n_v, bsdf_k.direction));
+
+            // Sub-path from x_v: beta starts at 1 so Lo is NOT weighted by
+            // the x_v BSDF factor (keeps Lo separable for Phase 2 reuse).
+            ray::payload_t sub;
+            sub.rng_state    = cand_rng;
+            sub.depth        = 1;
+            sub.stop         = false;
+            sub.radiance     = float3(0);
+            sub.beta         = float3(1);
+            sub.media        = vis_media;
+            sub.last_ior     = vis_media.ior;
+            sub.ray.origin   = x_v;
+            sub.ray.direction = bsdf_k.direction;
+            sub.ray.tmin     = ray::EPS;
+            sub.ray.tmax     = ray::DEFAULT_TMAX;
+            sub.cone         = vis_cone;
+            sub.entity_index = utils::MAX_UINT16;
+            sub.media_op     = ray::MediaOp::NoOp;
+
+            uint sub_mi = 0;
+            ray::media_t sub_stack[MAX_MEDIA_STACK_SIZE];
+            sub_stack[sub_mi] = vis_media;
+
+            // x_s default: treat sky as a surface at DEFAULT_TMAX distance.
+            float3 xs_k       = x_v + bsdf_k.direction * ray::DEFAULT_TMAX;
+            float3 ns_k       = -bsdf_k.direction;
+            bool   xs_captured = false;
+
+            for(uint j = 1; j < trace_data.params.max_trace_depth; j++)
+            {
+                sub.rng_state = utils::xxhash32(cand_rng, j);
+                sub.depth     = j;
+                sub.stop      = false;
+                sub.media     = sub_stack[sub_mi];
+                sub.last_ior  = sub_stack[sub_mi > 0u ? sub_mi - 1u : 0u].ior;
+
+                uint sub_flags = sub_mi > 0u ? 0u : RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+                RayDesc sd;
+                sd.Origin    = sub.ray.origin;
+                sd.TMin      = sub.ray.tmin;
+                sd.Direction = sub.ray.direction;
+                sd.TMax      = sub.ray.tmax;
+                TraceRay(topLevelAS, sub_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, sd, sub);
+
+                if(sub.media_op == ray::MediaOp::Enter)
+                {
+                    sub_mi = min(sub_mi + 1u, MAX_MEDIA_STACK_SIZE - 1u);
+                    sub_stack[sub_mi] = sub.media;
+                }
+                else if(sub.media_op == ray::MediaOp::Leave) { sub_mi = sub_mi > 0u ? sub_mi - 1u : 0u; }
+
+                if(!xs_captured && sub.entity_index != utils::MAX_UINT16)
+                {
+                    xs_k       = sub.position;
+                    ns_k       = sub.normal;
+                    xs_captured = true;
+                }
+
+                if(sub.stop) { break; }
+            }
+
+            float3 Lo_k    = sub.radiance;
+            float  p_hat_k = ray::target_pdf(bsdf_k.F * cos_k * Lo_k);
+
+            ray::ReservoirGI cand = ray::make_reservoir(xs_k, ns_k, Lo_k, bsdf_k.pdf);
+            ray::combine_reservoirs(reservoir, cand, utils::rnd(cand_rng), p_hat_k);
+        }
+
+        // --- Final shade ---
+        float3 indirect = float3(0);
+        if(reservoir.M > 0 && reservoir.weight_sum > 0.0)
+        {
+            float3 dir_sel = normalize(reservoir.position - x_v);
+            float  cos_sel = abs(dot(n_v, dir_sel));
+            float  dummy_pdf;
+            float3 f_sel     = ray::eval_disney(vis_p.vis_material, dir_sel, n_v, V_v,
+                                                vis_p.vis_eta, dummy_pdf);
+            float  p_hat_sel = ray::target_pdf(f_sel * cos_sel * reservoir.radiance);
+            float  W         = p_hat_sel > 0.0
+                               ? reservoir.weight_sum / (float(reservoir.M) * p_hat_sel)
+                               : 0.0;
+            indirect = f_sel * cos_sel * reservoir.radiance * W;
+        }
+
+        // Write reservoir for Phase 2 temporal reuse.
+        uint buf_idx = coord.x + coord.y * size.x;
+        trace_data.reservoirs_curr[buf_idx] = ray::pack(reservoir);
+
+        result.radiance = depth0_L + indirect;
+        return result;
+    }
 
     for(int sampleIdx = 0; sampleIdx < int(trace_data.params.num_samples); sampleIdx++)
     {
@@ -454,6 +635,12 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         // increase material-roughness for longer paths, reduce fireflies
         //material.roughness = pow(material.roughness, 1.0 / (1.0 + payload.depth));
+
+        if(trace_data.params.restir_gi != 0 && payload.depth == 0)
+        {
+            payload.vis_material = material;
+            payload.vis_eta = eta;
+        }
 
         ray::bsdf_sample_t bsdf_sample = ray::sample_disney(material, payload.normal, V, eta, rng_state);
 

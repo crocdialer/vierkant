@@ -459,6 +459,20 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     ImGui::SliderFloat("gamma", &path_tracer->settings.gamma, 0.f, 10.f);
 
     ImGui::Checkbox("depth of field", &path_tracer->settings.depth_of_field);
+
+    // restir
+    ImGui::Checkbox("restir_gi", &path_tracer->settings.restir_gi);
+
+    int restir_candidates = static_cast<int>(path_tracer->settings.restir_candidates);
+    int restir_temporal_M_cap = static_cast<int>(path_tracer->settings.restir_temporal_M_cap);
+    if(ImGui::InputInt("restir_candidates", &restir_candidates))
+    {
+        path_tracer->settings.restir_candidates = restir_candidates;
+    }
+    if(ImGui::InputInt("restir_temporal_M_cap", &restir_temporal_M_cap))
+    {
+        path_tracer->settings.restir_temporal_M_cap = restir_temporal_M_cap;
+    }
 }
 
 void draw_scene_renderer_statistics_ui_intern(const PBRPathTracerPtr &path_tracer)

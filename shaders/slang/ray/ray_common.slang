@@ -97,6 +97,11 @@ public struct payload_t
     public uint entity_index;
 
     public media_t media;
+
+    //! depth-0 visible-point material (texture-sampled) and effective eta,
+    //! populated by the closest-hit shader when restir_gi is enabled.
+    public material_t vis_material;
+    public float vis_eta;
 };
 
 public struct trace_params_t

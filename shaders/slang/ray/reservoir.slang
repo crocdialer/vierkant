@@ -96,6 +96,12 @@ public ReservoirGI make_reservoir(const float3 sample_pos,
     return reservoir;
 }
 
+// Rec.709 luminance: scalar target function p̂ for RIS.
+public float target_pdf(const float3 radiance)
+{
+    return dot(max(radiance, float3(0)), float3(0.2126, 0.7152, 0.0722));
+}
+
 // Adds `new_reservoir` into `reservoir`, returns true if the new reservoir's sample was selected.
 // Assumes new_reservoir is normalized: weightSum means "1/g * 1/M * sum{g/p}".
 // target_pdf is a conversion factor from new_reservoir's space to reservoir's space (integrand).
