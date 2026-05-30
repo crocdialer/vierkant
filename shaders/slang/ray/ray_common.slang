@@ -92,6 +92,9 @@ public struct payload_t
     //! path throughput
     public float3 beta;
 
+    //! primary-hit surface albedo (material color after texture sampling)
+    public float3 albedo;
+
     //! object/entity
     public uint entity_index;
 

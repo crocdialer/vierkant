@@ -43,6 +43,7 @@ struct trace_result_t
     float depth;
     float3 position;
     uint entity_index;
+    float3 albedo;
 };
 
 ray::Ray camera_ray(float2 coord, float2 size, float2 Xi)
@@ -119,6 +120,7 @@ trace_result_t trace(uint2 coord, uint2 size)
             payload.rng_state = rng_state;
             payload.depth = i;
             payload.stop = false;
+            payload.albedo = float3(0);
             payload.radiance = path_radiance;
             payload.beta = beta;
             payload.media = media[media_index];
@@ -158,6 +160,7 @@ trace_result_t trace(uint2 coord, uint2 size)
                 result.entity_index = payload.entity_index;
                 result.normal = payload.normal;
                 result.position = payload.position;
+                result.albedo = payload.albedo;
                 float4 depth_proj = mul(trace_data.camera.projection_view, float4(result.position, 1.0));
                 bool ray_miss = payload.entity_index == utils::MAX_UINT16;
                 result.depth = ray_miss ? 0.0 : depth_proj.z / depth_proj.w;
@@ -194,7 +197,7 @@ void main()
     }
 
     trace_data.out_pixels[buffer_idx] =
-            ray::pack(accumulated_radiance.rgb, result.coverage, result.normal, result.depth, result.entity_index);
+            ray::pack(accumulated_radiance.rgb, result.coverage, result.normal, result.depth, result.entity_index, result.albedo);
 }
 
 //-----------------------------------------------------------------------------
@@ -400,6 +403,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
                                                  v.tex_coord, NoV, payload.cone.width, triangle_lod);
         }
         material.color = trace_data.params.disable_material ? float4(float3(0.8), 1.0) : material.color;
+        if(payload.depth == 0) { payload.albedo = material.color.rgb; }
 
         if((material.texture_type_flags & uint(ray::TextureTypeBits::Normal)) != 0)
         {

@@ -19,6 +19,7 @@ struct alignas(16) pixel_buffer_t
     uint32_t normal;
 
     uint32_t object_id;
+    uint32_t albedo = 0;
 };
 
 PBRPathTracerPtr PBRPathTracer::create(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info)
@@ -61,7 +62,9 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     // denoise compute
     vierkant::Compute::create_info_t compute_info = {};
-    compute_info.num_frames_in_flight = create_info.num_frames_in_flight;
+    // 5 atrous passes per frame × num_frames_in_flight slots prevents descriptor-set cache
+    // collisions when dispatch() is called multiple times within the same command buffer.
+    compute_info.num_frames_in_flight = 5 * create_info.num_frames_in_flight;
     compute_info.descriptor_pool = m_descriptor_pool;
     compute_info.pipeline_cache = create_info.pipeline_cache;
     m_compute = vierkant::Compute(device, compute_info);
@@ -334,20 +337,39 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
     vkCmdWriteTimestamp2(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                          frame_context.query_pool.get(), 2 * SemaphoreValue::DENOISER);
 
-    auto &denoise_params =
-            *reinterpret_cast<denoise_params_t *>(frame_context.denoise_computable.push_constants.data());
-    denoise_params = {frame_context.settings.resolution, frame_context.settings.denoising};
-
-    // transition storage image
+    // transition storage images to GENERAL
     frame_context.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_context.cmd_denoise.handle());
+    frame_context.denoise_ping_pong_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
+                                                             frame_context.cmd_denoise.handle());
 
     // write-after-write hazard
     vierkant::stage_barrier(frame_context.cmd_denoise.handle(),
                             VK_PIPELINE_STAGE_2_TRANSFER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                             VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
-    // dispatch denoising-kernel
-    m_compute.dispatch({frame_context.denoise_computable}, frame_context.cmd_denoise.handle());
+    // à-trous multi-pass denoiser: step sizes 1, 2, 4, 8, 16
+    // even passes (0,2,4) write to denoise_image; odd passes (1,3) write to ping_pong_image
+    constexpr std::array<uint32_t, 5> atrous_steps = {1, 2, 4, 8, 16};
+    const bool denoising = frame_context.settings.denoising;
+
+    for(uint32_t pass = 0; pass < atrous_steps.size(); ++pass)
+    {
+        const bool is_odd = (pass % 2) != 0;
+        auto &computable = is_odd ? frame_context.denoise_computable_pong : frame_context.denoise_computable;
+        auto &params = *reinterpret_cast<denoise_params_t *>(computable.push_constants.data());
+        params = {frame_context.settings.resolution, denoising ? VK_TRUE : VK_FALSE, atrous_steps[pass], pass};
+
+        m_compute.dispatch({computable}, frame_context.cmd_denoise.handle());
+
+        // skip remaining passes when not denoising (pass 0 writes raw radiance + depth + object_ids)
+        if(!denoising) { break; }
+
+        if(pass + 1 < atrous_steps.size())
+        {
+            vierkant::stage_barrier(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                    VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+        }
+    }
 
     vierkant::stage_barrier(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                             VK_PIPELINE_STAGE_2_TRANSFER_BIT);
@@ -592,7 +614,7 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         frame_context.denoise_computable.extent.width = vierkant::group_count(size.width, 16);
         frame_context.denoise_computable.extent.height = vierkant::group_count(size.height, 16);
 
-        // create a denoise image
+        // create denoise images (ping + pong for multi-pass à-trous)
         vierkant::Image::Format denoise_format = {};
         denoise_format.extent = size;
         denoise_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
@@ -601,8 +623,9 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         denoise_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
         denoise_format.initial_cmd_buffer = frame_context.cmd_pre_render.handle();
         frame_context.denoise_image = vierkant::Image::create(m_device, denoise_format);
+        frame_context.denoise_ping_pong_image = vierkant::Image::create(m_device, denoise_format);
 
-        // denoise-compute
+        // denoise-compute (ping: even passes — writes to denoise_image, reads prev from ping_pong_image)
         vierkant::descriptor_t &desc_pixel_in = frame_context.denoise_computable.descriptors[0];
         desc_pixel_in.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_pixel_in.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
@@ -623,9 +646,18 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         desc_object_id.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
         desc_object_id.images = {m_storage.object_ids};
 
+        vierkant::descriptor_t &desc_prev_pass = frame_context.denoise_computable.descriptors[4];
+        desc_prev_pass.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        desc_prev_pass.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_prev_pass.images = {frame_context.denoise_ping_pong_image};
+
         frame_context.denoise_computable.push_constants.resize(sizeof(denoise_params_t));
-        *reinterpret_cast<denoise_params_t *>(frame_context.denoise_computable.push_constants.data()) = {
-                frame_context.settings.resolution, frame_context.settings.denoising};
+
+        // pong: odd passes — writes to ping_pong_image, reads prev from denoise_image
+        frame_context.denoise_computable_pong = frame_context.denoise_computable;
+        frame_context.denoise_computable_pong.descriptors[1].images = {frame_context.denoise_ping_pong_image};
+        frame_context.denoise_computable_pong.descriptors[4].images = {frame_context.denoise_image};
+        frame_context.denoise_computable_pong.push_constants.resize(sizeof(denoise_params_t));
 
         // depth-image
         Image::Format depth_image_format = {};

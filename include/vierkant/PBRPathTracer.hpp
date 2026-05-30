@@ -186,8 +186,9 @@ private:
         vierkant::RayTracer::tracable_t tracable = {};
 
         vierkant::Compute::computable_t denoise_computable = {};
+        vierkant::Compute::computable_t denoise_computable_pong = {};
 
-        vierkant::ImagePtr denoise_image, out_image, out_depth;
+        vierkant::ImagePtr denoise_image, denoise_ping_pong_image, out_image, out_depth;
 
         vierkant::BufferPtr trace_data_ubo, composition_ubo;
 
@@ -236,6 +237,8 @@ private:
     {
         glm::uvec2 size;
         VkBool32 denoise;
+        uint32_t step = 1;
+        uint32_t pass_index = 0;
     };
 
     struct alignas(16) camera_params_t
