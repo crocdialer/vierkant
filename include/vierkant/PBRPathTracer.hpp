@@ -185,10 +185,14 @@ private:
 
         vierkant::RayTracer::tracable_t tracable = {};
 
-        vierkant::Compute::computable_t denoise_computable = {};
-        vierkant::Compute::computable_t denoise_computable_pong = {};
+        struct denoise_ping_pong_t
+        {
+            vierkant::Compute::computable_t computable = {};
+            vierkant::ImagePtr image;
+        };
+        std::array<denoise_ping_pong_t, 2> denoise_ping_pong;
 
-        vierkant::ImagePtr denoise_image, denoise_ping_pong_image, out_image, out_depth;
+        vierkant::ImagePtr out_image, out_depth;
 
         vierkant::BufferPtr trace_data_ubo, composition_ubo;
 
