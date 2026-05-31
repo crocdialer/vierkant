@@ -119,6 +119,7 @@ const std::vector<float> &Joystick::axis() const{ return m_axis; }
 glm::vec2 Joystick::analog_left() const
 {
     uint32_t index_h = g_mapping.input_to_axis[Input::ANALOG_LEFT_X], index_v = g_mapping.input_to_axis[Input::ANALOG_LEFT_Y];
+    if(index_h >= m_axis.size() || index_v >= m_axis.size()) { return {}; }
     auto sign_h = static_cast<float>(crocore::sgn(m_axis[index_h]));
     auto sign_v = static_cast<float>(crocore::sgn(m_axis[index_v]));
 
@@ -129,6 +130,7 @@ glm::vec2 Joystick::analog_left() const
 glm::vec2 Joystick::analog_right() const
 {
     uint32_t index_h = g_mapping.input_to_axis[Input::ANALOG_RIGHT_X], index_v = g_mapping.input_to_axis[Input::ANALOG_RIGHT_Y];
+    if(index_h >= m_axis.size() || index_v >= m_axis.size()) { return {}; }
     auto sign_h = static_cast<float>(crocore::sgn(m_axis[index_h]));
     auto sign_v = static_cast<float>(crocore::sgn(m_axis[index_v]));
 
@@ -139,6 +141,7 @@ glm::vec2 Joystick::analog_right() const
 glm::vec2 Joystick::trigger() const
 {
     uint32_t index_l = g_mapping.input_to_axis[Input::TRIGGER_LEFT], index_r = g_mapping.input_to_axis[Input::TRIGGER_RIGHT];
+    if(index_l >= m_axis.size() || index_r >= m_axis.size()) { return {}; }
     return (glm::vec2(fabs(m_axis[index_l]) > dead_zone ? m_axis[index_l] : 0.f,
                       fabs(m_axis[index_r]) > dead_zone ? m_axis[index_r] : 0.f) + 1.f) / 2.f;
 }
@@ -146,6 +149,7 @@ glm::vec2 Joystick::trigger() const
 glm::vec2 Joystick::dpad() const
 {
     uint32_t index_h = g_mapping.input_to_axis[Input::DPAD_X], index_v = g_mapping.input_to_axis[Input::DPAD_Y];
+    if(index_h >= m_axis.size() || index_v >= m_axis.size()) { return {}; }
     return {fabs(m_axis[index_h]) > dead_zone ? m_axis[index_h] : 0.f,
             fabs(m_axis[index_v]) > dead_zone ? m_axis[index_v] : 0.f};
 }

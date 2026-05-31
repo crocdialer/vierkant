@@ -233,6 +233,21 @@ private:
 
 std::string to_string(Joystick::Input input);
 
+//! Returns true if any joystick in the list is producing meaningful input (above dead zone or has button events).
+inline bool joystick_active(const std::vector<Joystick> &joysticks)
+{
+    for(const auto &js: joysticks)
+    {
+        constexpr float thresh = 1e-4f;
+        if(glm::length2(js.analog_left()) > thresh || glm::length2(js.analog_right()) > thresh ||
+           glm::length2(js.trigger()) > thresh || glm::length2(js.dpad()) > thresh || !js.input_events().empty())
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 struct Key
 {
     enum Type
