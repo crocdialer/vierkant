@@ -459,6 +459,7 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     ImGui::SliderFloat("gamma", &path_tracer->settings.gamma, 0.f, 10.f);
 
     ImGui::Checkbox("depth of field", &path_tracer->settings.depth_of_field);
+    ImGui::Checkbox("suppress reset", &path_tracer->settings.suppress_reset);
 }
 
 void draw_scene_renderer_statistics_ui_intern(const PBRPathTracerPtr &path_tracer)

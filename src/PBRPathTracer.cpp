@@ -556,7 +556,10 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
             m_ray_builder.build_scene_acceleration(frame_context.scene_acceleration_context, build_scene_params);
 }
 
-void PBRPathTracer::reset_accumulator() { m_batch_index = 0; }
+void PBRPathTracer::reset_accumulator()
+{
+    if(!settings.suppress_reset) { m_batch_index = 0; }
+}
 
 size_t PBRPathTracer::current_batch() const { return m_batch_index; }
 

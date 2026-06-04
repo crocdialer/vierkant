@@ -75,6 +75,9 @@ public:
         //! enable depth of field
         bool depth_of_field = false;
 
+        //! suppress accumulator resets (e.g. caused by scene/camera changes)
+        bool suppress_reset = false;
+
         //! max number stored timing-values
         uint32_t timing_history_size = 300;
     };
