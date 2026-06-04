@@ -741,8 +741,7 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
 
             if(ImGui::TreeNode((void *) (uint64_t) obj.id(), "%s", obj.name.c_str()))
             {
-                vierkant::gui::draw_camera_param_ui(
-                        std::get<physical_camera_params_t>(obj.get_component<camera_component_t>().params));
+                vierkant::gui::draw_camera_param_ui(obj.get_component<camera_component_t>().params);
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::TreePop();
@@ -1761,38 +1760,43 @@ void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, co
     else if(!object_set.empty()) { draw_transform_guizmo(*object_set.begin(), camera, type, space); }
 }
 
-void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params)
+void draw_camera_param_ui(vierkant::camera_params_variant_t &camera_params)
 {
-    // focal-length in mm
-    float focal_length_mm = 1000.f * camera_params.focal_length;
-    if(ImGui::SliderFloat("focal-length (mm)", &focal_length_mm, 0.1f, 500.f))
+    if(auto *phys_cam_params = std::get_if<physical_camera_params_t>(&camera_params))
     {
-        camera_params.focal_length = focal_length_mm / 1000.f;
+        // focal-length in mm
+        float focal_length_mm = 1000.f * phys_cam_params->focal_length;
+        if(ImGui::SliderFloat("focal-length (mm)", &focal_length_mm, 0.1f, 500.f))
+        {
+            phys_cam_params->focal_length = focal_length_mm / 1000.f;
+        }
+
+        // focal-length in mm
+        float sensor_width_mm = 1000.f * phys_cam_params->sensor_width;
+        if(ImGui::InputFloat("sensor (mm)", &sensor_width_mm, 0.1f, 1000.f))
+        {
+            phys_cam_params->sensor_width = sensor_width_mm / 1000.f;
+        }
+
+        // clipping planes
+        ImGui::InputFloat2("near/far", glm::value_ptr(phys_cam_params->clipping_distances));
+
+        ImGui::BulletText("hfov: %.1f", glm::degrees(phys_cam_params->fovx()));
+        ImGui::BulletText("aspect: %.2f", phys_cam_params->aspect);
+
+        ImGui::Separator();
+
+        // focal distance (dof)
+        ImGui::SliderFloat("focal distance (m)", &phys_cam_params->focal_distance,
+                           phys_cam_params->clipping_distances.x, phys_cam_params->clipping_distances.y, "%.2f",
+                           ImGuiSliderFlags_Logarithmic);
+
+        // f-stop/aperture
+        constexpr float f_stop_min = 0.1f, f_stop_max = 128.f;
+        ImGui::BulletText("aperture: %.1f mm", phys_cam_params->aperture_size() * 1000);
+        ImGui::SliderFloat("f-stop", &phys_cam_params->fstop, f_stop_min, f_stop_max, "%.2f",
+                           ImGuiSliderFlags_Logarithmic);
     }
-
-    // focal-length in mm
-    float sensor_width_mm = 1000.f * camera_params.sensor_width;
-    if(ImGui::InputFloat("sensor (mm)", &sensor_width_mm, 0.1f, 1000.f))
-    {
-        camera_params.sensor_width = sensor_width_mm / 1000.f;
-    }
-
-    // clipping planes
-    ImGui::InputFloat2("near/far", glm::value_ptr(camera_params.clipping_distances));
-
-    ImGui::BulletText("hfov: %.1f", glm::degrees(camera_params.fovx()));
-    ImGui::BulletText("aspect: %.2f", camera_params.aspect);
-
-    ImGui::Separator();
-
-    // focal distance (dof)
-    ImGui::SliderFloat("focal distance (m)", &camera_params.focal_distance, camera_params.clipping_distances.x,
-                       camera_params.clipping_distances.y, "%.2f", ImGuiSliderFlags_Logarithmic);
-
-    // f-stop/aperture
-    constexpr float f_stop_min = 0.1f, f_stop_max = 128.f;
-    ImGui::BulletText("aperture: %.1f mm", camera_params.aperture_size() * 1000);
-    ImGui::SliderFloat("f-stop", &camera_params.fstop, f_stop_min, f_stop_max, "%.2f", ImGuiSliderFlags_Logarithmic);
 }
 
 }// namespace vierkant::gui
