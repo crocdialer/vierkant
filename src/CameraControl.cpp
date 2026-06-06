@@ -192,12 +192,13 @@ void FlyCamera::update(double time_delta)
             move_mask.z += state.analog_left().y;
             move_mask.y += dpad.y;
 
+            // raw diff
             glm::vec2 diff = -state.analog_right() * static_cast<float>(time_delta);
 
             if(glm::length2(move_mask) > 0.f || glm::length2(state.analog_right()) > 0.01)
             {
                 constexpr float controller_sensitivity = 250.f;
-                diff *= controller_sensitivity;
+                diff *= controller_sensitivity * joystick_sensitivity;
                 orbit(diff);
                 needs_update = true;
             }

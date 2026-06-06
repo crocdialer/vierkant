@@ -27,8 +27,8 @@ public:
     transform_cb_t transform_cb = {};
 
     glm::vec2 mouse_sensitivity = {1.f, 1.f};
-
     glm::vec2 mouse_wheel_sensitivity = {1.f, 1.f};
+    glm::vec2 joystick_sensitivity = {1.f, 1.f};
 
     virtual void update(double time_delta) = 0;
 
