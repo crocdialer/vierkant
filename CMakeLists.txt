@@ -24,8 +24,15 @@ execute_process(
         OUTPUT_VARIABLE GIT_COMMIT_DATE
         OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+# optional slangc override
+set(SLANGC_OVERRIDE "" CACHE FILEPATH "optional override-path for slangc binary")
+
 # retrieve slangc version used to compile shaders
-find_program(SLANGC_BINARY slangc)
+if (SLANGC_OVERRIDE)
+    set(SLANGC_BINARY "${SLANGC_OVERRIDE}")
+else ()
+    find_program(SLANGC_BINARY slangc)
+endif ()
 if (SLANGC_BINARY)
     execute_process(
             COMMAND ${SLANGC_BINARY} -v
@@ -180,6 +187,7 @@ add_custom_command(OUTPUT ${SLANG_SHADERS_CPP}
         -D SOURCE_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}"
         -D TARGET_NAME="${PROJECT_NAME}"
         -D SPIRV_DEBUG_SYMBOLS=${SPIRV_DEBUG_SYMBOLS}
+        -D SLANGC_OVERRIDE=${SLANGC_OVERRIDE}
         -P cmake_modules/build_slang_shaders.cmake
         DEPENDS ${SLANG_SOURCE_FILES}
         COMMENT "recompiling slang shaders -> SPIRV -> shaders_slang.hpp/cpp")

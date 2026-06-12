@@ -17,7 +17,11 @@ if (NOT DEFINED SOURCE_OUTPUT_DIR)
     set(SOURCE_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 endif ()
 
-# set slang compiler
-find_program(SLANG_COMPILER "slangc" REQUIRED)
+# set slang compiler (optional override, otherwise search PATH)
+if (SLANGC_OVERRIDE)
+    set(SLANG_COMPILER "${SLANGC_OVERRIDE}")
+else ()
+    find_program(SLANG_COMPILER "slangc" REQUIRED)
+endif ()
 
 stringify_slang_shaders(${SLANG_SOURCE_ROOT} ${TARGET_NAME} ${SLANG_COMPILER} ${SPIRV_OUTPUT_DIR} ${SOURCE_OUTPUT_DIR} ${SPIRV_DEBUG_SYMBOLS})

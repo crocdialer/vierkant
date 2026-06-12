@@ -61,21 +61,28 @@ struct vertex_data_t
     renderer::g_buffer_vertex_data_t g_buffer_data;
 };
 
+#if CULLING
+// per-primitive attributes (connectivity goes into OutputIndices<uint3, N>)
 struct primitive_data_t
 {
-    uint3 indices;
+    bool cull_primitive : SV_CullPrimitive;
 
-    // NOTE: add when we actually need those
+    // NOTE: add when we actually need it
     //uint primitive_id : SV_PrimitiveID;
-    //uint cull_primitive : SV_CullPrimitive;
 };
+#endif
 
 [outputtopology("triangle")]
 [numthreads(mesh_workgroup_x, 1, 1)]
 [[shader("mesh")]]
 void mesh_main(uint ti: SV_GroupThreadID, uint wg_id: SV_GroupID, in payload renderer::mesh_task_payload_t task_payload,
                OutputVertices<vertex_data_t, renderer::MESHLET_MAX_VERTICES> out_vertices,
-               OutputIndices<primitive_data_t, renderer::MESHLET_MAX_TRIANGLES> out_primitives)
+               OutputIndices<uint3, renderer::MESHLET_MAX_TRIANGLES> out_indices
+#if CULLING
+               ,
+               OutputPrimitives<primitive_data_t, renderer::MESHLET_MAX_TRIANGLES> out_primitives
+#endif
+)
 {
     uint mi = task_payload.meshlet_base_index + uint(task_payload.meshlet_delta_indices[wg_id]);
 
@@ -128,7 +135,7 @@ void mesh_main(uint ti: SV_GroupThreadID, uint wg_id: SV_GroupID, in payload ren
         uint base_index = meshlets[mi].triangle_offset + 3 * i;
         uint a = uint(meshlet_triangles[base_index]), b = uint(meshlet_triangles[base_index + 1]),
              c = uint(meshlet_triangles[base_index + 2]);
-        out_primitives[i].indices = uint3(a, b, c);
+        out_indices[i] = uint3(a, b, c);
 
 #if CULLING
         bool culled = false;
@@ -152,12 +159,7 @@ void mesh_main(uint ti: SV_GroupThreadID, uint wg_id: SV_GroupID, in payload ren
         // the computations above are only valid if all vertices are in front of perspective plane
         culled = culled && (vertex_clip[a].z > 0 && vertex_clip[b].z > 0 && vertex_clip[c].z > 0);
 
-        // TODO: slang-equivalent still has issues:
-        // "According to the Vulkan specspec BuiltIn CullPrimitiveEXT variable needs to be a either a TypeBool or an array of TypeBool. ID <650> (OpVariable) is not a bool scalar."
-        // making this a bool crashes the compiler
-
-        //gl_MeshPrimitivesEXT[i].gl_CullPrimitiveEXT = culled;
-        out_primitives[i].cull_primitive = uint(culled);
+        out_primitives[i].cull_primitive = culled;
 #endif
     }
 }
