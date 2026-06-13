@@ -83,6 +83,9 @@ public struct payload_t
 
     public float last_ior;
 
+    //! locked dispersion channel (-1 = unlocked); set on first dispersive transmission
+    public int disp_channel;
+
     //! accumulated radiance along a path
     public float3 radiance;
 
