@@ -33,6 +33,7 @@ size_t std::hash<vierkant::material_t>::operator()(vierkant::material_t const &m
     hash_combine(h, m.attenuation_color);
     hash_combine(h, m.attenuation_distance);
     hash_combine(h, m.ior);
+    hash_combine(h, m.dispersion);
     hash_combine(h, m.clearcoat_factor);
     hash_combine(h, m.clearcoat_roughness_factor);
     hash_combine(h, m.sheen_color);
