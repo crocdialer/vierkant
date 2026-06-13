@@ -877,6 +877,9 @@ bool draw_material_ui(vierkant::material_t &material,
     // index of refraction - ior
     changed |= ImGui::InputFloat("ior", &material.ior);
 
+    // chromatic dispersion (glTF KHR_materials_dispersion)
+    changed |= ImGui::SliderFloat("dispersion", &material.dispersion, 0.f, 1.f);
+
     // sheen
     ImGui::Separator();
     ImGui::Text("sheen");
