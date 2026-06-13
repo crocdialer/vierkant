@@ -553,6 +553,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                     material.metalness = mat->metalness;
                     material.transmission = mat->transmission;
                     material.ior = mat->ior;
+                    material.dispersion = mat->dispersion;
                     material.attenuation_distance = mat->attenuation_distance;
                     material.attenuation_color = mat->attenuation_color;
                     material.clearcoat_factor = mat->clearcoat_factor;

@@ -52,6 +52,7 @@ constexpr char KHR_materials_specular[] = "KHR_materials_specular";
 constexpr char KHR_materials_transmission[] = "KHR_materials_transmission";
 constexpr char KHR_materials_volume[] = "KHR_materials_volume";
 constexpr char KHR_materials_ior[] = "KHR_materials_ior";
+constexpr char KHR_materials_dispersion[] = "KHR_materials_dispersion";
 constexpr char KHR_materials_clearcoat[] = "KHR_materials_clearcoat";
 constexpr char KHR_materials_sheen[] = "KHR_materials_sheen";
 constexpr char KHR_materials_iridescence[] = "KHR_materials_iridescence";
@@ -488,6 +489,13 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
         else if(ext == KHR_materials_ior)
         {
             if(value.Has("ior")) { ret.ior = static_cast<float>(value.Get("ior").GetNumberAsDouble()); }
+        }
+        else if(ext == KHR_materials_dispersion)
+        {
+            if(value.Has("dispersion"))
+            {
+                ret.dispersion = static_cast<float>(value.Get("dispersion").GetNumberAsDouble());
+            }
         }
         else if(ext == KHR_materials_clearcoat)
         {

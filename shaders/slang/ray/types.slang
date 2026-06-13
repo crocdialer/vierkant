@@ -93,7 +93,7 @@ public struct material_t
     public float phase_asymmetry_g;
     public float scattering_ratio;
 
-    int pad[1];
+    public float dispersion;
 };
 
 }// namespace ray

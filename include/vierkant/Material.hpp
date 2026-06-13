@@ -86,6 +86,10 @@ struct material_t
 
     // transmission
     float ior = 1.5f;
+
+    //! chromatic dispersion strength (glTF KHR_materials_dispersion)
+    float dispersion = 0.f;
+
     glm::vec3 attenuation_color = glm::vec3(1.f);
 
     // volumes

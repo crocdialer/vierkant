@@ -98,6 +98,9 @@ public:
 
         //! ratio of scattering vs. absorption (sigma_s / sigma_t)
         float scattering_ratio = 0.f;
+
+        //! chromatic dispersion strength (glTF KHR_materials_dispersion; 0 = none)
+        float dispersion = 0.f;
     };
 
     //! used for both bottom and toplevel acceleration-structures
