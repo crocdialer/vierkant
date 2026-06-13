@@ -151,8 +151,9 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::rayt
             case VK_SHADER_STAGE_RAYGEN_BIT_KHR: group_elements[Group::Raygen]++; break;
             case VK_SHADER_STAGE_MISS_BIT_KHR: group_elements[Group::Miss]++; break;
             case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
-            case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
             case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR: group_elements[Group::Hit]++; break;
+            // any-hit is merged into the closest-hit group, it does not produce a separate group-handle
+            case VK_SHADER_STAGE_ANY_HIT_BIT_KHR: break;
             case VK_SHADER_STAGE_CALLABLE_BIT_KHR: group_elements[Group::Callable]++; break;
             default: break;
         }
@@ -204,14 +205,23 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::rayt
     // copy opaque shader-handles with proper stride (handle_size_aligned)
     size_t buffer_offset = 0;
     size_t handle_index = 0;
-    auto buf_ptr = static_cast<uint8_t *>(binding_table.buffer->map());
+    auto *buf_ptr = static_cast<uint8_t *>(binding_table.buffer->map());
 
     for(uint32_t g = Group::Raygen; g < Group::MAX_ENUM; ++g)
     {
         auto &address_region = binding_table.strided_address_region[g];
-        address_region.deviceAddress = binding_table.buffer->device_address() + buffer_offset;
-        memcpy(buf_ptr + buffer_offset, group_handle_data.data() + handle_size * handle_index, handle_size);
-        handle_index++;
+
+        if(const uint32_t num_handles = group_elements[Group(g)])
+        {
+            address_region.deviceAddress = binding_table.buffer->device_address() + buffer_offset;
+
+            // copy each handle in the group with the region's stride (handles are packed at handle_size in the source)
+            for(uint32_t i = 0; i < num_handles; ++i)
+            {
+                memcpy(buf_ptr + buffer_offset + i * address_region.stride,
+                       group_handle_data.data() + handle_size * handle_index++, handle_size);
+            }
+        }
         buffer_offset += address_region.size;
     }
     binding_table.buffer->unmap();
