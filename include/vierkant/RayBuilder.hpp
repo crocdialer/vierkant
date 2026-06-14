@@ -209,8 +209,8 @@ public:
         //! enable mesh-compute for baking animated meshes per frame
         bool use_mesh_compute = true;
 
-        //! enables micromap-compute for baking (opacity) triangle-micromaps per mesh-entry
-        uint32_t num_micromap_subdivisions = 0;
+        //! optional CPU OMM cache; unseen meshes are looked up here and micromaps built on first encounter
+        const vierkant::model::mesh_omm_cache_t *omm_cache = nullptr;
 
         //! enable compaction for bottom-lvl structures
         bool use_compaction = true;

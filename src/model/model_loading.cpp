@@ -1,7 +1,10 @@
+#include <meshoptimizer.h>
+#include <spdlog/spdlog.h>
 #include <vierkant/hash.hpp>
 #include <vierkant/model/gltf.hpp>
 #include <vierkant/model/model_loading.hpp>
 #include <vierkant/model/wavefront_obj.hpp>
+#include <vierkant/vertex_splicer.hpp>
 
 namespace vierkant::model
 {
@@ -134,6 +137,123 @@ bool compress_textures(vierkant::model::model_assets_t &mesh_assets, crocore::Th
     spdlog::debug("compressed {} images in {} ms - avg. {:03.2f} Mpx/s", mesh_assets.textures.size(),
                   compress_total_duration.count(), mpx_per_sec);
     return true;
+}
+
+static void generate_mesh_omm_data(const vierkant::mesh_buffer_bundle_t &bundle,
+                                    const vierkant::MeshId &mesh_id,
+                                    const std::vector<vierkant::material_t> &materials,
+                                    const std::unordered_map<vierkant::TextureId, vierkant::texture_variant_t> &textures,
+                                    const omm_gen_params_t &params, mesh_omm_cache_t &out_cache)
+{
+    if(bundle.vertex_stride != sizeof(vierkant::packed_vertex_t))
+    {
+        spdlog::warn("generate_mesh_omm_data: non-packed vertex stride {}, skipping", bundle.vertex_stride);
+        return;
+    }
+
+    const auto *vertex_base = reinterpret_cast<const vierkant::packed_vertex_t *>(bundle.vertex_buffer.data());
+
+    for(uint32_t entry_idx = 0; entry_idx < bundle.entries.size(); ++entry_idx)
+    {
+        const auto &entry = bundle.entries[entry_idx];
+        if(entry.lods.empty() || entry.material_index >= materials.size()) { continue; }
+        const auto &lod_0 = entry.lods.front();
+        const auto &material = materials[entry.material_index];
+
+        if(material.blend_mode == vierkant::BlendMode::Opaque) { continue; }
+
+        auto color_it = material.texture_data.find(vierkant::TextureType::Color);
+        if(color_it == material.texture_data.end()) { continue; }
+
+        auto tex_it = textures.find(color_it->second.texture_id);
+        if(tex_it == textures.end()) { continue; }
+
+        const auto *cpu_img = std::get_if<crocore::ImagePtr>(&tex_it->second);
+        if(!cpu_img || !*cpu_img) { continue; }  // BCN-only, no CPU data
+
+        const auto &img = *cpu_img;
+        const uint32_t num_components = img->num_components();
+        if(num_components < 2 || num_components == 3) { continue; }  // no alpha channel
+        const uint32_t alpha_offset = num_components - 1;
+
+        const uint32_t num_triangles = lod_0.num_indices / 3;
+        const uint32_t num_vertices = entry.num_vertices;
+
+        // extract float2 UVs from packed vertex buffer (fp16 → float)
+        std::vector<float> uvs(num_vertices * 2);
+        const auto *verts = vertex_base + entry.vertex_offset;
+        for(uint32_t v = 0; v < num_vertices; ++v)
+        {
+            uvs[2 * v + 0] = meshopt_dequantizeHalf(verts[v].texcoord_x);
+            uvs[2 * v + 1] = meshopt_dequantizeHalf(verts[v].texcoord_y);
+        }
+
+        const uint32_t *indices = bundle.index_buffer.data() + lod_0.base_index;
+
+        std::vector<unsigned char> levels(num_triangles);
+        std::vector<unsigned int> sources(num_triangles);
+        std::vector<int> omm_indices(num_triangles);
+
+        size_t omm_count = meshopt_opacityMapMeasure(
+                levels.data(), sources.data(), omm_indices.data(), indices, lod_0.num_indices, uvs.data(),
+                num_vertices, 2 * sizeof(float), img->width(), img->height(), params.max_level,
+                params.target_edge);
+
+        if(omm_count == 0) { continue; }
+
+        // compute per-entry sizes and offsets
+        std::vector<unsigned int> offsets(omm_count);
+        size_t total_data_size = 0;
+        for(size_t i = 0; i < omm_count; ++i)
+        {
+            offsets[i] = static_cast<unsigned int>(total_data_size);
+            total_data_size += meshopt_opacityMapEntrySize(levels[i], params.states);
+        }
+
+        std::vector<unsigned char> omm_data(total_data_size);
+        const auto *tex_data = static_cast<const unsigned char *>(img->data()) + alpha_offset;
+        const size_t tex_stride = num_components;
+        const size_t tex_pitch = static_cast<size_t>(img->width()) * num_components;
+
+        for(size_t i = 0; i < omm_count; ++i)
+        {
+            const uint32_t src = sources[i];
+            const float uv0[2] = {uvs[indices[src * 3 + 0] * 2 + 0], uvs[indices[src * 3 + 0] * 2 + 1]};
+            const float uv1[2] = {uvs[indices[src * 3 + 1] * 2 + 0], uvs[indices[src * 3 + 1] * 2 + 1]};
+            const float uv2[2] = {uvs[indices[src * 3 + 2] * 2 + 0], uvs[indices[src * 3 + 2] * 2 + 1]};
+            meshopt_opacityMapRasterize(omm_data.data() + offsets[i], levels[i], params.states, uv0, uv1, uv2,
+                                        tex_data, tex_stride, tex_pitch, img->width(), img->height());
+        }
+
+        size_t new_omm_count = meshopt_opacityMapCompact(omm_data.data(), omm_data.size(), levels.data(),
+                                                          offsets.data(), omm_count, omm_indices.data(),
+                                                          num_triangles, params.states);
+        if(new_omm_count == 0) { continue; }
+
+        // trim data buffer to actual used size
+        const size_t final_data_size =
+                offsets[new_omm_count - 1] + meshopt_opacityMapEntrySize(levels[new_omm_count - 1], params.states);
+        omm_data.resize(final_data_size);
+
+        const uint16_t vk_format = static_cast<uint16_t>(
+                params.states == 2 ? VK_OPACITY_MICROMAP_FORMAT_2_STATE_EXT
+                                   : VK_OPACITY_MICROMAP_FORMAT_4_STATE_EXT);
+
+        std::vector<VkMicromapTriangleEXT> triangles(new_omm_count);
+        for(size_t i = 0; i < new_omm_count; ++i)
+        {
+            triangles[i].dataOffset = offsets[i];
+            triangles[i].subdivisionLevel = levels[i];
+            triangles[i].format = vk_format;
+        }
+
+        mesh_omm_entry_t omm_entry;
+        omm_entry.data = std::move(omm_data);
+        omm_entry.triangles = std::move(triangles);
+        omm_entry.indices.assign(omm_indices.begin(), omm_indices.end());
+
+        out_cache[{mesh_id, entry_idx, material.id}] = std::move(omm_entry);
+    }
 }
 
 model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
@@ -284,6 +404,16 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
                     }
                 }
             }
+        }
+    }
+
+    // generate CPU-side OMM data while CPU images are still alive
+    if(params.omm_params)
+    {
+        if(const auto *bundle = std::get_if<vierkant::mesh_buffer_bundle_t>(&mesh_assets.geometry_data))
+        {
+            generate_mesh_omm_data(*bundle, ret.mesh->id, mesh_assets.materials, mesh_assets.textures,
+                                   *params.omm_params, ret.omm_cache);
         }
     }
 

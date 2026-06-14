@@ -5,6 +5,7 @@
 
 #include <filesystem>
 #include <optional>
+#include <unordered_map>
 #include <variant>
 
 #include <crocore/Image.hpp>
@@ -14,6 +15,7 @@
 #include <vierkant/Material.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/camera_params.hpp>
+#include <vierkant/hash.hpp>
 #include <vierkant/texture_block_compression.hpp>
 
 namespace vierkant
@@ -89,6 +91,30 @@ struct model_assets_t
     std::vector<vierkant::nodes::node_animation_t> node_animations;
 };
 
+struct omm_gen_params_t
+{
+    int   max_level   = 4;
+    float target_edge = 0.5f;
+    int   states      = 4;  // 4 = VK_OPACITY_MICROMAP_FORMAT_4_STATE_EXT
+};
+
+struct mesh_omm_entry_t
+{
+    std::vector<uint8_t>               data;
+    std::vector<VkMicromapTriangleEXT> triangles;
+    std::vector<int32_t>               indices;
+};
+
+struct mesh_omm_key_t
+{
+    vierkant::MeshId     mesh_id;
+    uint32_t             entry_index = 0;
+    vierkant::MaterialId material_id;
+    bool operator==(const mesh_omm_key_t &) const = default;
+};
+
+using mesh_omm_cache_t = std::unordered_map<mesh_omm_key_t, mesh_omm_entry_t>;
+
 struct load_mesh_params_t
 {
     //! handle to a vierkant::Device
@@ -102,6 +128,9 @@ struct load_mesh_params_t
 
     //! additional buffer-flags for all created vierkant::Buffers.
     VkBufferUsageFlags buffer_flags = 0;
+
+    //! optional OMM generation parameters; nullopt = skip
+    std::optional<omm_gen_params_t> omm_params;
 };
 
 /**
@@ -121,6 +150,9 @@ struct load_mesh_result_t
 
     std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> textures;
     std::unordered_map<vierkant::SamplerId, vierkant::VkSamplerPtr> samplers;
+
+    //! CPU-side OMM data; caller accumulates into a scene-level cache and passes to RayBuilder
+    mesh_omm_cache_t omm_cache;
 };
 
 /**
@@ -167,3 +199,19 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              vierkant::Image::Format format, VkQueue load_queue);
 
 }// namespace vierkant::model
+
+namespace std
+{
+template<>
+struct hash<vierkant::model::mesh_omm_key_t>
+{
+    size_t operator()(const vierkant::model::mesh_omm_key_t &k) const noexcept
+    {
+        size_t h = 0;
+        vierkant::hash_combine(h, k.mesh_id);
+        vierkant::hash_combine(h, k.entry_index);
+        vierkant::hash_combine(h, k.material_id);
+        return h;
+    }
+};
+}// namespace std
