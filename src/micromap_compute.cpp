@@ -5,7 +5,7 @@ namespace vierkant
 
 struct mesh_build_data_t
 {
-    vierkant::BufferPtr omm_input;  // data + triangles + indices, 256-byte aligned sections
+    vierkant::BufferPtr omm_input;// data + triangles + indices, 256-byte aligned sections
     vierkant::BufferPtr micromap;
     vierkant::BufferPtr scratch;
 };
@@ -21,9 +21,7 @@ struct micromap_compute_context_t
     uint64_t run_id = 0;
 };
 
-micromap_compute_context_handle create_micromap_compute_context(const DevicePtr &device,
-                                                                const PipelineCachePtr & /*pipeline_cache*/,
-                                                                const VmaPoolPtr &memory_pool)
+micromap_compute_context_handle create_micromap_compute_context(const DevicePtr &device, const VmaPoolPtr &memory_pool)
 {
     auto ret = micromap_compute_context_handle(new micromap_compute_context_t,
                                                std::default_delete<micromap_compute_context_t>());
@@ -37,7 +35,10 @@ micromap_compute_context_handle create_micromap_compute_context(const DevicePtr 
                 device, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_MICROMAP_STORAGE_BIT_EXT,
                 VMA_MEMORY_USAGE_GPU_ONLY, pool_create_info);
     }
-    else { ret->memory_pool = memory_pool; }
+    else
+    {
+        ret->memory_pool = memory_pool;
+    }
     return ret;
 }
 
@@ -61,8 +62,7 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
 
     VkMicromapBuildInfoEXT build_info_proto = {};
     build_info_proto.sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_INFO_EXT;
-    build_info_proto.flags =
-            VK_BUILD_MICROMAP_PREFER_FAST_TRACE_BIT_EXT | VK_BUILD_MICROMAP_ALLOW_COMPACTION_BIT_EXT;
+    build_info_proto.flags = VK_BUILD_MICROMAP_PREFER_FAST_TRACE_BIT_EXT | VK_BUILD_MICROMAP_ALLOW_COMPACTION_BIT_EXT;
     build_info_proto.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
 
     struct entry_plan_t
@@ -139,15 +139,14 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
 
             VkMicromapBuildSizesInfoEXT size_info = {};
             size_info.sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_SIZES_INFO_EXT;
-            vkGetMicromapBuildSizesEXT(context->device->handle(),
-                                       VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &query_info, &size_info);
+            vkGetMicromapBuildSizesEXT(context->device->handle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                                       &query_info, &size_info);
             plan.micromap_size = size_info.micromapSize;
             plan.scratch_size = size_info.buildScratchSize;
 
             // record offsets within per-mesh buffers
             plan.data_offset = mp.total_input_size;
-            mp.total_input_size +=
-                    aligned_size(static_cast<uint32_t>(cache_it->second.data.size()), data_alignment);
+            mp.total_input_size += aligned_size(static_cast<uint32_t>(cache_it->second.data.size()), data_alignment);
             plan.triangles_offset = mp.total_input_size;
             mp.total_input_size += aligned_size(
                     static_cast<uint32_t>(cache_it->second.triangles.size() * sizeof(VkMicromapTriangleEXT)),
@@ -157,11 +156,9 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
                     static_cast<uint32_t>(cache_it->second.indices.size() * sizeof(int32_t)), data_alignment);
 
             plan.micromap_offset = mp.total_micromap_size;
-            mp.total_micromap_size +=
-                    aligned_size(static_cast<uint32_t>(plan.micromap_size), data_alignment);
+            mp.total_micromap_size += aligned_size(static_cast<uint32_t>(plan.micromap_size), data_alignment);
             plan.scratch_offset = mp.total_scratch_size;
-            mp.total_scratch_size +=
-                    aligned_size(static_cast<uint32_t>(plan.scratch_size), scratch_alignment);
+            mp.total_scratch_size += aligned_size(static_cast<uint32_t>(plan.scratch_size), scratch_alignment);
 
             mp.entries.push_back(std::move(plan));
         }
@@ -190,8 +187,8 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             info.device = context->device;
             info.num_bytes = mp.total_input_size;
             info.alignment = data_alignment;
-            info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                         VK_BUFFER_USAGE_MICROMAP_BUILD_INPUT_READ_ONLY_BIT_EXT;
+            info.usage =
+                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_MICROMAP_BUILD_INPUT_READ_ONLY_BIT_EXT;
             info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
             build_data.omm_input = vierkant::Buffer::create(info);
         }
@@ -223,13 +220,12 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             memcpy(input_ptr + plan.data_offset, ce.data.data(), ce.data.size());
             memcpy(input_ptr + plan.triangles_offset, ce.triangles.data(),
                    ce.triangles.size() * sizeof(VkMicromapTriangleEXT));
-            memcpy(input_ptr + plan.indices_offset, ce.indices.data(),
-                   ce.indices.size() * sizeof(int32_t));
+            memcpy(input_ptr + plan.indices_offset, ce.indices.data(), ce.indices.size() * sizeof(int32_t));
 
             micromap_asset_t asset = {};
             asset.buffer = build_data.micromap;
             asset.index_buffer_address = build_data.omm_input->device_address() + plan.indices_offset;
-            asset.micromap_usages = plan.usages;  // copy; plan.usages stays alive for pUsageCounts below
+            asset.micromap_usages = plan.usages;// copy; plan.usages stays alive for pUsageCounts below
 
             VkMicromapCreateInfoEXT create_info = {};
             create_info.sType = VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT;
@@ -247,14 +243,12 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
 
             auto &build_info = all_build_infos.emplace_back(build_info_proto);
             build_info.usageCountsCount = static_cast<uint32_t>(plan.usages.size());
-            build_info.pUsageCounts = plan.usages.data();  // stable: plan lives in mesh_plans
+            build_info.pUsageCounts = plan.usages.data();// stable: plan lives in mesh_plans
             build_info.dstMicromap = asset.micromap.get();
             build_info.data.deviceAddress = build_data.omm_input->device_address() + plan.data_offset;
-            build_info.triangleArray.deviceAddress =
-                    build_data.omm_input->device_address() + plan.triangles_offset;
+            build_info.triangleArray.deviceAddress = build_data.omm_input->device_address() + plan.triangles_offset;
             build_info.triangleArrayStride = sizeof(VkMicromapTriangleEXT);
-            build_info.scratchData.deviceAddress =
-                    build_data.scratch->device_address() + plan.scratch_offset;
+            build_info.scratchData.deviceAddress = build_data.scratch->device_address() + plan.scratch_offset;
 
             micromap_assets[plan.entry_idx] = std::move(asset);
         }
@@ -311,8 +305,8 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
 
     if(params.query_pool)
     {
-        vkCmdWriteTimestamp2(params.command_buffer, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
-                             params.query_pool.get(), params.query_index_end);
+        vkCmdWriteTimestamp2(params.command_buffer, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, params.query_pool.get(),
+                             params.query_index_end);
     }
     return ret;
 }

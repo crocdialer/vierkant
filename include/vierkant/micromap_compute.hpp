@@ -69,13 +69,10 @@ struct micromap_compute_result_t
  * @brief   'create_micromap_compute_context' will create a micromap_compute_context_t and return an opaque handle to it.
  *
  * @param   device          a provided vierkant::DevicePtr
- * @param   pipeline_cache  ignored, kept for API compatibility
  * @return  opaque handle to a micromap_compute_context_t.
  */
-micromap_compute_context_handle
-create_micromap_compute_context(const vierkant::DevicePtr &device,
-                                const vierkant::PipelineCachePtr &pipeline_cache = nullptr,
-                                const VmaPoolPtr &memory_pool = nullptr);
+micromap_compute_context_handle create_micromap_compute_context(const vierkant::DevicePtr &device,
+                                                                const VmaPoolPtr &memory_pool = nullptr);
 
 /**
  * @brief   'micromap_compute' uploads CPU-side OMM data from the provided cache and builds VkMicromapEXT objects.

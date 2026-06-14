@@ -862,8 +862,8 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
 
         // resolve the Color-texture id per mesh-entry (mirrors material-resolution in create_mesh_structures);
         // a re-textured material yields a different id and correctly misses the cache instead of reusing stale data
-        micromap_params.color_texture_lookup =
-                [scene = params.scene](const vierkant::MeshConstPtr &mesh, uint32_t entry_index) -> vierkant::TextureId {
+        micromap_params.color_texture_lookup = [scene = params.scene](const vierkant::MeshConstPtr &mesh,
+                                                                      uint32_t entry_index) -> vierkant::TextureId {
             if(!scene || !mesh || entry_index >= mesh->entries.size()) { return vierkant::TextureId::nil(); }
             const auto &entry = mesh->entries[entry_index];
             if(entry.material_index >= mesh->material_ids.size()) { return vierkant::TextureId::nil(); }
@@ -1026,7 +1026,7 @@ RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration
     ret->cmd_build_bottom_end = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->mesh_compute_context = vierkant::create_mesh_compute_context(m_device);
-    ret->micromap_context = vierkant::create_micromap_compute_context(m_device, nullptr, m_memory_pool);
+    ret->micromap_context = vierkant::create_micromap_compute_context(m_device, m_memory_pool);
     ret->query_pool =
             vierkant::create_query_pool(m_device, 2 * UpdateSemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
 
