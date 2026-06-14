@@ -69,9 +69,10 @@ public float3 lambda_to_rgb(float lambda)
             - 0.065 * gaussian_lobe(lambda, 501.1, 20.4, 26.2);
     float y = 0.821 * gaussian_lobe(lambda, 568.8, 46.9, 40.5) + 0.286 * gaussian_lobe(lambda, 530.9, 16.3, 31.1);
     float z = 1.217 * gaussian_lobe(lambda, 437.0, 11.8, 36.0) + 0.681 * gaussian_lobe(lambda, 459.0, 26.0, 13.8);
+
     // clamp out-of-gamut negatives: saturated spectral colors lie outside sRGB, and any negative
     // throughput gets clipped downstream (accumulation/denoiser), which would bias the average.
-    return max(mul(XYZ_TO_REC709, float3(x, y, z)), float3(0.0));
+    return max(mul(float3(x, y, z), XYZ_TO_REC709), float3(0.0));
 }
 
 //! per-channel white balance: a uniform-lambda average of LAMBDA_RGB_NORM * lambda_to_rgb() over
@@ -101,7 +102,7 @@ public float3 evalSensitivity(float OPD, float3 shift)
     xyz.x += 9.7470e-14 * sqrt(2.0 * PI * 4.5282e+09) * cos(2.2399e+06 * phase + shift.x) * exp(-4.5282e+09 * phase2);
     xyz /= 1.0685e-7;
 
-    return mul(XYZ_TO_REC709, xyz);
+    return mul(xyz, XYZ_TO_REC709);
 }
 
 public float3 iridescent_fresnel(float outsideIOR, float iridescenceIOR, float3 baseF0, float iridescenceThickness,
