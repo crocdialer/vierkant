@@ -1,7 +1,6 @@
 #include <unordered_set>
 #include <vierkant/RayBuilder.hpp>
 #include <vierkant/Visitor.hpp>
-#include <vierkant/barycentric_indexing.hpp>
 #include <vierkant/gpu_timestamp_util.hpp>
 #include <vierkant/micromap_compute.hpp>
 
@@ -185,26 +184,20 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const SceneConstPt
         triangles.transformData = {};
 
         VkAccelerationStructureTrianglesOpacityMicromapEXT triangles_micromap = {};
-        VkMicromapUsageEXT micromap_usage = {};
 
         // attach an existing opacity-micromap for this geometry
-        if(params.micromap_assets.size() > i && material && material->blend_mode == vierkant::BlendMode::Mask)
+        if(params.micromap_assets.size() > i)
         {
             if(const auto &optional_micromap_asset = params.micromap_assets[i])
             {
-                micromap_usage.count = vierkant::num_micro_triangles(optional_micromap_asset->num_subdivisions) *
-                                       lod_0.num_indices / 3;
-                micromap_usage.format = optional_micromap_asset->micromap_format;
-                micromap_usage.subdivisionLevel = optional_micromap_asset->num_subdivisions;
-
-                spdlog::warn("attaching opacity-micromaps to mesh-entry {}", i);
+                const auto &asset = *optional_micromap_asset;
                 triangles_micromap.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
-                triangles_micromap.micromap = optional_micromap_asset->micromap.get();
-                //                triangles_micromap.indexBuffer.deviceAddress = optional_micromap_asset->index_buffer_address;
-                //                triangles_micromap.indexStride = vierkant::num_bytes(VK_INDEX_TYPE_UINT32);
-                triangles_micromap.indexType = VK_INDEX_TYPE_NONE_KHR;//VK_INDEX_TYPE_UINT32;
-                triangles_micromap.pUsageCounts = &micromap_usage;
-                triangles_micromap.usageCountsCount = 1;
+                triangles_micromap.micromap = asset.micromap.get();
+                triangles_micromap.indexBuffer.deviceAddress = asset.index_buffer_address;
+                triangles_micromap.indexStride = sizeof(int32_t);
+                triangles_micromap.indexType = VK_INDEX_TYPE_UINT32;
+                triangles_micromap.pUsageCounts = asset.micromap_usages.data();
+                triangles_micromap.usageCountsCount = static_cast<uint32_t>(asset.micromap_usages.size());
 
                 // chain extension-structure
                 triangles.pNext = &triangles_micromap;
@@ -861,11 +854,24 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     build_bottom_semaphore_info.semaphore = context->semaphore.handle();
     build_bottom_semaphore_info.wait_value = semaphore_wait_value;
 
-    if(context->micromap_context && params.num_micromap_subdivisions)
+    if(context->micromap_context && params.omm_cache && !params.omm_cache->empty())
     {
         vierkant::micromap_compute_params_t micromap_params = {};
         micromap_params.command_buffer = context->cmd_build_bottom_start.handle();
-        micromap_params.num_subdivisions = params.num_micromap_subdivisions;
+        micromap_params.omm_cache = params.omm_cache;
+
+        // resolve the Color-texture id per mesh-entry (mirrors material-resolution in create_mesh_structures);
+        // a re-textured material yields a different id and correctly misses the cache instead of reusing stale data
+        micromap_params.color_texture_lookup = [scene = params.scene](const vierkant::MeshConstPtr &mesh,
+                                                                      uint32_t entry_index) -> vierkant::TextureId {
+            if(!scene || !mesh || entry_index >= mesh->entries.size()) { return vierkant::TextureId::nil(); }
+            const auto &entry = mesh->entries[entry_index];
+            if(entry.material_index >= mesh->material_ids.size()) { return vierkant::TextureId::nil(); }
+            const auto *material = scene->material(mesh->material_ids[entry.material_index]);
+            if(!material) { return vierkant::TextureId::nil(); }
+            auto it = material->texture_data.find(vierkant::TextureType::Color);
+            return it != material->texture_data.end() ? it->second.texture_id : vierkant::TextureId::nil();
+        };
 
         for(const auto &object: visitor.objects)
         {
@@ -1020,7 +1026,7 @@ RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration
     ret->cmd_build_bottom_end = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->mesh_compute_context = vierkant::create_mesh_compute_context(m_device);
-    ret->micromap_context = vierkant::create_micromap_compute_context(m_device, nullptr, m_memory_pool);
+    ret->micromap_context = vierkant::create_micromap_compute_context(m_device, m_memory_pool);
     ret->query_pool =
             vierkant::create_query_pool(m_device, 2 * UpdateSemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
 

@@ -548,9 +548,9 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
 
     RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
     build_scene_params.scene = scene;
-    build_scene_params.num_micromap_subdivisions = 0;
     build_scene_params.use_compaction = frame_context.settings.compaction;
     build_scene_params.use_scene_assets = true;
+    build_scene_params.omm_cache = frame_context.settings.omm_cache;
     build_scene_params.previous_context = last_context.get();
     frame_context.scene_ray_acceleration =
             m_ray_builder.build_scene_acceleration(frame_context.scene_acceleration_context, build_scene_params);
