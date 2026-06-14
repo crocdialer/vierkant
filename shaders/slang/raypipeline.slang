@@ -6,6 +6,7 @@ import "ray/pixel_data";
 import "ray/bsdf_disney";
 import "ray/direct_lighting";
 
+import "utils/bsdf";
 import "utils/transform";
 import "utils/packed_vertex";
 import "utils/random";
@@ -110,7 +111,7 @@ trace_result_t trace(uint2 coord, uint2 size)
 
         float3 beta = float3(1);
         float3 path_radiance = float3(0);
-        int disp_channel = -1;
+        float disp_lambda = -1.0;
 
         ray::payload_t payload;
 
@@ -126,7 +127,7 @@ trace_result_t trace(uint2 coord, uint2 size)
             payload.beta = beta;
             payload.media = media[media_index];
             payload.last_ior = media[media_index > 0u ? media_index - 1u : 0u].ior;
-            payload.disp_channel = disp_channel;
+            payload.disp_lambda = disp_lambda;
             payload.ray = next_ray;
             payload.cone = cone;
             payload.entity_index = utils::MAX_UINT16;
@@ -147,7 +148,7 @@ trace_result_t trace(uint2 coord, uint2 size)
             cone = payload.cone;
             next_ray = payload.ray;
             beta = payload.beta;
-            disp_channel = payload.disp_channel;
+            disp_lambda = payload.disp_lambda;
 
             if(payload.media_op == ray::MediaOp::Enter)
             {
@@ -266,9 +267,6 @@ utils::transform_t to_aabb_norm(Ptr<ray::entry_t, Access::Read> entry)
 }
 
 float channel_avg(float3 v) { return (v.x + v.y + v.z) / 3.0; }
-
-//! one-hot RGB mask for a dispersion channel (0=R, 1=G, 2=B)
-float3 channel_mask(int c) { return float3(c == 0, c == 1, c == 2); }
 
 utils::Vertex interpolate_vertex(Ptr<ray::entry_t, Access::Read> entry, ray::Triangle t, float2 bary_coords)
 {
@@ -389,19 +387,14 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     bool sample_surface = !(material.null_surface || sample_medium);
     bool backface = (HitKind() == HIT_KIND_BACK_FACE);
 
-    // chromatic dispersion (glTF KHR_materials_dispersion): split into R/G/B IORs and pick one
-    // channel per path. Locked into the payload on the first transmission so entry/exit refractions
-    // of the same object stay consistent. dispersion == 0 keeps the scalar-ior path unchanged.
+    // chromatic dispersion (glTF KHR_materials_dispersion): sample a single continuous wavelength
+    // per path and refract with a Cauchy eta(lambda). Locked into the payload on the first
+    // transmission so entry/exit refractions of the same object stay consistent. dispersion == 0
+    // keeps the scalar-ior path unchanged.
     bool dispersive = material.dispersion > 0.0 && material.transmission > 0.0;
-    int disp_channel = payload.disp_channel;
-    if(dispersive && disp_channel < 0) { disp_channel = min(int(utils::rnd(rng_state) * 3.0), 2); }
-    float surf_ior = material.ior;
-    if(dispersive)
-    {
-        float half_spread = (material.ior - 1.0) * 0.025 * material.dispersion;
-        float3 iors = float3(material.ior - half_spread, material.ior, material.ior + half_spread);
-        surf_ior = iors[disp_channel];
-    }
+    float disp_lambda = payload.disp_lambda;
+    if(dispersive && disp_lambda < 0.0) { disp_lambda = lerp(400.0, 700.0, utils::rnd(rng_state)); }
+    float surf_ior = dispersive ? utils::cauchy_ior(material.ior, material.dispersion, disp_lambda) : material.ior;
 
     float eta = backface ? surf_ior / payload.last_ior : payload.media.ior / surf_ior;
     eta += ray::EPS;
@@ -509,12 +502,13 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         if(bsdf_sample.transmission)
         {
-            // lock the dispersion channel on the first transmission and tint throughput by
-            // 3 x one-hot mask (the 3x compensates for the 1/3 channel-selection probability)
-            if(dispersive && payload.disp_channel < 0)
+            // lock the sampled wavelength on the first transmission and tint throughput by its
+            // RGB color. LAMBDA_RGB_NORM white-balances a uniform-lambda average back to white
+            // (it absorbs the constant 1/300 nm pdf), so neutral dispersive glass stays neutral.
+            if(dispersive && payload.disp_lambda < 0.0)
             {
-                payload.disp_channel = disp_channel;
-                payload.beta *= 3.0 * channel_mask(disp_channel);
+                payload.disp_lambda = disp_lambda;
+                payload.beta *= utils::LAMBDA_RGB_NORM * utils::lambda_to_rgb(disp_lambda);
             }
 
             // examine next media-op, limit ray.tmax when entering a volume

@@ -54,6 +54,41 @@ static const float3x3 XYZ_TO_REC709 =
         float3x3(float3(3.2404542, -0.9692660, 0.0556434), float3(-1.5371385, 1.8760108, -0.2040259),
                  float3(-0.4985314, 0.0415560, 1.0572252));
 
+// piecewise-Gaussian lobe used by the analytic CIE color-matching fit (Wyman 2013)
+float gaussian_lobe(float x, float mu, float sigma1, float sigma2)
+{
+    float t = (x - mu) * ((x < mu) ? 1.0 / sigma1 : 1.0 / sigma2);
+    return exp(-0.5 * t * t);
+}
+
+//! single-wavelength (nm) -> linear Rec.709 RGB via the analytic multi-Gaussian fit to the
+//! CIE 1931 XYZ color-matching functions (Wyman, Sloan & Shirley, JCGT 2013).
+public float3 lambda_to_rgb(float lambda)
+{
+    float x = 1.056 * gaussian_lobe(lambda, 599.8, 37.9, 31.0) + 0.362 * gaussian_lobe(lambda, 442.0, 16.0, 26.7)
+            - 0.065 * gaussian_lobe(lambda, 501.1, 20.4, 26.2);
+    float y = 0.821 * gaussian_lobe(lambda, 568.8, 46.9, 40.5) + 0.286 * gaussian_lobe(lambda, 530.9, 16.3, 31.1);
+    float z = 1.217 * gaussian_lobe(lambda, 437.0, 11.8, 36.0) + 0.681 * gaussian_lobe(lambda, 459.0, 26.0, 13.8);
+    // clamp out-of-gamut negatives: saturated spectral colors lie outside sRGB, and any negative
+    // throughput gets clipped downstream (accumulation/denoiser), which would bias the average.
+    return max(mul(XYZ_TO_REC709, float3(x, y, z)), float3(0.0));
+}
+
+//! per-channel white balance: a uniform-lambda average of LAMBDA_RGB_NORM * lambda_to_rgb() over
+//! [400, 700] nm integrates back to white (1,1,1). Baked by tasks/dispersion_constants.py.
+public static const float3 LAMBDA_RGB_NORM = float3(1.703734, 2.601105, 2.757475);
+
+//! Cauchy dispersion n(lambda) = A + B/lambda^2, with B fit to the glTF KHR_materials_dispersion
+//! spread at the F/C reference lines and A anchored so n(d-line) == ior. lambda in nm.
+public float cauchy_ior(float ior, float dispersion, float lambda)
+{
+    const float lambda_d = 587.6; // sodium d-line (nm)
+    float half_spread = (ior - 1.0) * 0.025 * dispersion;
+    float B = 1046907.5 * half_spread;            // 2 * half_spread / (1/486.1^2 - 1/656.3^2)
+    float A = ior - B / (lambda_d * lambda_d);
+    return A + B / (lambda * lambda);
+}
+
 public float3 evalSensitivity(float OPD, float3 shift)
 {
     float phase = 2.0 * PI * OPD * 1.0e-9;
