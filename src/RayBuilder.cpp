@@ -860,6 +860,19 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
         micromap_params.command_buffer = context->cmd_build_bottom_start.handle();
         micromap_params.omm_cache = params.omm_cache;
 
+        // resolve the Color-texture id per mesh-entry (mirrors material-resolution in create_mesh_structures);
+        // a re-textured material yields a different id and correctly misses the cache instead of reusing stale data
+        micromap_params.color_texture_lookup =
+                [scene = params.scene](const vierkant::MeshConstPtr &mesh, uint32_t entry_index) -> vierkant::TextureId {
+            if(!scene || !mesh || entry_index >= mesh->entries.size()) { return vierkant::TextureId::nil(); }
+            const auto &entry = mesh->entries[entry_index];
+            if(entry.material_index >= mesh->material_ids.size()) { return vierkant::TextureId::nil(); }
+            const auto *material = scene->material(mesh->material_ids[entry.material_index]);
+            if(!material) { return vierkant::TextureId::nil(); }
+            auto it = material->texture_data.find(vierkant::TextureType::Color);
+            return it != material->texture_data.end() ? it->second.texture_id : vierkant::TextureId::nil();
+        };
+
         for(const auto &object: visitor.objects)
         {
             if(object->has_component<vierkant::mesh_component_t>())

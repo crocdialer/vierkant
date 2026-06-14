@@ -102,7 +102,12 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             const auto &entry = mesh->entries[i];
             if(entry.material_index >= mesh->material_ids.size()) { continue; }
 
-            vierkant::model::mesh_omm_key_t key = {mesh->id, i, mesh->material_ids[entry.material_index]};
+            // resolve the Color-texture id for this entry to key into the cache
+            if(!params.color_texture_lookup) { continue; }
+            const vierkant::TextureId color_texture_id = params.color_texture_lookup(mesh, i);
+            if(!color_texture_id) { continue; }
+
+            vierkant::model::mesh_omm_key_t key = {mesh->id, i, color_texture_id};
             auto cache_it = params.omm_cache->find(key);
             if(cache_it == params.omm_cache->end()) { continue; }
 

@@ -107,11 +107,35 @@ struct mesh_omm_entry_t
 
 struct mesh_omm_key_t
 {
-    vierkant::MeshId     mesh_id;
-    uint32_t             entry_index = 0;
-    vierkant::MaterialId material_id;
+    vierkant::MeshId    mesh_id;
+    uint32_t            entry_index = 0;
+    //! the Color-texture id determines the baked alpha-mask; keying on it (rather than material-id)
+    //! dedupes materials sharing a texture and invalidates correctly when a material is re-textured
+    vierkant::TextureId color_texture_id;
     bool operator==(const mesh_omm_key_t &) const = default;
 };
+
+}// namespace vierkant::model
+
+// NOTE: this hash-specialization must precede the unordered_map instantiation in mesh_omm_cache_t below
+namespace std
+{
+template<>
+struct hash<vierkant::model::mesh_omm_key_t>
+{
+    size_t operator()(const vierkant::model::mesh_omm_key_t &k) const noexcept
+    {
+        size_t h = 0;
+        vierkant::hash_combine(h, k.mesh_id);
+        vierkant::hash_combine(h, k.entry_index);
+        vierkant::hash_combine(h, k.color_texture_id);
+        return h;
+    }
+};
+}// namespace std
+
+namespace vierkant::model
+{
 
 using mesh_omm_cache_t = std::unordered_map<mesh_omm_key_t, mesh_omm_entry_t>;
 
@@ -199,19 +223,3 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              vierkant::Image::Format format, VkQueue load_queue);
 
 }// namespace vierkant::model
-
-namespace std
-{
-template<>
-struct hash<vierkant::model::mesh_omm_key_t>
-{
-    size_t operator()(const vierkant::model::mesh_omm_key_t &k) const noexcept
-    {
-        size_t h = 0;
-        vierkant::hash_combine(h, k.mesh_id);
-        vierkant::hash_combine(h, k.entry_index);
-        vierkant::hash_combine(h, k.material_id);
-        return h;
-    }
-};
-}// namespace std

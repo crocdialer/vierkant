@@ -160,12 +160,14 @@ static void generate_mesh_omm_data(const vierkant::mesh_buffer_bundle_t &bundle,
         const auto &lod_0 = entry.lods.front();
         const auto &material = materials[entry.material_index];
 
-        if(material.blend_mode == vierkant::BlendMode::Opaque) { continue; }
+        // opacity micromaps encode an alpha-test; only meaningful for mask materials
+        if(material.blend_mode != vierkant::BlendMode::Mask) { continue; }
 
         auto color_it = material.texture_data.find(vierkant::TextureType::Color);
         if(color_it == material.texture_data.end()) { continue; }
+        const vierkant::TextureId color_texture_id = color_it->second.texture_id;
 
-        auto tex_it = textures.find(color_it->second.texture_id);
+        auto tex_it = textures.find(color_texture_id);
         if(tex_it == textures.end()) { continue; }
 
         const auto *cpu_img = std::get_if<crocore::ImagePtr>(&tex_it->second);
@@ -252,7 +254,7 @@ static void generate_mesh_omm_data(const vierkant::mesh_buffer_bundle_t &bundle,
         omm_entry.triangles = std::move(triangles);
         omm_entry.indices.assign(omm_indices.begin(), omm_indices.end());
 
-        out_cache[{mesh_id, entry_idx, material.id}] = std::move(omm_entry);
+        out_cache[{mesh_id, entry_idx, color_texture_id}] = std::move(omm_entry);
     }
 }
 

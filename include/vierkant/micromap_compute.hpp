@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include <functional>
 #include <unordered_set>
 #include <vierkant/Buffer.hpp>
 #include <vierkant/Mesh.hpp>
+#include <vierkant/PipelineCache.hpp>
 #include <vierkant/model/model_loading.hpp>
 
 namespace vierkant
@@ -29,8 +31,12 @@ struct micromap_compute_params_t
     //! set of meshes to process
     std::unordered_set<vierkant::MeshConstPtr> meshes = {};
 
-    //! CPU OMM cache; entries looked up by {mesh_id, entry_index, material_id}
+    //! CPU OMM cache; entries looked up by {mesh_id, entry_index, color_texture_id}
     const vierkant::model::mesh_omm_cache_t *omm_cache = nullptr;
+
+    //! resolves the Color-texture id for a given mesh-entry, required to key into omm_cache.
+    //! a nil/empty result skips the entry.
+    std::function<vierkant::TextureId(const vierkant::MeshConstPtr &mesh, uint32_t entry_index)> color_texture_lookup;
 
     vierkant::QueryPoolPtr query_pool = nullptr;
     uint32_t query_index_start = 0, query_index_end = 0;
