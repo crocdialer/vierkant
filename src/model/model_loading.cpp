@@ -139,17 +139,20 @@ bool compress_textures(vierkant::model::model_assets_t &mesh_assets, crocore::Th
     return true;
 }
 
-static void generate_mesh_omm_data(const vierkant::mesh_buffer_bundle_t &bundle,
-                                    const vierkant::MeshId &mesh_id,
-                                    const std::vector<vierkant::material_t> &materials,
-                                    const std::unordered_map<vierkant::TextureId, vierkant::texture_variant_t> &textures,
-                                    const omm_gen_params_t &params, mesh_omm_cache_t &out_cache)
+std::vector<mesh_omm_data_t> generate_omm_data(const model_assets_t &mesh_assets,
+                                               const vierkant::mesh_buffer_bundle_t &bundle,
+                                               const omm_gen_params_t &params)
 {
+    std::vector<mesh_omm_data_t> ret;
+
     if(bundle.vertex_stride != sizeof(vierkant::packed_vertex_t))
     {
-        spdlog::warn("generate_mesh_omm_data: non-packed vertex stride {}, skipping", bundle.vertex_stride);
-        return;
+        spdlog::warn("generate_omm_data: non-packed vertex stride {}, skipping", bundle.vertex_stride);
+        return ret;
     }
+
+    const auto &materials = mesh_assets.materials;
+    const auto &textures = mesh_assets.textures;
 
     const auto *vertex_base = reinterpret_cast<const vierkant::packed_vertex_t *>(bundle.vertex_buffer.data());
 
@@ -254,8 +257,9 @@ static void generate_mesh_omm_data(const vierkant::mesh_buffer_bundle_t &bundle,
         omm_entry.triangles = std::move(triangles);
         omm_entry.indices.assign(omm_indices.begin(), omm_indices.end());
 
-        out_cache[{mesh_id, entry_idx, color_texture_id}] = std::move(omm_entry);
+        ret.push_back({entry_idx, color_texture_id, std::move(omm_entry)});
     }
+    return ret;
 }
 
 model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
@@ -409,13 +413,23 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
         }
     }
 
-    // generate CPU-side OMM data while CPU images are still alive
-    if(params.omm_params)
+    // OMM: adopt pre-baked bundle data if present (survives texture-compression), else live-bake
+    // from CPU images while they are still alive. Either way, stamp the runtime mesh-id here.
+    if(!mesh_assets.omm_data.empty())
+    {
+        for(const auto &d: mesh_assets.omm_data)
+        {
+            ret.omm_cache[{ret.mesh->id, d.entry_index, d.color_texture_id}] = d.entry;
+        }
+    }
+    else if(params.omm_params)
     {
         if(const auto *bundle = std::get_if<vierkant::mesh_buffer_bundle_t>(&mesh_assets.geometry_data))
         {
-            generate_mesh_omm_data(*bundle, ret.mesh->id, mesh_assets.materials, mesh_assets.textures,
-                                   *params.omm_params, ret.omm_cache);
+            for(auto &d: generate_omm_data(mesh_assets, *bundle, *params.omm_params))
+            {
+                ret.omm_cache[{ret.mesh->id, d.entry_index, d.color_texture_id}] = std::move(d.entry);
+            }
         }
     }
 
