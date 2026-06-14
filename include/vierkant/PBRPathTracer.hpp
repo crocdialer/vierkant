@@ -80,6 +80,9 @@ public:
 
         //! max number stored timing-values
         uint32_t timing_history_size = 300;
+
+        //! optional, non-owning scene-level CPU opacity-micromap (OMM) cache, forwarded to the RayBuilder
+        const vierkant::model::mesh_omm_cache_t *omm_cache = nullptr;
     };
 
     struct timings_t
