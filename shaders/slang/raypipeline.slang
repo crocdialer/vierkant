@@ -114,6 +114,7 @@ trace_result_t trace(uint2 coord, uint2 size)
         float disp_lambda = -1.0;
 
         ray::payload_t payload;
+        bool ray_miss = false;
 
         for(uint i = 0; i < trace_data.params.max_trace_depth; i++)
         {
@@ -166,7 +167,8 @@ trace_result_t trace(uint2 coord, uint2 size)
                 result.position = payload.position;
                 result.albedo = payload.albedo;
                 float4 depth_proj = mul(trace_data.camera.projection_view, float4(result.position, 1.0));
-                bool ray_miss = payload.entity_index == utils::MAX_UINT16;
+
+                ray_miss = payload.entity_index == utils::MAX_UINT16;
                 result.depth = ray_miss ? 0.0 : depth_proj.z / depth_proj.w;
             }
 
@@ -174,7 +176,7 @@ trace_result_t trace(uint2 coord, uint2 size)
         }
 
         result.radiance += payload.radiance;
-        result.coverage = max(result.coverage, payload.entity_index != utils::MAX_UINT16 ? 1.0 : 0.0);
+        result.coverage = max(result.coverage, ray_miss ? 0.0 : 1.0);
     }
 
     result.radiance /= float(trace_data.params.num_samples);
