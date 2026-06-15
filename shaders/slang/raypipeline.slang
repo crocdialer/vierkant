@@ -174,7 +174,7 @@ trace_result_t trace(uint2 coord, uint2 size)
         }
 
         result.radiance += payload.radiance;
-        result.coverage = max(result.coverage, payload.depth > 0u ? 1.0 : 0.0);
+        result.coverage = max(result.coverage, payload.entity_index != utils::MAX_UINT16 ? 1.0 : 0.0);
     }
 
     result.radiance /= float(trace_data.params.num_samples);
