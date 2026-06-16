@@ -49,7 +49,9 @@ float3 EvalDielectricReflection(float roughness, float3 color, float eta, float3
 
     float F = utils::DielectricFresnel(dot(V, H), eta);
     float D = utils::GTR2(dot(N, H), roughness);
-    pdf = D * dot(N, H) * F / (4.0 * abs(dot(V, H)));
+    // VNDF reflection pdf: G1(V)*D/(4*NoV) == 0.5*D*SmithGGX(NoV) (matches GGX_VNDF distribution)
+    pdf = 0.5 * D * utils::SmithGGX(abs(dot(N, V)), roughness) * F;
+    //pdf = D * dot(N, H) * F / (4.0 * abs(dot(V, H))); // regular NDF-pdf
 
     float G = utils::SmithGGX(abs(dot(N, L)), roughness) * utils::SmithGGX(abs(dot(N, V)), roughness);
     return color * F * D * G;
@@ -65,7 +67,9 @@ float3 EvalDielectricReflectionIridescence(float roughness, float3 color, float 
     float VoH = dot(V, H);
     float F = utils::DielectricFresnel(VoH, eta);
     float D = utils::GTR2(dot(N, H), roughness);
-    pdf = D * dot(N, H) * F / (4.0 * abs(dot(V, H)));
+
+    // matches GGX_VNDF distribution
+    pdf = 0.5 * D * utils::SmithGGX(abs(dot(N, V)), roughness) * F;
 
     float G = utils::SmithGGX(abs(dot(N, L)), roughness) * utils::SmithGGX(abs(dot(N, V)), roughness);
     float3 irF = utils::iridescent_fresnel(1.0, iridescence_ior, Cspec0, iridescence_thickness, VoH);
@@ -96,7 +100,8 @@ float3 EvalSpecular(float roughness, float3 Cspec0, float3 V, float3 N, float3 L
     if(dot(N, L) <= 0.0) return float3(0.0);
 
     float D = utils::GTR2(dot(N, H), roughness);
-    pdf = D * dot(N, H) / (4.0 * dot(V, H));
+    // VNDF reflection pdf: G1(V)*D/(4*NoV) == 0.5*D*SmithGGX(NoV) (consistent with sample_GGX_VNDF)
+    pdf = 0.5 * D * utils::SmithGGX(abs(dot(N, V)), roughness);
 
     float FH = utils::SchlickFresnel(dot(L, H));
     float3 F = lerp(Cspec0, float3(1.0), FH);
@@ -112,7 +117,10 @@ float3 EvalSpecularIridescence(float roughness, float iridescence_ior, float iri
 
     float VoH = dot(V, H);
     float D = utils::GTR2(dot(N, H), roughness);
-    pdf = D * dot(N, H) / (4.0 * VoH);
+
+    // matches GGX_VNDF distribution
+    pdf = 0.5 * D * utils::SmithGGX(abs(dot(N, V)), roughness);
+
     float3 F = utils::iridescent_fresnel(1.0, iridescence_ior, Cspec0, iridescence_thickness, VoH);
     float G = utils::SmithGGX(abs(dot(N, L)), roughness) * utils::SmithGGX(abs(dot(N, V)), roughness);
     return F * D * G;
