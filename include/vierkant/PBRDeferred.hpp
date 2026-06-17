@@ -14,6 +14,7 @@
 #include <vierkant/ambient_occlusion.hpp>
 #include <vierkant/culling.hpp>
 #include <vierkant/gpu_culling.hpp>
+#include <vierkant/mesh_compute.hpp>
 
 namespace vierkant
 {

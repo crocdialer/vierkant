@@ -2,6 +2,7 @@
 #include <vierkant/RayBuilder.hpp>
 #include <vierkant/Visitor.hpp>
 #include <vierkant/gpu_timestamp_util.hpp>
+#include <vierkant/mesh_compute.hpp>
 #include <vierkant/micromap_compute.hpp>
 
 namespace vierkant
@@ -559,7 +560,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                     material.two_sided = mat->twosided;
                     material.null_surface = mat->null_surface;
                     material.phase_asymmetry_g = mat->phase_asymmetry_g;
-                    material.scattering_ratio = mat->scattering_ratio;
+                    material.scatter_factor = mat->scatter_factor;
+                    material.scatter_color = mat->scatter_color;
 
                     material.iridescence_strength = mat->iridescence_factor;
                     material.iridescence_ior = mat->iridescence_ior;
