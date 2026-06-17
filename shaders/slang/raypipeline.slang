@@ -430,8 +430,10 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
                                float2(0.5));
             normal.z = sqrt(max(0.0, 1.0 - normal.x * normal.x - normal.y * normal.y));
 
+            // v.normal potentially flipped for backfaces, but v.tangent is not.
+            // -> adjust bitangent handedness for backfaces
             float3 b = normalize(cross(v.normal, v.tangent));
-            normal = normalize(mul(normal, float3x3(v.tangent, b, v.normal)));
+            normal = normalize(mul(normal, float3x3(v.tangent, backface ? -b : b, v.normal)));
 
             // hemisphere clamp
             payload.normal = normalize(normal + max(0, -dot(normal, v.normal) + 1e-3) * v.normal);
