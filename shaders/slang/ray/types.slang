@@ -91,9 +91,12 @@ public struct material_t
 
     public bool two_sided;
     public float phase_asymmetry_g;
-    public float scattering_ratio;
+    public float scatter_factor;
 
     public float dispersion;
+
+    public float3 scatter_color;
+    private uint padding;
 };
 
 }// namespace ray

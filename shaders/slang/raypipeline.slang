@@ -403,8 +403,16 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
     sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
     sigma_t = backface ? float3(0) : sigma_t;
-    payload.media.sigma_s = material.scattering_ratio * sigma_t;
-    payload.media.sigma_a = (1 - material.scattering_ratio) * sigma_t;
+
+    // volumetric scattering (glTF KHR_materials_scatter / KHR_materials_volume_scatter):
+    // attenuation_color/distance give the total extinction sigma_t. scatter_color is the
+    // multi-scatter albedo (rho_ms), scaled by scatter_factor; convert to the single-scatter
+    // albedo (rho_ss) the medium needs via the Kulla-Conty (2017) inversion, per channel.
+    float3 rho_ms = material.scatter_factor * material.scatter_color;
+    float3 kc = 4.09712 + 4.20863 * rho_ms - sqrt(9.59217 + 41.6808 * rho_ms + 17.7126 * rho_ms * rho_ms);
+    float3 rho_ss = 1.0 - kc * kc;
+    payload.media.sigma_s = rho_ss * sigma_t;
+    payload.media.sigma_a = (1.0 - rho_ss) * sigma_t;
     payload.media.phase_g = material.phase_asymmetry_g;
     payload.media.ior = sample_surface ? material.ior : payload.media.ior;
 

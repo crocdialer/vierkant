@@ -871,8 +871,11 @@ bool draw_material_ui(vierkant::material_t &material,
     // phase_asymmetry_g
     changed |= ImGui::SliderFloat("phase_asymmetry_g", &material.phase_asymmetry_g, -1.f, 1.f);
 
-    // scattering_ratio
-    changed |= ImGui::SliderFloat("scattering_ratio", &material.scattering_ratio, 0.f, 1.f);
+    // scatter_factor
+    changed |= ImGui::SliderFloat("scatter_factor", &material.scatter_factor, 0.f, 1.f);
+
+    // scatter_color (multi-scatter albedo)
+    changed |= ImGui::ColorEdit3("scatter_color", glm::value_ptr(material.scatter_color));
 
     // index of refraction - ior
     changed |= ImGui::InputFloat("ior", &material.ior);

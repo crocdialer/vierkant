@@ -56,6 +56,9 @@ constexpr char KHR_materials_dispersion[] = "KHR_materials_dispersion";
 constexpr char KHR_materials_clearcoat[] = "KHR_materials_clearcoat";
 constexpr char KHR_materials_sheen[] = "KHR_materials_sheen";
 constexpr char KHR_materials_iridescence[] = "KHR_materials_iridescence";
+constexpr char KHR_materials_diffuse_transmission[] = "KHR_materials_diffuse_transmission";
+constexpr char KHR_materials_volume_scatter[] = "KHR_materials_volume_scatter";
+constexpr char KHR_materials_scatter[] = "KHR_materials_scatter";
 constexpr char KHR_texture_transform[] = "KHR_texture_transform";
 constexpr char KHR_lights_punctual[] = "KHR_lights_punctual";
 
@@ -95,6 +98,14 @@ constexpr char ext_iridescence_ior[] = "iridescenceIOR";
 constexpr char ext_iridescence_thickness_min[] = "iridescenceThicknessMinimum";
 constexpr char ext_iridescence_thickness_max[] = "iridescenceThicknessMaximum";
 constexpr char ext_iridescence_thickness_texture[] = "iridescenceThicknessTexture";
+
+// KHR_materials_diffuse_transmission
+constexpr char ext_diffuse_transmission_factor[] = "diffuseTransmissionFactor";
+
+// KHR_materials_volume_scatter / KHR_materials_scatter
+constexpr char ext_scatter_multiscatter_color_factor[] = "multiscatterColorFactor";
+constexpr char ext_scatter_anisotropy[] = "scatterAnisotropy";
+constexpr char ext_scatter_factor[] = "scatterFactor";
 
 // KHR_texture_transform
 constexpr char ext_texture_offset[] = "offset";
@@ -585,6 +596,41 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
                         for(; ptr < end; ptr += c) { ptr[0] = 255; }
                     }
                 }//} || img_iridescence_thickness == ret.img_iridescence);
+            }
+        }
+        else if(ext == KHR_materials_diffuse_transmission)
+        {
+            // Step 1: treat diffuse-transmission as plain transmission. For the volumetric,
+            // dense-subsurface case this matches the unified KHR_materials_scatter volumetric
+            // mode (specular transmission surface + scattering interior) and reuses the
+            // existing transmission path. diffuseTransmissionColor is ignored for now.
+            if(value.Has(ext_diffuse_transmission_factor))
+            {
+                ret.transmission = static_cast<float>(value.Get(ext_diffuse_transmission_factor).GetNumberAsDouble());
+            }
+        }
+        else if(ext == KHR_materials_volume_scatter || ext == KHR_materials_scatter)
+        {
+            // multi-scatter albedo (scattering tint), inverted to single-scatter albedo on the GPU
+            if(value.Has(ext_scatter_multiscatter_color_factor))
+            {
+                const auto &c = value.Get(ext_scatter_multiscatter_color_factor);
+                ret.scatter_color = glm::dvec3(c.Get(0).GetNumberAsDouble(), c.Get(1).GetNumberAsDouble(),
+                                               c.Get(2).GetNumberAsDouble());
+            }
+
+            // Henyey-Greenstein asymmetry for volumetric scattering events
+            if(value.Has(ext_scatter_anisotropy))
+            {
+                ret.phase_asymmetry_g = static_cast<float>(value.Get(ext_scatter_anisotropy).GetNumberAsDouble());
+            }
+
+            // scatterFactor only exists on the unified KHR_materials_scatter (default 0).
+            // The legacy KHR_materials_volume_scatter has no such weight -> implicit 1.0.
+            ret.scatter_factor = (ext == KHR_materials_scatter) ? 0.f : 1.f;
+            if(value.Has(ext_scatter_factor))
+            {
+                ret.scatter_factor = static_cast<float>(value.Get(ext_scatter_factor).GetNumberAsDouble());
             }
         }
     }

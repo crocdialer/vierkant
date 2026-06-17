@@ -29,7 +29,8 @@ size_t std::hash<vierkant::material_t>::operator()(vierkant::material_t const &m
     hash_combine(h, m.alpha_cutoff);
     hash_combine(h, m.transmission);
     hash_combine(h, m.phase_asymmetry_g);
-    hash_combine(h, m.scattering_ratio);
+    hash_combine(h, m.scatter_factor);
+    hash_combine(h, m.scatter_color);
     hash_combine(h, m.attenuation_color);
     hash_combine(h, m.attenuation_distance);
     hash_combine(h, m.ior);

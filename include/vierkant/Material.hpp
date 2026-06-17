@@ -97,10 +97,14 @@ struct material_t
     float attenuation_distance = std::numeric_limits<float>::infinity();
 
     // phase-function asymmetry parameter (forward- vs. back-scattering) [-1, 1]
+    // (glTF KHR_materials_(volume_)scatter scatterAnisotropy)
     float phase_asymmetry_g = 0.f;
 
-    // ratio of scattering vs. absorption (sigma_s / sigma_t)
-    float scattering_ratio = 0.f;
+    // overall scattering strength [0, 1] (glTF KHR_materials_scatter scatterFactor)
+    float scatter_factor = 0.f;
+
+    // multi-scatter albedo / scattering tint (glTF multiscatterColorFactor)
+    glm::vec3 scatter_color = glm::vec3(1.f);
 
     // idk rasterizer only thingy
     float thickness = 1.f;
