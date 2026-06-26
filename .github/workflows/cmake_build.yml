@@ -27,6 +27,8 @@ jobs:
       run: |
         sudo apt-get update -y
         sudo apt-get install -y xorg-dev libxkbcommon-dev libwayland-dev
+        # lavapipe (Mesa software Vulkan ICD) + xvfb to run the gpu-tests headless
+        sudo apt-get install -y mesa-vulkan-drivers vulkan-tools xvfb
 
     - name: Install Vulkan SDK
       uses: jakoch/install-vulkan-sdk-action@v1
@@ -36,7 +38,8 @@ jobs:
         # optional_components: com.lunarg.vulkan.vma
         # install_runtime: true
         cache: true
-        stripdown: true
+        # keep validation layers (the gpu-tests enable them); stripdown would delete them.
+        stripdown: false
 
         # You can install a software rasterizer.
         # install_swiftshader: true
@@ -51,11 +54,15 @@ jobs:
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
-#     find/configure an external runner with nvidia/gpu support
-#
-#    - name: Test
-#      working-directory: ${{github.workspace}}/build
-#      # Execute tests defined by the CMake configuration.
-#      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-#      run: ctest -C ${{env.BUILD_TYPE}}
-      
+    - name: Vulkan info
+      # non-fatal: surface which ICD/driver + Vulkan version the loader actually sees
+      run: vulkaninfo --summary || true
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      # the runner has no GPU, so lavapipe is the only Vulkan ICD and the loader auto-discovers it
+      # (no VK_ICD_FILENAMES override - forcing a path risks finding zero ICDs).
+      # xvfb provides a virtual display for the windowing/swapchain tests.
+      # exclude TestPBRDeferred: it hard-requires ray-tracing + mesh-shader extensions, which lavapipe lacks.
+      run: xvfb-run -a ctest -C ${{env.BUILD_TYPE}} --output-on-failure -E "TestPBRDeferred"
+
