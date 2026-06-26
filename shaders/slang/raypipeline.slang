@@ -416,8 +416,14 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     payload.media.phase_g = material.phase_asymmetry_g;
     payload.media.ior = sample_surface ? material.ior : payload.media.ior;
 
-    // determine next media-op
-    payload.media_op = sample_medium ? ray::MediaOp::NoOp : (backface ? ray::MediaOp::Leave : ray::MediaOp::Enter);
+    // determine next media-op. a transmission event touches the media stack only when it crosses a
+    // real boundary: a volume (Beer-Lambert / scattering interior) or a specular-refractive surface
+    // (IOR tracking for eta). thin-walled diffuse transmission (no volume, no specular) just crosses.
+    bool has_volume = !isinf(material.attenuation_distance);
+    bool media_boundary = has_volume || material.transmission > 0.0;
+    payload.media_op = (sample_medium || !media_boundary)
+                               ? ray::MediaOp::NoOp
+                               : (backface ? ray::MediaOp::Leave : ray::MediaOp::Enter);
 
     if(sample_surface)
     {
