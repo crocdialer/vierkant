@@ -486,6 +486,15 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
                             .x;
         }
 
+        // combined diffuse-transmission texture: alpha scales the factor, rgb tints the color
+        if((material.texture_type_flags & uint(ray::TextureTypeBits::DiffuseTransmission)) != 0)
+        {
+            float4 dt_tex = sample_texture_lod(u_textures[NonUniformResourceIndex(material.diffuse_transmission_index)],
+                                               v.tex_coord, NoV, payload.cone.width, triangle_lod);
+            material.diffuse_transmission *= dt_tex.a;
+            material.diffuse_transmission_color *= dt_tex.rgb;
+        }
+
         payload.cone = propagate(payload.cone, 0.0, RayTCurrent());
 
         // increase material-roughness for longer paths, reduce fireflies

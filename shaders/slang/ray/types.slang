@@ -46,6 +46,7 @@ public enum TextureTypeBits : uint
     SheenRoughness = 0x200,
     Iridescence = 0x400,
     Environment = 0x800,
+    DiffuseTransmission = 0x8000,
 };
 
 public uint tex_offset(uint type, uint flags) { return countbits(flags & (type - 1)); }
@@ -98,7 +99,7 @@ public struct material_t
     public float3 scatter_color;
     public float diffuse_transmission;
     public float3 diffuse_transmission_color;
-    private uint padding;
+    public uint diffuse_transmission_index;
 };
 
 }// namespace ray

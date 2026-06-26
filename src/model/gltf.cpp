@@ -616,18 +616,17 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
                         c.Get(0).GetNumberAsDouble(), c.Get(1).GetNumberAsDouble(), c.Get(2).GetNumberAsDouble());
             }
 
-            // alpha channel scales diffuse_transmission
+            // combined texture: alpha scales the factor, rgb (sRGB) tints the color. both glTF
+            // texture fields share one slot (same image in practice).
             if(value.Has(ext_diffuse_transmission_texture))
             {
                 const auto &tex = value.Get(ext_diffuse_transmission_texture);
                 insert_texture(tex.Get("index").GetNumberAsInt(), TextureType::DiffuseTransmission);
             }
-
-            // sRGB tint for diffuse_transmission_color
             if(value.Has(ext_diffuse_transmission_color_texture))
             {
                 const auto &tex = value.Get(ext_diffuse_transmission_color_texture);
-                insert_texture(tex.Get("index").GetNumberAsInt(), TextureType::DiffuseTransmissionColor);
+                insert_texture(tex.Get("index").GetNumberAsInt(), TextureType::DiffuseTransmission);
             }
         }
         else if(ext == KHR_materials_volume_scatter || ext == KHR_materials_scatter)
