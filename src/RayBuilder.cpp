@@ -562,6 +562,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                     material.phase_asymmetry_g = mat->phase_asymmetry_g;
                     material.scatter_factor = mat->scatter_factor;
                     material.scatter_color = mat->scatter_color;
+                    material.diffuse_transmission = mat->diffuse_transmission;
+                    material.diffuse_transmission_color = mat->diffuse_transmission_color;
 
                     material.iridescence_strength = mat->iridescence_factor;
                     material.iridescence_ior = mat->iridescence_ior;

@@ -96,6 +96,8 @@ public struct material_t
     public float dispersion;
 
     public float3 scatter_color;
+    public float diffuse_transmission;
+    public float3 diffuse_transmission_color;
     private uint padding;
 };
 

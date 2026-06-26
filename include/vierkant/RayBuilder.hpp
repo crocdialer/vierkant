@@ -101,6 +101,12 @@ public:
 
         //! multi-scatter albedo / scattering tint (glTF multiscatterColorFactor)
         glm::vec3 scatter_color = glm::vec3(1.f);
+
+        //! diffuse (Lambertian) transmission strength (glTF KHR_materials_diffuse_transmission)
+        float diffuse_transmission = 0.f;
+
+        //! tint for diffuse-transmitted light (glTF diffuseTransmissionColorFactor)
+        glm::vec3 diffuse_transmission_color = glm::vec3(1.f);
     };
 
     //! used for both bottom and toplevel acceleration-structures
