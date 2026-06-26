@@ -101,6 +101,9 @@ constexpr char ext_iridescence_thickness_texture[] = "iridescenceThicknessTextur
 
 // KHR_materials_diffuse_transmission
 constexpr char ext_diffuse_transmission_factor[] = "diffuseTransmissionFactor";
+constexpr char ext_diffuse_transmission_texture[] = "diffuseTransmissionTexture";
+constexpr char ext_diffuse_transmission_color_factor[] = "diffuseTransmissionColorFactor";
+constexpr char ext_diffuse_transmission_color_texture[] = "diffuseTransmissionColorTexture";
 
 // KHR_materials_volume_scatter / KHR_materials_scatter
 constexpr char ext_scatter_multiscatter_color_factor[] = "multiscatterColorFactor";
@@ -600,13 +603,31 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
         }
         else if(ext == KHR_materials_diffuse_transmission)
         {
-            // Step 1: treat diffuse-transmission as plain transmission. For the volumetric,
-            // dense-subsurface case this matches the unified KHR_materials_scatter volumetric
-            // mode (specular transmission surface + scattering interior) and reuses the
-            // existing transmission path. diffuseTransmissionColor is ignored for now.
             if(value.Has(ext_diffuse_transmission_factor))
             {
-                ret.transmission = static_cast<float>(value.Get(ext_diffuse_transmission_factor).GetNumberAsDouble());
+                ret.diffuse_transmission =
+                        static_cast<float>(value.Get(ext_diffuse_transmission_factor).GetNumberAsDouble());
+            }
+
+            if(value.Has(ext_diffuse_transmission_color_factor))
+            {
+                const auto &c = value.Get(ext_diffuse_transmission_color_factor);
+                ret.diffuse_transmission_color = glm::dvec3(
+                        c.Get(0).GetNumberAsDouble(), c.Get(1).GetNumberAsDouble(), c.Get(2).GetNumberAsDouble());
+            }
+
+            // alpha channel scales diffuse_transmission
+            if(value.Has(ext_diffuse_transmission_texture))
+            {
+                const auto &tex = value.Get(ext_diffuse_transmission_texture);
+                insert_texture(tex.Get("index").GetNumberAsInt(), TextureType::DiffuseTransmission);
+            }
+
+            // sRGB tint for diffuse_transmission_color
+            if(value.Has(ext_diffuse_transmission_color_texture))
+            {
+                const auto &tex = value.Get(ext_diffuse_transmission_color_texture);
+                insert_texture(tex.Get("index").GetNumberAsInt(), TextureType::DiffuseTransmissionColor);
             }
         }
         else if(ext == KHR_materials_volume_scatter || ext == KHR_materials_scatter)

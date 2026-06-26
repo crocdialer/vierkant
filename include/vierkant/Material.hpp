@@ -51,7 +51,9 @@ enum class TextureType : uint32_t
     IridescenceThickness = 0x800,
     Specular = 0x1000,
     SpecularColor = 0x2000,
-    Environment = 0x4000
+    Environment = 0x4000,
+    DiffuseTransmission = 0x8000,
+    DiffuseTransmissionColor = 0x10000
 };
 
 struct texture_data_t
@@ -105,6 +107,12 @@ struct material_t
 
     // multi-scatter albedo / scattering tint (glTF multiscatterColorFactor)
     glm::vec3 scatter_color = glm::vec3(1.f);
+
+    // diffuse (Lambertian) transmission strength (glTF KHR_materials_diffuse_transmission)
+    float diffuse_transmission = 0.f;
+
+    // tint for diffuse-transmitted light (glTF diffuseTransmissionColorFactor)
+    glm::vec3 diffuse_transmission_color = glm::vec3(1.f);
 
     // idk rasterizer only thingy
     float thickness = 1.f;
