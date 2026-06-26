@@ -562,6 +562,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                     material.phase_asymmetry_g = mat->phase_asymmetry_g;
                     material.scatter_factor = mat->scatter_factor;
                     material.scatter_color = mat->scatter_color;
+                    material.diffuse_transmission = mat->diffuse_transmission;
+                    material.diffuse_transmission_color = mat->diffuse_transmission_color;
 
                     material.iridescence_strength = mat->iridescence_factor;
                     material.iridescence_ior = mat->iridescence_ior;
@@ -602,6 +604,12 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
                             case vierkant::TextureType::Transmission:
                                 material.transmission_index = texture_index;
+                                break;
+
+                            // combined glTF texture: rgb = color tint, alpha = transmission factor.
+                            // both extension-textures share one index (same image in practice).
+                            case vierkant::TextureType::DiffuseTransmission:
+                                material.diffuse_transmission_index = texture_index;
                                 break;
                             default: break;
                         }

@@ -416,8 +416,14 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     payload.media.phase_g = material.phase_asymmetry_g;
     payload.media.ior = sample_surface ? material.ior : payload.media.ior;
 
-    // determine next media-op
-    payload.media_op = sample_medium ? ray::MediaOp::NoOp : (backface ? ray::MediaOp::Leave : ray::MediaOp::Enter);
+    // determine next media-op. a transmission event touches the media stack only when it crosses a
+    // real boundary: a volume (Beer-Lambert / scattering interior) or a specular-refractive surface
+    // (IOR tracking for eta). thin-walled diffuse transmission (no volume, no specular) just crosses.
+    bool has_volume = !isinf(material.attenuation_distance);
+    bool media_boundary = has_volume || material.transmission > 0.0;
+    payload.media_op = (sample_medium || !media_boundary)
+                               ? ray::MediaOp::NoOp
+                               : (backface ? ray::MediaOp::Leave : ray::MediaOp::Enter);
 
     if(sample_surface)
     {
@@ -478,6 +484,15 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
                     sample_texture_lod(u_textures[NonUniformResourceIndex(material.transmission_index)], v.tex_coord,
                                        NoV, payload.cone.width, triangle_lod)
                             .x;
+        }
+
+        // combined diffuse-transmission texture: alpha scales the factor, rgb tints the color
+        if((material.texture_type_flags & uint(ray::TextureTypeBits::DiffuseTransmission)) != 0)
+        {
+            float4 dt_tex = sample_texture_lod(u_textures[NonUniformResourceIndex(material.diffuse_transmission_index)],
+                                               v.tex_coord, NoV, payload.cone.width, triangle_lod);
+            material.diffuse_transmission *= dt_tex.a;
+            material.diffuse_transmission_color *= dt_tex.rgb;
         }
 
         payload.cone = propagate(payload.cone, 0.0, RayTCurrent());

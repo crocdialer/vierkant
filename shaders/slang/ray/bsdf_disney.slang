@@ -232,11 +232,27 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
         // diffuse
         if(utils::rnd(rng_state) < diffuseRatio)
         {
-            ret.direction = mul(utils::sample_hemisphere_cosine(Xi), frame);
-            float3 H = normalize(ret.direction + V);
-            ret.F = EvalDiffuse(material.roughness, material.sheen_roughness, material.color.rgb,
-                                material.sheen_color.rgb, material.metalness, V, N, ret.direction, H, ret.pdf);
-            ret.pdf *= diffuseRatio;
+            // split the diffuse base into reflection (BRDF) and Lambertian transmission (BTDF).
+            // dt == 0 short-circuits -> no extra rng, opaque path stays bit-identical.
+            float dt = material.diffuse_transmission;
+            if(dt > 0.0 && utils::rnd(rng_state) < dt)
+            {
+                // cosine lobe on the opposite hemisphere (no Snell bend, no Fresnel)
+                float3 local = utils::sample_hemisphere_cosine(Xi);
+                ret.direction = mul(float3(local.xy, -local.z), frame);
+                ret.F = dt * material.diffuse_transmission_color * utils::ONE_OVER_PI;
+                ret.pdf = local.z * utils::ONE_OVER_PI * diffuseRatio * dt;
+                ret.transmission = true;
+            }
+            else
+            {
+                ret.direction = mul(utils::sample_hemisphere_cosine(Xi), frame);
+                float3 H = normalize(ret.direction + V);
+                ret.F = (1.0 - dt) * EvalDiffuse(material.roughness, material.sheen_roughness, material.color.rgb,
+                                                 material.sheen_color.rgb, material.metalness, V, N, ret.direction, H,
+                                                 ret.pdf);
+                ret.pdf *= diffuseRatio * (1.0 - dt);
+            }
         }
         else// specular
         {
@@ -327,9 +343,19 @@ public float3 eval_disney(material_t material, float3 L, float3 N, float3 V, flo
 
     if(trans_weight < 1.0)
     {
-        brdf += EvalDiffuse(material.roughness, material.sheen_roughness, material.color.rgb, material.sheen_color.rgb,
-                            material.metalness, V, N, L, H, m_pdf);
-        brdfPdf += m_pdf * diffuseRatio;
+        float dt = material.diffuse_transmission;
+
+        brdf += (1.0 - dt) * EvalDiffuse(material.roughness, material.sheen_roughness, material.color.rgb,
+                                         material.sheen_color.rgb, material.metalness, V, N, L, H, m_pdf);
+        brdfPdf += m_pdf * diffuseRatio * (1.0 - dt);
+
+        // Lambertian transmission: cosine lobe on the opposite hemisphere (L below surface)
+        if(dt > 0.0 && !refl)
+        {
+            float cosT = -dot(N, L);
+            brdf += dt * material.diffuse_transmission_color * utils::ONE_OVER_PI;
+            brdfPdf += cosT * utils::ONE_OVER_PI * diffuseRatio * dt;
+        }
 
         brdf += EvalSpecular(material.roughness, spec_color, V, N, L, H, m_pdf) * (1.0 - material.iridescence_strength);
         brdfPdf += m_pdf * primarySpecRatio * (1.0 - diffuseRatio) * (1.0 - material.iridescence_strength);
