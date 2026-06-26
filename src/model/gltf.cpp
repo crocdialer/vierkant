@@ -616,8 +616,10 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
                         c.Get(0).GetNumberAsDouble(), c.Get(1).GetNumberAsDouble(), c.Get(2).GetNumberAsDouble());
             }
 
-            // combined texture: alpha scales the factor, rgb (sRGB) tints the color. both glTF
-            // texture fields share one slot (same image in practice).
+            // two distinct slots: the factor texture contributes only its alpha channel, the color
+            // texture only its rgb. they often (but not always) point at the same image; keeping
+            // them apart prevents an alpha-only factor texture (e.g. a packed ORM map reused here)
+            // from leaking its rgb into the color tint.
             if(value.Has(ext_diffuse_transmission_texture))
             {
                 const auto &tex = value.Get(ext_diffuse_transmission_texture);
@@ -626,7 +628,7 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
             if(value.Has(ext_diffuse_transmission_color_texture))
             {
                 const auto &tex = value.Get(ext_diffuse_transmission_color_texture);
-                insert_texture(tex.Get("index").GetNumberAsInt(), TextureType::DiffuseTransmission);
+                insert_texture(tex.Get("index").GetNumberAsInt(), TextureType::DiffuseTransmissionColor);
             }
         }
         else if(ext == KHR_materials_volume_scatter || ext == KHR_materials_scatter)

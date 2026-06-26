@@ -47,6 +47,7 @@ public enum TextureTypeBits : uint
     Iridescence = 0x400,
     Environment = 0x800,
     DiffuseTransmission = 0x8000,
+    DiffuseTransmissionColor = 0x10000,
 };
 
 public uint tex_offset(uint type, uint flags) { return countbits(flags & (type - 1)); }
@@ -100,6 +101,9 @@ public struct material_t
     public float diffuse_transmission;
     public float3 diffuse_transmission_color;
     public uint diffuse_transmission_index;
+    public uint diffuse_transmission_color_index;
+
+    public uint pad0, pad1, pad2;
 };
 
 }// namespace ray

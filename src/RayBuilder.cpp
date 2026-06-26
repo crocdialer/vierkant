@@ -606,10 +606,14 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                                 material.transmission_index = texture_index;
                                 break;
 
-                            // combined glTF texture: rgb = color tint, alpha = transmission factor.
-                            // both extension-textures share one index (same image in practice).
+                            // factor texture (glTF diffuseTransmissionTexture): only alpha is used.
                             case vierkant::TextureType::DiffuseTransmission:
                                 material.diffuse_transmission_index = texture_index;
+                                break;
+
+                            // color texture (glTF diffuseTransmissionColorTexture): rgb tints the color.
+                            case vierkant::TextureType::DiffuseTransmissionColor:
+                                material.diffuse_transmission_color_index = texture_index;
                                 break;
                             default: break;
                         }

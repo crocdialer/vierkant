@@ -52,7 +52,8 @@ enum class TextureType : uint32_t
     Specular = 0x1000,
     SpecularColor = 0x2000,
     Environment = 0x4000,
-    DiffuseTransmission = 0x8000
+    DiffuseTransmission = 0x8000,
+    DiffuseTransmissionColor = 0x10000
 };
 
 struct texture_data_t

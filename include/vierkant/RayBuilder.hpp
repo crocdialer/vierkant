@@ -108,8 +108,11 @@ public:
         //! tint for diffuse-transmitted light (glTF diffuseTransmissionColorFactor)
         glm::vec3 diffuse_transmission_color = glm::vec3(1.f);
 
-        //! shared texture: rgb = color tint, alpha = transmission factor (glTF combined texture)
+        //! factor texture (glTF diffuseTransmissionTexture); only the alpha channel scales the factor
         uint32_t diffuse_transmission_index = 0;
+
+        //! color texture (glTF diffuseTransmissionColorTexture); rgb tints the color
+        uint32_t diffuse_transmission_color_index = 0;
     };
 
     //! used for both bottom and toplevel acceleration-structures

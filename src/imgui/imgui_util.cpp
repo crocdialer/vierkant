@@ -865,7 +865,8 @@ bool draw_material_ui(vierkant::material_t &material,
     // diffuse (Lambertian) transmission (glTF KHR_materials_diffuse_transmission)
     changed |= ImGui::SliderFloat("diffuse_transmission", &material.diffuse_transmission, 0.f, 1.f);
     changed |= ImGui::ColorEdit3("diffuse_transmission_color", glm::value_ptr(material.diffuse_transmission_color));
-    if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::DiffuseTransmission, "diffuse_transmission"); }
+    if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::DiffuseTransmission, "diffuse_transmission (factor)"); }
+    if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::DiffuseTransmissionColor, "diffuse_transmission (color)"); }
 
     // attenuation distance
     changed |= ImGui::InputFloat("attenuation distance", &material.attenuation_distance);
