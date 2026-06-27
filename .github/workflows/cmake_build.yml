@@ -27,6 +27,8 @@ jobs:
       run: |
         sudo apt-get update -y
         sudo apt-get install -y xorg-dev libxkbcommon-dev libwayland-dev
+        # software Vulkan (lavapipe) + xvfb for headless gpu-tests
+        sudo apt-get install -y mesa-vulkan-drivers vulkan-tools xvfb
 
     - name: Install Vulkan SDK
       uses: jakoch/install-vulkan-sdk-action@v1
@@ -36,12 +38,9 @@ jobs:
         # optional_components: com.lunarg.vulkan.vma
         # install_runtime: true
         cache: true
-        stripdown: true
+        # keep validation layers (the gpu-tests enable them); stripdown would delete them
+        stripdown: false
 
-        # You can install a software rasterizer.
-        # install_swiftshader: true
-        # install_lavapipe: true
-        
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
@@ -51,11 +50,13 @@ jobs:
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
-#     find/configure an external runner with nvidia/gpu support
-#
-#    - name: Test
-#      working-directory: ${{github.workspace}}/build
-#      # Execute tests defined by the CMake configuration.
-#      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-#      run: ctest -C ${{env.BUILD_TYPE}}
-      
+    - name: Vulkan info
+      # non-fatal: log which ICD/driver the loader picks
+      run: vulkaninfo --summary || true
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      # no VK_ICD_FILENAMES override: lavapipe is the only ICD, forcing a path risked finding none.
+      # tests lacking a required feature self-skip (e.g. fragment-shader-barycentric on lavapipe).
+      run: xvfb-run -a ctest -C ${{env.BUILD_TYPE}} --output-on-failure
+

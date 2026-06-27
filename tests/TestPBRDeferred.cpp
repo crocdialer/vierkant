@@ -10,6 +10,13 @@ TEST(TestPBRDeferred, basic)
                                             VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
                                             VK_KHR_RAY_QUERY_EXTENSION_NAME, VK_EXT_MESH_SHADER_EXTENSION_NAME};
     vulkan_test_context_t test_context(extensions);
+
+    // g-buffer uses fragment-shader barycentric intrinsics; drivers lacking it (e.g. lavapipe) coredump
+    if(!vierkant::check_device_extension_support(test_context.instance.physical_devices()[0],
+                                                 {VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME}))
+    {
+        GTEST_SKIP() << "device lacks VK_KHR_fragment_shader_barycentric; skipping";
+    }
     const glm::vec2 res(1920, 1080);
 
     vierkant::Rasterizer::create_info_t create_info = {};
