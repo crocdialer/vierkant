@@ -57,7 +57,6 @@ jobs:
     - name: Test
       working-directory: ${{github.workspace}}/build
       # no VK_ICD_FILENAMES override: lavapipe is the only ICD, forcing a path risked finding none.
-      # TestPBRDeferred self-skips without fragment-shader-barycentric (lavapipe coredumps);
-      # -E kept until a CI run confirms the skip is clean.
-      run: xvfb-run -a ctest -C ${{env.BUILD_TYPE}} --output-on-failure -E "TestPBRDeferred"
+      # tests lacking a required feature self-skip (e.g. fragment-shader-barycentric on lavapipe).
+      run: xvfb-run -a ctest -C ${{env.BUILD_TYPE}} --output-on-failure
 
