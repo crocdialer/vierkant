@@ -72,6 +72,9 @@ TEST(Semaphore, WaitBeforeSignal)
     auto queue1 = testContext.device->queues(vierkant::Device::Queue::COMPUTE).front().queue;
     auto queue2 = testContext.device->queues(vierkant::Device::Queue::GRAPHICS).back().queue;
 
+    // single-queue devices (e.g. lavapipe) alias both queues -> wait-before-signal deadlocks
+    if(queue1 == queue2) { GTEST_SKIP() << "device exposes only a single queue; skipping cross-queue test"; }
+
     constexpr uint64_t signal1 = 42, signal2 = 666;
 
     // wait for 1st signal on gpu, then issue 2nd signal

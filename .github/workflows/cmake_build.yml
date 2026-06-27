@@ -27,7 +27,7 @@ jobs:
       run: |
         sudo apt-get update -y
         sudo apt-get install -y xorg-dev libxkbcommon-dev libwayland-dev
-        # lavapipe (Mesa software Vulkan ICD) + xvfb to run the gpu-tests headless
+        # software Vulkan (lavapipe) + xvfb for headless gpu-tests
         sudo apt-get install -y mesa-vulkan-drivers vulkan-tools xvfb
 
     - name: Install Vulkan SDK
@@ -38,13 +38,9 @@ jobs:
         # optional_components: com.lunarg.vulkan.vma
         # install_runtime: true
         cache: true
-        # keep validation layers (the gpu-tests enable them); stripdown would delete them.
+        # keep validation layers (the gpu-tests enable them); stripdown would delete them
         stripdown: false
 
-        # You can install a software rasterizer.
-        # install_swiftshader: true
-        # install_lavapipe: true
-        
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
@@ -55,14 +51,13 @@ jobs:
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
     - name: Vulkan info
-      # non-fatal: surface which ICD/driver + Vulkan version the loader actually sees
+      # non-fatal: log which ICD/driver the loader picks
       run: vulkaninfo --summary || true
 
     - name: Test
       working-directory: ${{github.workspace}}/build
-      # the runner has no GPU, so lavapipe is the only Vulkan ICD and the loader auto-discovers it
-      # (no VK_ICD_FILENAMES override - forcing a path risks finding zero ICDs).
-      # xvfb provides a virtual display for the windowing/swapchain tests.
-      # exclude TestPBRDeferred: it hard-requires ray-tracing + mesh-shader extensions, which lavapipe lacks.
+      # no VK_ICD_FILENAMES override: lavapipe is the only ICD, forcing a path risked finding none.
+      # TestPBRDeferred self-skips without fragment-shader-barycentric (lavapipe coredumps);
+      # -E kept until a CI run confirms the skip is clean.
       run: xvfb-run -a ctest -C ${{env.BUILD_TYPE}} --output-on-failure -E "TestPBRDeferred"
 
