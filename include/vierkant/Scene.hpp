@@ -4,6 +4,7 @@
 
 #include <crocore/ThreadPool.hpp>
 
+#include <vierkant/AssetProvider.hpp>
 #include <vierkant/Image.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Object3D.hpp>
@@ -28,7 +29,8 @@ class Scene
 public:
     virtual ~Scene() = default;
 
-    static ScenePtr create(const std::shared_ptr<vierkant::ObjectStore> &object_store = {});
+    static ScenePtr create(const std::shared_ptr<vierkant::ObjectStore> &object_store = {},
+                           const vierkant::AssetProviderPtr &asset_provider = {});
 
     virtual void add_object(const Object3DPtr &object);
 
@@ -77,43 +79,24 @@ public:
     vierkant::Object3DPtr
     create_camera(const vierkant::camera_params_variant_t &params = vierkant::physical_camera_params_t{});
 
-    // TODO: rework this entire material-storage thingy as separate module
-
-    void add_material(material_t material);
-
-    const material_t *material(const vierkant::MaterialId &material_id) const;
-
-    material_t *material(const vierkant::MaterialId &material_id);
-
-    const mesh_asset_t *mesh_asset(const vierkant::MeshId &mesh_id);
-
-    void add_texture(const vierkant::TextureId &texture_id, const vierkant::ImagePtr &tex);
-
-    vierkant::ImagePtr texture(const vierkant::TextureId &texture_id) const;
-
-    const vierkant::material_data_t *material_data() const { return &m_material_data; }
-
-    const std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> *texture_store() const
-    { return &m_texture_store; }
+    [[nodiscard]] const vierkant::AssetProviderPtr &asset_provider() const { return m_asset_provider; }
 
     /**
-     * @brief   prune_unused_material_data iterates all scene-graph nodes, identifies all live material/texture-data
-     *          and updates internal material/texture store.
-     *          this result in a pruning-operation, leaving only required data.
+     * @brief   prune_assets walks the scene-graph, collects the live material/texture/sampler/mesh ids
+     *          and hands them to the AssetProvider, which reaps everything else.
      */
-    void prune_unused_material_data();
-
-    vierkant::material_data_t m_material_data;
-    std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> m_texture_store;
-    vierkant::mesh_map_t m_mesh_map;
+    void prune_assets();
 
 protected:
-    explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store);
+    explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store,
+                   const vierkant::AssetProviderPtr &asset_provider);
 
 private:
     static constexpr char s_scene_root_name[] = "scene root";
 
     std::shared_ptr<vierkant::ObjectStore> m_object_store;
+
+    vierkant::AssetProviderPtr m_asset_provider;
 
     vierkant::ImagePtr m_skybox = nullptr;
 

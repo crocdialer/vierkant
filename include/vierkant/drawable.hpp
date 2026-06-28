@@ -13,6 +13,8 @@
 namespace vierkant
 {
 
+class AssetProvider;
+
 struct matrix_struct_t
 {
     glm::mat4 projection = glm::mat4(1);
@@ -121,8 +123,7 @@ struct create_mesh_drawables_params_t
 {
     vierkant::transform_t transform = {};
 
-    const vierkant::material_data_t *material_data = nullptr;
-    const std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> *texture_store = nullptr;
+    const vierkant::AssetProvider *assets = nullptr;
 
     // set lod-index, default: 0 (highest lod). use negative values to count backwards from lowest lod
     int32_t lod_index = 0;

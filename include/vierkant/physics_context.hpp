@@ -430,7 +430,8 @@ class PhysicsScene : public vierkant::Scene
 public:
     ~PhysicsScene() override = default;
 
-    static std::shared_ptr<PhysicsScene> create(const std::shared_ptr<vierkant::ObjectStore> &object_store = {});
+    static std::shared_ptr<PhysicsScene> create(const std::shared_ptr<vierkant::ObjectStore> &object_store = {},
+                                                const vierkant::AssetProviderPtr &asset_provider = {});
 
     void add_object(const Object3DPtr &object) override;
 
@@ -444,7 +445,8 @@ public:
     [[nodiscard]] const vierkant::PhysicsContext &physics_context() const { return m_context; };
 
 private:
-    explicit PhysicsScene(const std::shared_ptr<vierkant::ObjectStore> &object_store);
+    explicit PhysicsScene(const std::shared_ptr<vierkant::ObjectStore> &object_store,
+                          const vierkant::AssetProviderPtr &asset_provider);
 
     crocore::ThreadPool m_thread_pool{std::thread::hardware_concurrency() - 1};
     vierkant::PhysicsContext m_context{&m_thread_pool};

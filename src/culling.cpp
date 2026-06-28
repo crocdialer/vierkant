@@ -48,8 +48,7 @@ public:
 
                 // create drawables
                 vierkant::create_mesh_drawables_params_t drawable_params = {};
-                drawable_params.material_data = m_scene->material_data();
-                drawable_params.texture_store = m_scene->texture_store();
+                drawable_params.assets = m_scene->asset_provider().get();
                 drawable_params.transform = model_view;
 
                 if(object.has_component<animation_component_t>())

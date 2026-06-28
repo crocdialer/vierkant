@@ -33,7 +33,7 @@ struct mesh_asset_t
     vierkant::MeshPtr mesh;
 
     //! optional, persist-able bundle-version
-    std::optional<vierkant::mesh_buffer_bundle_t> bundle;
+    std::optional<vierkant::mesh_buffer_bundle_t> bundle = {};
 };
 using mesh_map_t = std::unordered_map<vierkant::MeshId, mesh_asset_t>;
 

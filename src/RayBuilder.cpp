@@ -165,7 +165,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const SceneConstPt
         if(entry.material_index < params.mesh->material_ids.size())
         {
             const auto &mesh_material_id = params.mesh->material_ids[entry.material_index];
-            material = scene->material(mesh_material_id);
+            material = scene->asset_provider()->material(mesh_material_id);
         }
 
         // throw on non-triangle entries
@@ -497,7 +497,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
             if(mesh_entry.material_index < material_ids.size())
             {
                 mesh_material_id = material_ids[mesh_entry.material_index];
-                mat = params.scene->material(mesh_material_id);
+                mat = params.scene->asset_provider()->material(mesh_material_id);
             }
 
             const auto &asset = acceleration_assets[i];
@@ -571,7 +571,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
                     for(const auto &[type_flag, tex_data]: mat->texture_data)
                     {
-                        const auto &tex = params.scene->texture(tex_data.texture_id);
+                        const auto &tex = params.scene->asset_provider()->texture({tex_data.texture_id, tex_data.sampler_id});
 
                         material.texture_type_flags |= static_cast<uint32_t>(type_flag);
 
@@ -881,7 +881,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             if(!scene || !mesh || entry_index >= mesh->entries.size()) { return vierkant::TextureId::nil(); }
             const auto &entry = mesh->entries[entry_index];
             if(entry.material_index >= mesh->material_ids.size()) { return vierkant::TextureId::nil(); }
-            const auto *material = scene->material(mesh->material_ids[entry.material_index]);
+            const auto *material = scene->asset_provider()->material(mesh->material_ids[entry.material_index]);
             if(!material) { return vierkant::TextureId::nil(); }
             auto it = material->texture_data.find(vierkant::TextureType::Color);
             return it != material->texture_data.end() ? it->second.texture_id : vierkant::TextureId::nil();
