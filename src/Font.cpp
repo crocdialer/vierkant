@@ -6,9 +6,24 @@
 
 #include "stb_rect_pack.h"
 
+// guard stb_truetype's internal const-casts (was patched in-header)
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-qual"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+#endif
+
 #define STB_TRUETYPE_IMPLEMENTATION
 
 #include "stb_truetype.h"
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 #if defined(__clang__)
 #pragma clang diagnostic push

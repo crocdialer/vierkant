@@ -1,18 +1,9 @@
 #include <cmath>
 #include <cstring>
-#define RGBCX_IMPLEMENTATION
 
-#if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wextra"
-#endif
-#include "bc7enc/rgbcx.h"
-#if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-
-#include "bc7enc/bc7decomp.h"
-#include "bc7enc/bc7enc.h"
+#include "rgbcx.h"
+#include "bc7decomp.h"
+#include "bc7enc.h"
 
 //#include <bc7e/bc7e_avx2.h>
 

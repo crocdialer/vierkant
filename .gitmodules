@@ -44,3 +44,15 @@
 	path = extern/mimalloc
 	url = https://github.com/microsoft/mimalloc.git
 	shallow = true
+[submodule "extern/volk"]
+	path = extern/volk
+	url = https://github.com/zeux/volk.git
+	shallow = true
+[submodule "extern/stb"]
+	path = extern/stb
+	url = https://github.com/nothings/stb.git
+	shallow = true
+[submodule "extern/bc7enc_rdo"]
+	path = extern/bc7enc_rdo
+	url = https://github.com/richgel999/bc7enc_rdo.git
+	shallow = true

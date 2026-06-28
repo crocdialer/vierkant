@@ -1,6 +1,6 @@
 #include "vierkant/Framebuffer.hpp"
 
-#include "bc7enc/rgbcx.h"
+#include "rgbcx.h"
 
 namespace vierkant
 {

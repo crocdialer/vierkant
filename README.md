@@ -32,8 +32,6 @@ submodules:
 - https://github.com/ocornut/imgui
 - https://github.com/KhronosGroup/SPIRV-Reflect
 - https://github.com/microsoft/mimalloc
-
-vendored (in `src/`):
--
-- [stb](https://github.com/nothings/stb) (stb_truetype.h, stb_rect_pack.h)
-- bc7enc, volk
+- https://github.com/zeux/volk
+- https://github.com/nothings/stb
+- https://github.com/richgel999/bc7enc_rdo
