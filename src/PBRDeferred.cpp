@@ -398,7 +398,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr
                         const auto &material_ids =
                                 mesh_component->material_ids ? *mesh_component->material_ids : mesh->material_ids;
                         const auto &material_id = material_ids[entry.material_index];
-                        const auto *material = scene->material(material_id);
+                        const auto *material = scene->asset_provider()->material(material_id);
                         vierkant::update_material(material, drawable.material);
                     }
                 }

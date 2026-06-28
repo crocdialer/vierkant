@@ -10,6 +10,7 @@
 #include <vierkant/Geometry.hpp>
 #include <vierkant/Image.hpp>
 #include <vierkant/Pipeline.hpp>
+#include <vierkant/hash.hpp>
 #include <vierkant/texture_block_compression.hpp>
 
 namespace vierkant
@@ -19,6 +20,14 @@ namespace vierkant
 DEFINE_NAMED_UUID(MaterialId)
 DEFINE_NAMED_UUID(TextureId)
 DEFINE_NAMED_UUID(SamplerId)
+
+//! composite key: a texture id paired with the sampler it is realized with
+struct texture_key_t
+{
+    vierkant::TextureId texture_id = vierkant::TextureId::nil();
+    vierkant::SamplerId sampler_id = vierkant::SamplerId::nil();
+    bool operator==(const texture_key_t &) const = default;
+};
 
 enum class BlendMode : uint8_t
 {
@@ -196,5 +205,17 @@ template<>
 struct hash<vierkant::material_t>
 {
     size_t operator()(vierkant::material_t const &m) const noexcept;
+};
+
+template<>
+struct hash<vierkant::texture_key_t>
+{
+    size_t operator()(vierkant::texture_key_t const &key) const noexcept
+    {
+        size_t h = 0;
+        vierkant::hash_combine(h, key.texture_id);
+        vierkant::hash_combine(h, key.sampler_id);
+        return h;
+    }
 };
 }// namespace std

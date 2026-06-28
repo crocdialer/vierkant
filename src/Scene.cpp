@@ -60,15 +60,18 @@ vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_params_variant
 }
 
 
-Scene::Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store)
-    : m_object_store(object_store ? object_store : create_object_store())
+Scene::Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store,
+             const vierkant::AssetProviderPtr &asset_provider)
+    : m_object_store(object_store ? object_store : create_object_store()),
+      m_asset_provider(asset_provider ? asset_provider : vierkant::AssetProvider::create({}))
 {
     m_root = m_object_store->create_object();
     m_root->name = s_scene_root_name;
 }
 
-ScenePtr Scene::create(const std::shared_ptr<vierkant::ObjectStore> &object_store)
-{ return ScenePtr(new Scene(object_store)); }
+ScenePtr Scene::create(const std::shared_ptr<vierkant::ObjectStore> &object_store,
+                       const vierkant::AssetProviderPtr &asset_provider)
+{ return ScenePtr(new Scene(object_store, asset_provider)); }
 
 void Scene::add_object(const Object3DPtr &object) { m_root->add_child(object); }
 
@@ -80,90 +83,35 @@ void Scene::clear()
     m_root->name = s_scene_root_name;
 }
 
-void Scene::add_material(material_t material) { m_material_data.materials[material.id] = std::move(material); }
-
-const material_t *Scene::material(const vierkant::MaterialId &material_id) const
+void Scene::prune_assets()
 {
-    if(const auto it = m_material_data.materials.find(material_id); it != m_material_data.materials.end())
-    {
-        return &it->second;
-    }
-    return nullptr;
-}
-
-material_t *Scene::material(const vierkant::MaterialId &material_id)
-{
-    if(const auto it = m_material_data.materials.find(material_id); it != m_material_data.materials.end())
-    {
-        return &it->second;
-    }
-    return nullptr;
-}
-
-const mesh_asset_t *Scene::mesh_asset(const vierkant::MeshId &mesh_id)
-{
-    if(const auto it = m_mesh_map.find(mesh_id); it != m_mesh_map.end()) { return &it->second; }
-    return nullptr;
-}
-
-void Scene::add_texture(const vierkant::TextureId &texture_id, const vierkant::ImagePtr &tex)
-{
-    // TODO: mutex?
-    m_texture_store[texture_id] = tex;
-}
-
-vierkant::ImagePtr Scene::texture(const vierkant::TextureId &texture_id) const
-{
-    if(const auto it = m_texture_store.find(texture_id); it != m_texture_store.end()) { return it->second; }
-    return nullptr;
-}
-
-void Scene::prune_unused_material_data()
-{
-    std::unordered_map<vierkant::MaterialId, vierkant::material_t> pruned_materials;
+    vierkant::asset_live_set_t live;
 
     LambdaVisitor visitor;
-    visitor.traverse(*root(), [this, &pruned_materials](auto &obj) {
+    visitor.traverse(*root(), [this, &live](auto &obj) {
         if(auto *mesh_cmp = obj.template get_component_ptr<vierkant::mesh_component_t>(); mesh_cmp && mesh_cmp->mesh)
         {
-            auto &material_ids = mesh_cmp->material_ids ? *mesh_cmp->material_ids : mesh_cmp->mesh->material_ids;
+            live.meshes.insert(mesh_cmp->mesh->id);
+
+            const auto &material_ids = mesh_cmp->material_ids ? *mesh_cmp->material_ids : mesh_cmp->mesh->material_ids;
             for(const auto &mat_id: material_ids)
             {
-                if(!pruned_materials.contains(mat_id))
+                if(!live.materials.insert(mat_id).second) { continue; }
+
+                if(const auto *mat = m_asset_provider->material(mat_id))
                 {
-                    if(auto *scene_mat = material(mat_id)) pruned_materials[mat_id] = std::move(*scene_mat);
+                    for(const auto &tex_data: mat->texture_data | std::views::values)
+                    {
+                        live.textures.insert({tex_data.texture_id, tex_data.sampler_id});
+                        if(tex_data.sampler_id) { live.samplers.insert(tex_data.sampler_id); }
+                    }
                 }
             }
         }
         return true;
     });
 
-    std::unordered_map<vierkant::TextureId, vierkant::texture_variant_t> pruned_textures;
-    std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> pruned_tex_store;
-
-    for(const auto &mat: pruned_materials | std::views::values)
-    {
-        for(const auto &tex_data: mat.texture_data | std::views::values)
-        {
-            if(!pruned_tex_store.contains(tex_data.texture_id))
-            {
-                if(auto tex = texture(tex_data.texture_id))
-                {
-                    if(m_material_data.textures.contains(tex_data.texture_id))
-                    {
-                        pruned_textures[tex_data.texture_id] = m_material_data.textures[tex_data.texture_id];
-                    }
-
-                    pruned_tex_store[tex_data.texture_id] = std::move(tex);
-                }
-            }
-        }
-    }
-
-    // move back
-    m_material_data.materials = std::move(pruned_materials);
-    m_material_data.textures = std::move(pruned_textures);
-    m_texture_store = std::move(pruned_tex_store);
+    m_asset_provider->prune(live);
 }
 
 void Scene::update(double time_delta)

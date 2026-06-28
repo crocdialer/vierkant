@@ -332,29 +332,25 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
     // node animations
     ret.mesh->node_animations = mesh_assets.node_animations;
 
-    // generate textures with default samplers
+    // generate base-textures under their default-sampler key {texture_id, nil}
     for(const auto &[id, tex_variant]: mesh_assets.textures)
     {
         std::visit(
                 [&params, tex_id = id, &ret, &create_texture](auto &&img) {
                     using T = std::decay_t<decltype(img)>;
+                    texture_key_t key = {tex_id, vierkant::SamplerId::nil()};
 
-                    if constexpr(std::is_same_v<T, crocore::ImagePtr>) { ret.textures[tex_id] = create_texture(img); }
+                    if constexpr(std::is_same_v<T, crocore::ImagePtr>) { ret.textures[key] = create_texture(img); }
                     else if constexpr(std::is_same_v<T, vierkant::bcn::compress_result_t>)
                     {
                         vierkant::Image::Format fmt;
                         fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
                         fmt.max_anisotropy = params.device->properties().core.limits.maxSamplerAnisotropy;
-                        ret.textures[tex_id] = create_compressed_texture(params.device, img, fmt, params.load_queue);
+                        ret.textures[key] = create_compressed_texture(params.device, img, fmt, params.load_queue);
                     }
                 },
                 tex_variant);
     }
-
-    // cache required texture/sampler combinations
-    std::unordered_map<std::pair<TextureId, SamplerId>, std::pair<TextureId, ImagePtr>,
-                       vierkant::pair_hash<TextureId, SamplerId>>
-            id_permutation_cache;
 
     ret.mesh->material_ids.resize(mesh_assets.materials.size());
 
@@ -363,53 +359,44 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
         const auto &asset_mat = mesh_assets.materials[i];
         ret.mesh->material_ids[i] = asset_mat.id;
 
-        auto &material = ret.materials[asset_mat.id];
-        material = asset_mat;
+        // no material-mutation: ids stay stable, drawable resolves textures by {texture_id, sampler_id}
+        ret.materials[asset_mat.id] = asset_mat;
 
-        for(auto &[tex_type, tex_data]: material.texture_data)
+        for(const auto &[tex_type, tex_data]: asset_mat.texture_data)
         {
-            // optional sampler-override
-            if(tex_data.sampler_id)
+            // sampler_id nil -> base image under {texture_id, nil} already exists
+            if(!tex_data.sampler_id) { continue; }
+
+            texture_key_t key = {tex_data.texture_id, tex_data.sampler_id};
+            if(ret.textures.contains(key)) { continue; }
+
+            auto base_it = ret.textures.find({tex_data.texture_id, vierkant::SamplerId::nil()});
+            if(base_it == ret.textures.end()) { continue; }
+            auto base_img = base_it->second;
+
+            // get-or-create one VkSampler per SamplerId
+            vierkant::VkSamplerPtr vk_sampler;
+            if(auto sampler_it = ret.samplers.find(tex_data.sampler_id); sampler_it != ret.samplers.end())
             {
-                auto vk_img = ret.textures[tex_data.texture_id];
-                auto tex_id = tex_data.texture_id;
-                auto cache_key = std::make_pair(tex_data.texture_id, tex_data.sampler_id);
-
-                // check cache-entry, clone img if necessary
-                if(auto cache_it = id_permutation_cache.find(cache_key); cache_it != id_permutation_cache.end())
-                {
-                    const auto &[cache_id, cache_img] = cache_it->second;
-                    vk_img = cache_img;
-                    tex_id = cache_id;
-                }
-                else
-                {
-                    vk_img = ret.textures[tex_data.texture_id]->clone();
-                    tex_id = TextureId::random();
-
-                    // store in cache
-                    id_permutation_cache[cache_key] = {tex_id, vk_img};
-
-                    // store permutation with new id
-                    ret.textures[tex_id] = vk_img;
-
-                    // overwrite original texture-id here, not sure
-                    // tex_data.texture_id = tex_id;
-
-                    if(auto sampler_it = mesh_assets.texture_samplers.find(tex_data.sampler_id);
-                       sampler_it != mesh_assets.texture_samplers.end())
-                    {
-                        auto vk_sampler = create_sampler(params.device, sampler_it->second, vk_img->num_mip_levels());
-                        vk_img->set_sampler(vk_sampler);
-                        ret.samplers[tex_data.sampler_id] = vk_sampler;
-                    }
-                    else
-                    {
-                        spdlog::warn("material '{}' references sampler '{}', but could not find in bundle",
-                                     asset_mat.name, tex_data.sampler_id.str());
-                    }
-                }
+                vk_sampler = sampler_it->second;
             }
+            else if(auto desc_it = mesh_assets.texture_samplers.find(tex_data.sampler_id);
+                    desc_it != mesh_assets.texture_samplers.end())
+            {
+                vk_sampler = create_sampler(params.device, desc_it->second, base_img->num_mip_levels());
+                ret.samplers[tex_data.sampler_id] = vk_sampler;
+            }
+            else
+            {
+                spdlog::warn("material '{}' references sampler '{}', but could not find in bundle", asset_mat.name,
+                             tex_data.sampler_id.str());
+                continue;
+            }
+
+            // realize the sampled permutation under the composite key
+            auto vk_img = base_img->clone();
+            vk_img->set_sampler(vk_sampler);
+            ret.textures[key] = vk_img;
         }
     }
 

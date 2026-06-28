@@ -2,6 +2,7 @@
 // Created by crocdialer on 04.10.22.
 //
 
+#include <vierkant/AssetProvider.hpp>
 #include <vierkant/Rasterizer.hpp>
 #include <vierkant/drawable.hpp>
 
@@ -76,14 +77,10 @@ std::vector<vierkant::drawable_t> create_mesh_drawables(const vierkant::mesh_com
         auto mesh_material_id = MaterialId::nil();
 
         // sanity check material-index
-        if(params.material_data && entry.material_index < material_ids.size())
+        if(params.assets && entry.material_index < material_ids.size())
         {
             mesh_material_id = material_ids[entry.material_index];
-            if(auto mat_it = params.material_data->materials.find(mesh_material_id);
-               mat_it != params.material_data->materials.end())
-            {
-                material = &mat_it->second;
-            }
+            material = params.assets->material(mesh_material_id);
         }
 
         // acquire ref for mesh-drawable
@@ -160,10 +157,10 @@ std::vector<vierkant::drawable_t> create_mesh_drawables(const vierkant::mesh_com
 
             for(auto &[type_flag, tex_data]: material->texture_data)
             {
-                if(auto tex_it = params.texture_store->find(tex_data.texture_id); tex_it != params.texture_store->end())
+                if(auto tex = params.assets->texture({tex_data.texture_id, tex_data.sampler_id}))
                 {
                     drawable.material.texture_type_flags |= static_cast<uint32_t>(type_flag);
-                    desc_texture.images.push_back(tex_it->second);
+                    desc_texture.images.push_back(tex);
                 }
             }
         }

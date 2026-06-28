@@ -3,6 +3,7 @@
 //
 
 #include <cmath>
+#include <ranges>
 
 
 #include <vierkant/PBRDeferred.hpp>
@@ -588,16 +589,18 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
     }
     if(ImGui::BeginTabItem("materials"))
     {
-        if(ImGui::Button("prune unused")) { scene->prune_unused_material_data(); }
+        if(ImGui::Button("prune unused")) { scene->prune_assets(); }
 
-        for(auto &[mat_id, mat]: scene->m_material_data.materials)
+        for(const auto &mat_id: std::views::keys(scene->asset_provider()->materials()))
         {
+            auto &mat = *scene->asset_provider()->material(mat_id);
+
             auto draw_texture = [&scene, &mat](vierkant::TextureType type, const std::string &text) {
                 if(const auto it = mat.texture_data.find(type); it != mat.texture_data.end())
                 {
                     const auto &tex_data = it->second;
 
-                    if(const auto img = scene->texture(tex_data.texture_id))
+                    if(const auto img = scene->asset_provider()->texture({tex_data.texture_id, tex_data.sampler_id}))
                     {
                         constexpr uint32_t buf_size = 16;
                         char buf[buf_size];
@@ -644,8 +647,18 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
         const float cell_width = thumb_size + thumb_padding;
         const int cols = std::max(1, static_cast<int>(ImGui::GetContentRegionAvail().x / cell_width));
 
+        // dedupe the composite-keyed store by texture-id; prefer the {id, nil} base representative
+        std::map<vierkant::TextureId, vierkant::ImagePtr> unique_textures;
+        for(const auto &[key, texture]: scene->asset_provider()->textures())
+        {
+            if(!unique_textures.contains(key.texture_id) || !key.sampler_id)
+            {
+                unique_textures[key.texture_id] = texture;
+            }
+        }
+
         int col = 0;
-        for(const auto &[texture_id, texture]: scene->m_texture_store)
+        for(const auto &[texture_id, texture]: unique_textures)
         {
             if(col > 0) { ImGui::SameLine(0.0f, thumb_padding); }
 
@@ -681,7 +694,7 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
         }
         ImGui::PopStyleVar(2);
 
-        if(const auto it = scene->m_texture_store.find(selected_texture_id); it != scene->m_texture_store.end())
+        if(const auto it = unique_textures.find(selected_texture_id); it != unique_textures.end())
         {
             const auto &[texture_id, texture] = *it;
             ImGui::Separator();
@@ -789,8 +802,11 @@ bool draw_material_ui(vierkant::material_t &material,
         if(ImGui::InputText("texture-id:", text_buf, buf_size, ImGuiInputTextFlags_EnterReturnsTrue))
         {
             changed = true;
-            auto new_tex_id = TextureId::from_string(text_buf);
-            material.texture_data[type].texture_id = new_tex_id;
+            auto &tex_data = material.texture_data[type];
+            tex_data.texture_id = TextureId::from_string(text_buf);
+
+            // a hand-assigned raw texture has no realized sampler-permutation -> resolve to the {id, nil} base
+            tex_data.sampler_id = SamplerId::nil();
         }
         ImGui::PopID();
     };
@@ -921,14 +937,14 @@ bool draw_material_ui(vierkant::material_t &material,
 bool draw_material_ui(const vierkant::ScenePtr &scene, const MaterialId &material_id)
 {
     const float w = ImGui::GetContentRegionAvail().x;
-    auto *material = scene->material(material_id);
+    auto *material = scene->asset_provider()->material(material_id);
 
     auto draw_texture = [&scene, material, w](vierkant::TextureType type, const std::string &text) {
         if(const auto it = material->texture_data.find(type); it != material->texture_data.end())
         {
             const auto &tex_data = it->second;
 
-            if(const auto img = scene->texture(tex_data.texture_id))
+            if(const auto img = scene->asset_provider()->texture({tex_data.texture_id, tex_data.sampler_id}))
             {
                 constexpr uint32_t buf_size = 16;
                 char buf[buf_size];
@@ -1063,7 +1079,7 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
                     auto new_mat_id = vierkant::MaterialId::from_string(text_buf);
 
                     // check if material is defined
-                    if(scene->material(new_mat_id))
+                    if(scene->asset_provider()->material(new_mat_id))
                     {
                         // create material_id override, if necessary
                         if(!mesh_component.material_ids)
@@ -1101,7 +1117,7 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
         {
             const auto &mesh_material_id = material_ids[i];
 
-            if(const auto *mat = scene->material(mesh_material_id))
+            if(const auto *mat = scene->asset_provider()->material(mesh_material_id))
             {
                 auto mat_name = mat->name.empty() ? std::to_string(i) : mat->name;
 

@@ -185,7 +185,8 @@ struct load_mesh_result_t
     vierkant::MeshPtr mesh;
     std::unordered_map<vierkant::MaterialId, vierkant::material_t> materials;
 
-    std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> textures;
+    //! GPU-textures keyed by {texture_id, sampler_id}; an entry per realized texture/sampler combination
+    std::unordered_map<vierkant::texture_key_t, vierkant::ImagePtr> textures;
     std::unordered_map<vierkant::SamplerId, vierkant::VkSamplerPtr> samplers;
 
     //! CPU-side OMM data; caller accumulates into a scene-level cache and passes to RayBuilder
@@ -250,5 +251,16 @@ vierkant::ImagePtr create_texture(const vierkant::DevicePtr &device, const croco
 vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              const vierkant::bcn::compress_result_t &compression_result,
                                              vierkant::Image::Format format, VkQueue load_queue);
+
+/**
+ * @brief   create_sampler creates a VkSampler from a texture_sampler_t descriptor.
+ *
+ * @param   device      handle to a vierkant::Device
+ * @param   ts          a texture_sampler_t descriptor
+ * @param   num_mips    number of mip-levels the sampler should address
+ * @return  a newly created, ref-counted VkSampler
+ */
+vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const vierkant::texture_sampler_t &ts,
+                                      uint32_t num_mips);
 
 }// namespace vierkant::model
