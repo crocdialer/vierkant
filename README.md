@@ -15,17 +15,25 @@ features
 - load .hdr panoramas as mip-mapped cubemaps
 - utils for lambert- and GGX-convolutions used by rasterizer
 - glTF 2.0 via [tinygltf](https://github.com/syoyo/tinygltf)
-  - supports the entire feature-set and all existing glTF2-extensions (transmittance, volumes, irridescence, ...) 
-- optional/additional support for: [assimp](https://github.com/assimp/assimp)
+  - broad glTF2 coverage, including many KHR extensions (transmission, volumes, iridescence, ...)
 - pragmatic+easy interface, thanks [imgui](https://github.com/ocornut/imgui)
 - entity-component-system (registry/entity) provided by [entt](https://github.com/skypjack/entt)
 
 submodules:
 - 
 - https://github.com/crocdialer/crocore
-- https://github.com/nothings/stb (stb_truetype.h)
 - https://github.com/glfw/glfw
+- https://github.com/g-truc/glm
 - https://github.com/syoyo/tinygltf
-- https://github.com/ocornut/imgui
+- https://github.com/tinyobjloader/tinyobjloader
 - https://github.com/zeux/meshoptimizer
 - https://github.com/skypjack/entt
+- https://github.com/jrouwe/JoltPhysics
+- https://github.com/ocornut/imgui
+- https://github.com/KhronosGroup/SPIRV-Reflect
+- https://github.com/microsoft/mimalloc
+
+vendored (in `src/`):
+-
+- [stb](https://github.com/nothings/stb) (stb_truetype.h, stb_rect_pack.h)
+- bc7enc, volk
