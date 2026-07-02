@@ -465,8 +465,9 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
 
 void draw_scene_renderer_statistics_ui_intern(const PBRPathTracerPtr &path_tracer)
 {
+    const auto &stats = path_tracer->statistics();
     PBRPathTracer::timings_t last = {};
-    if(!path_tracer->statistics().empty()) { last = path_tracer->statistics().back().timings; };
+    if(!stats.empty()) { last = stats.back().timings; };
     ImGui::BulletText("mesh_compute_ms: %.3f ms", last.raybuilder_timings.mesh_compute_ms);
     ImGui::BulletText("update_bottom_ms: %.3f ms", last.raybuilder_timings.update_bottom_ms);
     ImGui::BulletText("update_top_ms: %.3f ms", last.raybuilder_timings.update_top_ms);
@@ -475,6 +476,29 @@ void draw_scene_renderer_statistics_ui_intern(const PBRPathTracerPtr &path_trace
     ImGui::BulletText("bloom_ms: %.3f ms", last.bloom_ms);
     ImGui::BulletText("tonemap_ms: %.3f ms", last.tonemap_ms);
     ImGui::BulletText("total_ms: %.3f ms", last.total_ms);
+
+    if(!stats.empty() && ImGui::TreeNode("timing-plots"))
+    {
+        if(ImPlot::BeginPlot("##pathtracer_timings"))
+        {
+            std::vector<PBRPathTracer::statistics_t> values(stats.begin(), stats.end());
+            auto max_axis_x = static_cast<double>(path_tracer->settings.timing_history_size);
+
+            const double max_ms = std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
+                                      return lhs.timings.total_ms < rhs.timings.total_ms;
+                                  })->timings.total_ms;
+
+            ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
+            ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_ms, ImPlotCond_Always);
+            ImPlotSpec timing_spec(ImPlotProp_FillAlpha, 0.5f, ImPlotProp_Stride,
+                                   static_cast<int>(sizeof(PBRPathTracer::statistics_t)));
+            const auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
+                                                         offsetof(PBRPathTracer::statistics_t, timings.total_ms));
+            ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0.0, 1.0, 0.0, timing_spec);
+            ImPlot::EndPlot();
+        }
+        ImGui::TreePop();
+    }
 }
 
 void draw_scene_renderer_settings_ui(const SceneRendererPtr &scene_renderer)
