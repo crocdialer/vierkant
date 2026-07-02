@@ -63,7 +63,7 @@ vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_params_variant
 Scene::Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store,
              const vierkant::AssetProviderPtr &asset_provider)
     : m_object_store(object_store ? object_store : create_object_store()),
-      m_asset_provider(asset_provider ? asset_provider : vierkant::AssetProvider::create({}))
+      m_asset_provider(asset_provider ? asset_provider : vierkant::AssetProvider::create())
 {
     m_root = m_object_store->create_object();
     m_root->name = s_scene_root_name;
@@ -83,30 +83,35 @@ void Scene::clear()
     m_root->name = s_scene_root_name;
 }
 
-void Scene::prune_assets()
+void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_live_materials)
 {
     vierkant::asset_live_set_t live;
 
+    // mark a material live, along with the textures/samplers it references
+    auto mark_material = [this, &live](const vierkant::MaterialId &mat_id) {
+        if(!live.materials.insert(mat_id).second) { return; }
+
+        if(const auto *mat = m_asset_provider->material(mat_id))
+        {
+            for(const auto &tex_data: mat->texture_data | std::views::values)
+            {
+                live.textures.insert({tex_data.texture_id, tex_data.sampler_id});
+                if(tex_data.sampler_id) { live.samplers.insert(tex_data.sampler_id); }
+            }
+        }
+    };
+
+    // caller-provided roots (e.g. a user-authored material-library) that outlive scene-graph references
+    for(const auto &mat_id: extra_live_materials) { mark_material(mat_id); }
+
     LambdaVisitor visitor;
-    visitor.traverse(*root(), [this, &live](auto &obj) {
+    visitor.traverse(*root(), [&live, &mark_material](auto &obj) {
         if(auto *mesh_cmp = obj.template get_component_ptr<vierkant::mesh_component_t>(); mesh_cmp && mesh_cmp->mesh)
         {
             live.meshes.insert(mesh_cmp->mesh->id);
 
             const auto &material_ids = mesh_cmp->material_ids ? *mesh_cmp->material_ids : mesh_cmp->mesh->material_ids;
-            for(const auto &mat_id: material_ids)
-            {
-                if(!live.materials.insert(mat_id).second) { continue; }
-
-                if(const auto *mat = m_asset_provider->material(mat_id))
-                {
-                    for(const auto &tex_data: mat->texture_data | std::views::values)
-                    {
-                        live.textures.insert({tex_data.texture_id, tex_data.sampler_id});
-                        if(tex_data.sampler_id) { live.samplers.insert(tex_data.sampler_id); }
-                    }
-                }
-            }
+            for(const auto &mat_id: material_ids) { mark_material(mat_id); }
         }
         return true;
     });

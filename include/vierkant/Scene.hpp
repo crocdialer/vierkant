@@ -84,8 +84,12 @@ public:
     /**
      * @brief   prune_assets walks the scene-graph, collects the live material/texture/sampler/mesh ids
      *          and hands them to the AssetProvider, which reaps everything else.
+     *
+     * @param   extra_live_materials    additional material-ids to keep alive regardless of scene-graph
+     *                                  references (e.g. a user-authored material-library) - their
+     *                                  textures/samplers are kept as well.
      */
-    void prune_assets();
+    void prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_live_materials = {});
 
 protected:
     explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store,

@@ -57,7 +57,7 @@ TEST(TestAssetProvider, populate_sampler_override)
     ASSERT_TRUE(result.textures.contains(sampled_key));
     ASSERT_TRUE(result.samplers.contains(sampler_id));
 
-    auto provider = vierkant::AssetProvider::create(test_context.device);
+    auto provider = vierkant::AssetProvider::create();
     provider->populate(result);
 
     // material survived the merge unmodified

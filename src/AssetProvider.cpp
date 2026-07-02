@@ -3,8 +3,7 @@
 namespace vierkant
 {
 
-AssetProviderPtr AssetProvider::create(vierkant::DevicePtr device)
-{ return AssetProviderPtr(new AssetProvider(std::move(device))); }
+AssetProviderPtr AssetProvider::create() { return AssetProviderPtr(new AssetProvider()); }
 
 void AssetProvider::add_material(material_t m) { m_materials[m.id] = std::move(m); }
 
@@ -34,14 +33,6 @@ VkSamplerPtr AssetProvider::sampler(const SamplerId &id) const
 {
     auto it = m_samplers.find(id);
     return it != m_samplers.end() ? it->second : nullptr;
-}
-
-VkSamplerPtr AssetProvider::get_or_create_sampler(const SamplerId &id, const texture_sampler_t &ts, uint32_t mip_levels)
-{
-    if(auto it = m_samplers.find(id); it != m_samplers.end()) { return it->second; }
-    auto sampler = model::create_sampler(m_device, ts, mip_levels);
-    m_samplers[id] = sampler;
-    return sampler;
 }
 
 const mesh_asset_t *AssetProvider::mesh_asset(const MeshId &id) const

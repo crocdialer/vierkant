@@ -33,7 +33,7 @@ struct asset_live_set_t
 class AssetProvider
 {
 public:
-    static AssetProviderPtr create(vierkant::DevicePtr device);
+    static AssetProviderPtr create();
 
     // materials
     void add_material(material_t m);
@@ -45,9 +45,8 @@ public:
     void add_texture(const texture_key_t &key, ImagePtr img);
     [[nodiscard]] ImagePtr texture(const texture_key_t &key) const;
 
-    // samplers (GPU) - owner + dedup by SamplerId
+    // samplers (GPU) - owned + deduped by SamplerId; created by the model-loader, inserted via populate()
     [[nodiscard]] VkSamplerPtr sampler(const SamplerId &id) const;
-    VkSamplerPtr get_or_create_sampler(const SamplerId &id, const texture_sampler_t &ts, uint32_t mip_levels);
 
     // meshes
     [[nodiscard]] const mesh_asset_t *mesh_asset(const MeshId &id) const;
@@ -67,9 +66,8 @@ public:
     [[nodiscard]] std::function<const mesh_asset_t *(MeshId)> mesh_provider() const;
 
 private:
-    explicit AssetProvider(vierkant::DevicePtr device) : m_device(std::move(device)) {}
+    AssetProvider() = default;
 
-    vierkant::DevicePtr m_device;
     std::unordered_map<MaterialId, material_t> m_materials;
     std::unordered_map<texture_key_t, ImagePtr> m_textures;
     std::unordered_map<SamplerId, VkSamplerPtr> m_samplers;
