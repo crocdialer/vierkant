@@ -555,7 +555,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     }
 
     // Russian roulette
-    if(max3(payload.beta) <= 0.05 && payload.depth >= 1)
+    if(max3(payload.beta) <= 0.05 * payload.depth)
     {
         float q = 1.0 - max3(payload.beta);
         if(utils::rnd(rng_state) < q)
