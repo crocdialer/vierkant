@@ -37,6 +37,7 @@ public:
 
     // materials
     void add_material(material_t m);
+    void remove_material(const MaterialId &id);
     [[nodiscard]] const material_t *material(const MaterialId &id) const;
     material_t *material(const MaterialId &id);
 

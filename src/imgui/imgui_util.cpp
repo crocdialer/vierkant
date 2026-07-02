@@ -589,9 +589,17 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
     }
     if(ImGui::BeginTabItem("materials"))
     {
+        auto *assets = scene->asset_provider().get();
+
+        if(ImGui::Button("add material")) { assets->add_material({}); }
+        ImGui::SameLine();
         if(ImGui::Button("prune unused")) { scene->prune_assets(); }
 
-        for(const auto &mat_id: std::views::keys(scene->asset_provider()->materials()))
+        // deferred mutations (avoid modifying the material-map mid-iteration)
+        vierkant::MaterialId material_to_remove = vierkant::MaterialId::nil();
+        std::optional<vierkant::material_t> material_to_add;
+
+        for(const auto &mat_id: std::views::keys(assets->materials()))
         {
             auto &mat = *scene->asset_provider()->material(mat_id);
 
@@ -626,11 +634,23 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
 
             if(ImGui::TreeNode(&mat, "%s", mat_name.c_str()))
             {
+                if(ImGui::SmallButton("duplicate"))
+                {
+                    auto dup = mat;
+                    dup.id = vierkant::MaterialId::random();
+                    material_to_add = std::move(dup);
+                }
+                ImGui::SameLine();
+                if(ImGui::SmallButton("remove")) { material_to_remove = mat_id; }
+
                 draw_material_ui(mat, draw_texture);
                 ImGui::Separator();
                 ImGui::TreePop();
             }
         }
+
+        if(material_to_add) { assets->add_material(std::move(*material_to_add)); }
+        if(material_to_remove) { assets->remove_material(material_to_remove); }
 
         ImGui::EndTabItem();
     }

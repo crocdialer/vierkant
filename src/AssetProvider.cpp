@@ -4,11 +4,11 @@ namespace vierkant
 {
 
 AssetProviderPtr AssetProvider::create(vierkant::DevicePtr device)
-{
-    return AssetProviderPtr(new AssetProvider(std::move(device)));
-}
+{ return AssetProviderPtr(new AssetProvider(std::move(device))); }
 
 void AssetProvider::add_material(material_t m) { m_materials[m.id] = std::move(m); }
+
+void AssetProvider::remove_material(const MaterialId &id) { m_materials.erase(id); }
 
 const material_t *AssetProvider::material(const MaterialId &id) const
 {
