@@ -358,18 +358,21 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
             ImPlot::SetupAxes("frames", "count", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
             ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_draws, ImPlotCond_Always);
 
-            ImPlotSpec cull_spec(ImPlotProp_FillAlpha, 0.5f, ImPlotProp_Stride,
-                                 static_cast<int>(sizeof(PBRDeferred::statistics_t)));
-            ImPlot::PlotShaded("frustum culled",
-                               reinterpret_cast<const uint32_t *>(
-                                       (uint8_t *) values.data() +
-                                       offsetof(PBRDeferred::statistics_t, draw_cull_result.num_frustum_culled)),
-                               static_cast<int>(stats.size()), 0.0, 1.0, 0.0, cull_spec);
-            ImPlot::PlotShaded("occluded",
-                               reinterpret_cast<const uint32_t *>(
-                                       (uint8_t *) values.data() +
-                                       offsetof(PBRDeferred::statistics_t, draw_cull_result.num_occlusion_culled)),
-                               static_cast<int>(stats.size()), 0.0, 1.0, 0.0, cull_spec);
+            // stacked area: frustum-culled [0, f], occlusion-culled [f, f + o]
+            const int n = static_cast<int>(values.size());
+            std::vector<double> xs(n), y_frustum(n), y_stacked(n);
+            for(int i = 0; i < n; ++i)
+            {
+                const auto &cull = values[i].draw_cull_result;
+                xs[i] = i;
+                y_frustum[i] = cull.num_frustum_culled;
+                y_stacked[i] = static_cast<double>(cull.num_frustum_culled) + cull.num_occlusion_culled;
+            }
+            ImPlotSpec frustum_spec(ImPlotProp_FillColor, ImVec4(0.20f, 0.55f, 0.90f, 1.f), ImPlotProp_FillAlpha, 0.7f);
+            ImPlotSpec occluded_spec(ImPlotProp_FillColor, ImVec4(0.90f, 0.45f, 0.20f, 1.f), ImPlotProp_FillAlpha,
+                                     0.7f);
+            ImPlot::PlotShaded("frustum culled", xs.data(), y_frustum.data(), n, 0.0, frustum_spec);
+            ImPlot::PlotShaded("occluded", xs.data(), y_frustum.data(), y_stacked.data(), n, occluded_spec);
             ImPlot::EndPlot();
         }
         ImGui::TreePop();

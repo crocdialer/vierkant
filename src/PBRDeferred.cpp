@@ -1473,8 +1473,9 @@ void PBRDeferred::update_timing(frame_context_t &frame_context)
 
     timings_result.total_ms = timings_result.mesh_compute_ms + timings_result.g_buffer_pre_ms +
                               timings_result.depth_pyramid_ms + timings_result.culling_ms +
-                              timings_result.g_buffer_post_ms + timings_result.lighting_ms + timings_result.taa_ms +
-                              timings_result.bloom_ms + timings_result.tonemap_ms;
+                              timings_result.g_buffer_post_ms + timings_result.ambient_occlusion_ms +
+                              timings_result.lighting_ms + timings_result.taa_ms + timings_result.bloom_ms +
+                              timings_result.tonemap_ms + timings_result.fxaa_ms + timings_result.depth_of_field_ms;
 
     frame_context.stats.timings = timings_result;
 
