@@ -276,13 +276,19 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
     timings.raybuilder_timings = m_ray_builder.timings(frame_context.scene_acceleration_context);
 
     timings.raytrace_ms = timing_millis[SemaphoreValue::RAYTRACING];
-    timings.bloom_ms = timing_millis[SemaphoreValue::DENOISER];
-    timings.tonemap_ms = timing_millis[SemaphoreValue::BLOOM];
-    timings.denoise_ms = timing_millis[SemaphoreValue::TONEMAP];
-    timings.total_ms =
-            timings.raybuilder_timings.total_ms + timestamp_diff(timestamps[2 * RAYTRACING],
-                                                                 timestamps[2 * frame_context.semaphore_value_done + 1],
-                                                                 m_device->properties().core.limits.timestampPeriod);
+    timings.denoise_ms = timing_millis[SemaphoreValue::DENOISER];
+    timings.bloom_ms = timing_millis[SemaphoreValue::BLOOM];
+    timings.tonemap_ms = timing_millis[SemaphoreValue::TONEMAP];
+
+    // raytracing may be skipped (suspended trace) -> no valid start-timestamp; only sum gpu-stages then
+    const uint64_t gpu_start = timestamps[2 * RAYTRACING];
+    const uint64_t gpu_end = timestamps[2 * frame_context.semaphore_value_done + 1];
+    timings.total_ms = timings.raybuilder_timings.total_ms;
+    if(gpu_start && gpu_end >= gpu_start)
+    {
+        timings.total_ms +=
+                timestamp_diff(gpu_start, gpu_end, m_device->properties().core.limits.timestampPeriod);
+    }
 
     m_statistics.push_back(frame_context.statistics);
     while(m_statistics.size() > frame_context.settings.timing_history_size) { m_statistics.pop_front(); }
