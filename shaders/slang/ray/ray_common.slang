@@ -133,7 +133,10 @@ public struct trace_params_t
     //! clamp indirect path-throughput
     public float max_path_beta;
 
-    private int pad0, pad1, pad2;
+    //! camera starts inside 'camera_media' (seed media-stack, disable back-face culling)
+    public bool camera_inside_media;
+
+    private int pad1, pad2;
 };
 
 public struct camera_ubo_t

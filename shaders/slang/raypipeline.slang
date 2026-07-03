@@ -107,7 +107,23 @@ trace_result_t trace(uint2 coord, uint2 size)
 
         uint media_index = 0;
         ray::media_t media[MAX_MEDIA_STACK_SIZE];
-        media[media_index] = trace_data.camera_media;
+
+        // media[0] is always vacuum/air; leaving any medium returns here.
+        ray::media_t vacuum_media;
+        vacuum_media.sigma_s = float3(0);
+        vacuum_media.ior = 1.0;
+        vacuum_media.sigma_a = float3(0);
+        vacuum_media.phase_g = 0.0;
+        media[0] = vacuum_media;
+
+        // when the camera starts submerged, push its medium as the current one. seeding
+        // media_index = 1 also disables back-face culling below, so the surrounding
+        // volume's inner walls are visible and can 'Leave' back into air.
+        if(trace_data.params.camera_inside_media)
+        {
+            media_index = 1;
+            media[media_index] = trace_data.camera_media;
+        }
 
         float3 beta = float3(1);
         float3 path_radiance = float3(0);

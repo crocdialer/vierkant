@@ -367,11 +367,11 @@ struct OBB
 
     [[nodiscard]] inline bool contains(const glm::vec3 &p) const
     {
-        // point in axis space
-        glm::vec3 p_in_axis_space = axis * (p - center);
-        return std::abs(p_in_axis_space.x) < half_lengths.x && std::abs(p_in_axis_space.y) < half_lengths.y &&
-               std::abs(p_in_axis_space.z) < half_lengths.z;
-    };
+        // project (p - center) onto each box-axis (same convention as intersect(OBB, Ray))
+        const glm::vec3 d = p - center;
+        return std::abs(glm::dot(axis[0], d)) < half_lengths.x && std::abs(glm::dot(axis[1], d)) < half_lengths.y &&
+               std::abs(glm::dot(axis[2], d)) < half_lengths.z;
+    }
 };
 
 //! see https://www.gamedevs.org/uploads/fast-extraction-viewing-frustum-planes-from-world-view-projection-matrix.pdf

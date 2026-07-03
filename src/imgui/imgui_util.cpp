@@ -464,6 +464,25 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
 
     ImGui::Checkbox("depth of field", &path_tracer->settings.depth_of_field);
     ImGui::Checkbox("suppress reset", &path_tracer->settings.suppress_reset);
+
+    // optional global medium the camera is submerged in (fog/underwater/haze).
+    // same material-facing knobs as a volumetric material; converted via vierkant::to_media().
+    bool camera_medium_enabled = path_tracer->settings.camera_medium.has_value();
+    if(ImGui::Checkbox("camera medium", &camera_medium_enabled))
+    {
+        if(camera_medium_enabled) { path_tracer->settings.camera_medium = vierkant::medium_params_t{}; }
+        else { path_tracer->settings.camera_medium.reset(); }
+    }
+    if(path_tracer->settings.camera_medium)
+    {
+        auto &medium = *path_tracer->settings.camera_medium;
+        ImGui::ColorEdit3("attenuation color", &medium.attenuation_color[0]);
+        ImGui::DragFloat("attenuation distance", &medium.attenuation_distance, 0.01f, 0.001f, 1000.f);
+        ImGui::SliderFloat("scatter factor", &medium.scatter_factor, 0.f, 1.f);
+        ImGui::ColorEdit3("scatter color", &medium.scatter_color[0]);
+        ImGui::SliderFloat("phase g", &medium.phase_asymmetry_g, -0.99f, 0.99f);
+        ImGui::SliderFloat("medium ior", &medium.ior, 1.f, 3.f);
+    }
 }
 
 void draw_scene_renderer_statistics_ui_intern(const PBRPathTracerPtr &path_tracer)

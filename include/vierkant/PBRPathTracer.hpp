@@ -4,6 +4,7 @@
 #pragma once
 
 #include <deque>
+#include <optional>
 #include <vierkant/Bloom.hpp>
 #include <vierkant/Compute.hpp>
 #include <vierkant/DrawContext.hpp>
@@ -13,6 +14,7 @@
 #include <vierkant/SceneRenderer.hpp>
 #include <vierkant/Semaphore.hpp>
 #include <vierkant/culling.hpp>
+#include <vierkant/media.hpp>
 #include <vierkant/mesh_compute.hpp>
 
 
@@ -77,6 +79,10 @@ public:
 
         //! suppress accumulator resets (e.g. caused by scene/camera changes)
         bool suppress_reset = false;
+
+        //! optional global medium the camera is submerged in (fog/underwater/haze).
+        //! when set, seeds the path-tracer's media-stack so rays start inside this medium.
+        std::optional<medium_params_t> camera_medium;
 
         //! max number stored timing-values
         uint32_t timing_history_size = 300;
@@ -241,6 +247,9 @@ private:
 
         //! optionally clamp indirect path-throughput
         float max_path_beta = 0.f;
+
+        //! flag: camera starts inside 'camera_media' (seed media-stack, disable back-face culling)
+        uint32_t camera_inside_media = false;
     };
 
     struct denoise_params_t
@@ -260,14 +269,6 @@ private:
         float aperture = 0.f;
         float focal_distance = 1.f;
         VkBool32 ortho = false;
-    };
-
-    struct alignas(16) media_t
-    {
-        glm::vec3 sigma_s = glm::vec3(0.f);
-        float ior = 1.f;
-        glm::vec3 sigma_a = glm::vec3(0.f);
-        float phase_g = 0.f;
     };
 
     struct sunlight_params_t
@@ -311,7 +312,8 @@ private:
     void update_acceleration_structures(frame_context_t &frame_context, const SceneConstPtr &scene,
                                         const std::set<std::string> &tags);
 
-    void update_trace_descriptors(frame_context_t &frame_context, const Object3DPtr &cam);
+    void update_trace_descriptors(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene,
+                                  const Object3DPtr &cam);
 
     void path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene, const Object3DPtr &cam);
 

@@ -286,8 +286,7 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
     timings.total_ms = timings.raybuilder_timings.total_ms;
     if(gpu_start && gpu_end >= gpu_start)
     {
-        timings.total_ms +=
-                timestamp_diff(gpu_start, gpu_end, m_device->properties().core.limits.timestampPeriod);
+        timings.total_ms += timestamp_diff(gpu_start, gpu_end, m_device->properties().core.limits.timestampPeriod);
     }
 
     m_statistics.push_back(frame_context.statistics);
@@ -304,10 +303,10 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
     frame_context.cmd_pre_render.submit(m_queue);
 }
 
-void PBRPathTracer::path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr & /*scene*/,
+void PBRPathTracer::path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene,
                                     const Object3DPtr &cam)
 {
-    update_trace_descriptors(frame_context, cam);
+    update_trace_descriptors(frame_context, scene, cam);
 
     frame_context.cmd_trace.begin(0);
     vkCmdWriteTimestamp2(frame_context.cmd_trace.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
@@ -460,7 +459,65 @@ void PBRPathTracer::post_fx_pass(frame_context_t &frame_context)
     }
 }
 
-void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, const Object3DPtr &cam)
+//! auto-detect a medium the camera is submerged in: the innermost (smallest world-OBB) volumetric
+//! object containing the camera position. mirrors the shader's 'has_volume' test
+//! (finite attenuation_distance). OBB containment is exact for rotated boxes but still loose for
+//! concave hulls; exactly covers the common 'large box with a volumetric material' case.
+static std::optional<vierkant::medium_params_t> detect_camera_medium(const vierkant::SceneConstPtr &scene,
+                                                                     const vierkant::Object3DPtr &cam)
+{
+    const glm::vec3 cam_pos = cam->global_transform().translation;
+
+    std::optional<vierkant::medium_params_t> result;
+    float best_volume = std::numeric_limits<float>::max();
+
+    vierkant::SelectVisitor<Object3D> visitor;
+    scene->root()->accept(visitor);
+
+    for(const auto *object: visitor.objects)
+    {
+        if(!object->has_component<vierkant::mesh_component_t>()) { continue; }
+
+        // world-space OBB containment test
+        auto world_obb = object->obb().transform(vierkant::mat4_cast(object->global_transform()));
+        if(!world_obb.contains(cam_pos)) { continue; }
+
+        const glm::vec3 &h = world_obb.half_lengths;
+        float volume = 8.f * h.x * h.y * h.z;
+        if(volume >= best_volume) { continue; }
+
+        // find a volumetric material (finite attenuation_distance) among this object's entries
+        const auto &mesh_component = object->get_component<vierkant::mesh_component_t>();
+        const auto &mesh = mesh_component.mesh;
+        if(!mesh) { continue; }
+        const auto &material_ids = mesh_component.material_ids ? *mesh_component.material_ids : mesh->material_ids;
+
+        for(uint32_t i = 0; i < mesh->entries.size(); ++i)
+        {
+            if(mesh_component.entry_indices && !mesh_component.entry_indices->contains(i)) { continue; }
+            const auto material_index = mesh->entries[i].material_index;
+            if(material_index >= material_ids.size()) { continue; }
+
+            const auto *mat = scene->asset_provider()->material(material_ids[material_index]);
+            if(!mat || std::isinf(mat->attenuation_distance)) { continue; }
+
+            vierkant::medium_params_t params;
+            params.attenuation_color = mat->attenuation_color;
+            params.attenuation_distance = mat->attenuation_distance;
+            params.scatter_factor = mat->scatter_factor;
+            params.scatter_color = mat->scatter_color;
+            params.phase_asymmetry_g = mat->phase_asymmetry_g;
+            params.ior = mat->ior;
+            result = params;
+            best_volume = volume;
+            break;
+        }
+    }
+    return result;
+}
+
+void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene,
+                                             const Object3DPtr &cam)
 {
     frame_context.tracable.descriptors.clear();
 
@@ -520,8 +577,16 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 
     trace_data.camera_params = camera_params;
 
-    // default media: air
+    // default media: air. submerge the camera in a medium if one is set: an explicit global medium
+    // (settings override) wins, otherwise auto-detect the volumetric object the camera is inside.
     trace_data.camera_media = {};
+    std::optional<vierkant::medium_params_t> camera_medium = frame_context.settings.camera_medium;
+    if(!camera_medium) { camera_medium = detect_camera_medium(scene, cam); }
+    if(camera_medium)
+    {
+        trace_data.camera_media = vierkant::to_media(*camera_medium);
+        trace_data.trace_params.camera_inside_media = true;
+    }
 
     // optional sunlight
     // trace_data.sunlight_params.color = {1.f, 0.6f, 0.4f};
