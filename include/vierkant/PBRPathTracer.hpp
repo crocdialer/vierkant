@@ -312,7 +312,8 @@ private:
     void update_acceleration_structures(frame_context_t &frame_context, const SceneConstPtr &scene,
                                         const std::set<std::string> &tags);
 
-    void update_trace_descriptors(frame_context_t &frame_context, const Object3DPtr &cam);
+    void update_trace_descriptors(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene,
+                                  const Object3DPtr &cam);
 
     void path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene, const Object3DPtr &cam);
 
