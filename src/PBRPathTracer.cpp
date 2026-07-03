@@ -520,8 +520,13 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 
     trace_data.camera_params = camera_params;
 
-    // default media: air
+    // default media: air. optionally submerge the camera in a global medium.
     trace_data.camera_media = {};
+    if(frame_context.settings.camera_medium)
+    {
+        trace_data.camera_media = vierkant::to_media(*frame_context.settings.camera_medium);
+        trace_data.trace_params.camera_inside_media = true;
+    }
 
     // optional sunlight
     // trace_data.sunlight_params.color = {1.f, 0.6f, 0.4f};
