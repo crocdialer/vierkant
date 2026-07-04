@@ -611,7 +611,8 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
         sun.type = static_cast<uint32_t>(vierkant::model::LightType::Directional);
         sun.color = sun_params->color;
         sun.intensity = sun_params->intensity;
-        sun.direction = sun_params->direction;
+        // sunlight_params.direction points toward the sun, light_t stores propagation-direction (glTF convention)
+        sun.direction = -sun_params->direction;
         if(glm::dot(sun.direction, sun.direction) > 0.f) { sun.direction = glm::normalize(sun.direction); }
         sun.range = std::numeric_limits<float>::infinity();
         sun.angular_size = sun_params->angular_size;
@@ -624,7 +625,10 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
         if(object->has_component<vierkant::lightsource_component_t>())
         {
             const auto &light_cmp = object->get_component<vierkant::lightsource_component_t>();
-            lights.push_back(vierkant::convert_light(light_cmp, object->global_transform()));
+            if(light_cmp.intensity > 0.f)
+            {
+                lights.push_back(vierkant::convert_light(light_cmp, object->global_transform()));
+            }
         }
     }
     if(!lights.empty()) { frame_context.lights_buffer->set_data(lights); }
