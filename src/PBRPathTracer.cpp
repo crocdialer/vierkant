@@ -508,6 +508,13 @@ static std::optional<vierkant::medium_params_t> detect_camera_medium(const vierk
             params.scatter_color = mat->scatter_color;
             params.phase_asymmetry_g = mat->phase_asymmetry_g;
             params.ior = mat->ior;
+
+            // null-surface volumes route material-emission into the medium
+            if(mat->null_surface)
+            {
+                params.emission_color = mat->emission;
+                params.emission_intensity = mat->emissive_strength;
+            }
             result = params;
             best_volume = volume;
             break;
