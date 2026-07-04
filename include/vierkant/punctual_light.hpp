@@ -11,6 +11,19 @@
 namespace vierkant
 {
 
+//! lightsource object component
+struct lightsource_component_t
+{
+    VIERKANT_ENABLE_AS_COMPONENT();
+
+    vierkant::model::LightType type = vierkant::model::LightType::Omni;
+    glm::vec3 color = glm::vec3(1);
+    float intensity = 1.f;
+    float range = std::numeric_limits<float>::infinity();
+    float inner_cone_angle = 0.f;
+    float outer_cone_angle = glm::quarter_pi<float>();
+};
+
 //! padded buffer-data
 struct alignas(16) lightsource_ubo_t
 {
@@ -24,19 +37,20 @@ struct alignas(16) lightsource_ubo_t
     float spot_angle_offset;
 };
 
-static inline lightsource_ubo_t convert_light(const vierkant::model::lightsource_t &light_in)
+static inline lightsource_ubo_t convert_light(const vierkant::lightsource_component_t &light_cmp,
+                                              const vierkant::transform_t &t)
 {
     lightsource_ubo_t ret = {};
-    ret.position = light_in.position;
-    ret.type = static_cast<uint32_t>(light_in.type);
-    ret.color = light_in.color;
-    ret.intensity = light_in.intensity;
-    ret.direction = light_in.direction;
-    ret.range = light_in.range > 0.f ? light_in.range : std::numeric_limits<float>::infinity();
+    ret.position = t.translation;
+    ret.type = static_cast<uint32_t>(light_cmp.type);
+    ret.color = light_cmp.color;
+    ret.intensity = light_cmp.intensity;
+    ret.direction = t.rotation * glm::vec3(0.f, 0.f, -1.f);
+    ret.range = light_cmp.range > 0.f ? light_cmp.range : std::numeric_limits<float>::infinity();
 
     ret.spot_angle_scale =
-            1.f / std::max(0.001f, std::cos(light_in.inner_cone_angle) - std::cos(light_in.outer_cone_angle));
-    ret.spot_angle_offset = -std::cos(light_in.outer_cone_angle) * ret.spot_angle_scale;
+            1.f / std::max(0.001f, std::cos(light_cmp.inner_cone_angle) - std::cos(light_cmp.outer_cone_angle));
+    ret.spot_angle_offset = -std::cos(light_cmp.outer_cone_angle) * ret.spot_angle_scale;
     return ret;
 }
 
