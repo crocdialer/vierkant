@@ -483,6 +483,30 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
         ImGui::SliderFloat("phase g", &medium.phase_asymmetry_g, -0.99f, 0.99f);
         ImGui::SliderFloat("medium ior", &medium.ior, 1.f, 3.f);
     }
+
+    // optional directional sunlight (disc-light). direction is normalized before tracing.
+    bool sunlight_enabled = path_tracer->settings.sunlight_params.has_value();
+    if(ImGui::Checkbox("sunlight", &sunlight_enabled))
+    {
+        if(sunlight_enabled)
+        {
+            path_tracer->settings.sunlight_params = vierkant::sunlight_params_t{
+                    .color = glm::vec3(1.f, 0.6f, 0.4f),
+                    .intensity = 25000.f,
+                    .direction = glm::normalize(glm::vec3(0.4f, 1.f, 0.7f)),
+                    .angular_size = glm::radians(0.524167f)};
+        }
+        else { path_tracer->settings.sunlight_params.reset(); }
+    }
+    if(path_tracer->settings.sunlight_params)
+    {
+        auto &sun = *path_tracer->settings.sunlight_params;
+        ImGui::ColorEdit3("sun color", &sun.color[0]);
+        ImGui::DragFloat("sun intensity", &sun.intensity, 10.f, 0.f, 1e6f);
+        ImGui::DragFloat3("sun direction", &sun.direction[0], 0.01f);
+        float angular_deg = glm::degrees(sun.angular_size);
+        if(ImGui::SliderFloat("sun angular size", &angular_deg, 0.f, 10.f)) { sun.angular_size = glm::radians(angular_deg); }
+    }
 }
 
 void draw_scene_renderer_statistics_ui_intern(const PBRPathTracerPtr &path_tracer)

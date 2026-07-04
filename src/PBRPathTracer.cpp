@@ -588,11 +588,15 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
         trace_data.trace_params.camera_inside_media = true;
     }
 
-    // optional sunlight
-    // trace_data.sunlight_params.color = {1.f, 0.6f, 0.4f};
-    // trace_data.sunlight_params.intensity = 25000.f;
-    // trace_data.sunlight_params.direction = glm::normalize(glm::vec3(0.4, 1.0, 0.7));
-    // trace_data.sunlight_params.angular_size = glm::radians(0.524167f);
+    // optional sunlight (disc-light). intensity stays 0 (disabled) when unset.
+    if(frame_context.settings.sunlight_params)
+    {
+        trace_data.sunlight_params = *frame_context.settings.sunlight_params;
+        if(glm::dot(trace_data.sunlight_params.direction, trace_data.sunlight_params.direction) > 0.f)
+        {
+            trace_data.sunlight_params.direction = glm::normalize(trace_data.sunlight_params.direction);
+        }
+    }
 
     // assign buffer-addresses
     trace_data.vertex_buffers = frame_context.scene_ray_acceleration.vertex_buffer_addresses->device_address();

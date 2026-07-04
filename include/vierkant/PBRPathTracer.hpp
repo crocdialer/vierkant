@@ -13,19 +13,29 @@
 #include <vierkant/RayTracer.hpp>
 #include <vierkant/SceneRenderer.hpp>
 #include <vierkant/Semaphore.hpp>
-#include <vierkant/culling.hpp>
 #include <vierkant/media.hpp>
 #include <vierkant/mesh_compute.hpp>
 
-
 namespace vierkant
 {
+
+//! definition for sunlight
+struct sunlight_params_t
+{
+    glm::vec3 color = glm::vec3(0.f);
+    float intensity = 0.f;
+    glm::vec3 direction = glm::vec3(0.f);
+
+    // solid angle in radians
+    float angular_size = 0.f;
+};
 
 DEFINE_CLASS_PTR(PBRPathTracer)
 
 class PBRPathTracer : public vierkant::SceneRenderer
 {
 public:
+
     //! group settings
     struct settings_t
     {
@@ -79,6 +89,9 @@ public:
 
         //! suppress accumulator resets (e.g. caused by scene/camera changes)
         bool suppress_reset = false;
+
+        //! optionally define sunlight
+        std::optional<sunlight_params_t> sunlight_params;
 
         //! optional global medium the camera is submerged in (fog/underwater/haze).
         //! when set, seeds the path-tracer's media-stack so rays start inside this medium.
@@ -269,16 +282,6 @@ private:
         float aperture = 0.f;
         float focal_distance = 1.f;
         VkBool32 ortho = false;
-    };
-
-    struct sunlight_params_t
-    {
-        glm::vec3 color = glm::vec3(0.f);
-        float intensity = 0.f;
-        glm::vec3 direction = glm::vec3(0.f);
-
-        // solid angle in radians
-        float angular_size;
     };
 
     struct trace_data_t
