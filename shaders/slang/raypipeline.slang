@@ -336,7 +336,13 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     bool sample_medium = false;
     float3 sigma_t = payload.media.sigma_s + payload.media.sigma_a;
 
-    bool use_direct_lighting = trace_data.sunlight_params.intensity > 0.0;
+    // sunlight is folded in as lights[0] (directional disc-light)
+    bool use_direct_lighting = false;
+    if(trace_data.num_lights > 0)
+    {
+        let sun_light = trace_data.lights[0];
+        use_direct_lighting = sun_light.type == ray::LightType::Directional && sun_light.intensity > 0.0;
+    }
 
     if(any(sigma_t > float3(0)))
     {
@@ -399,7 +405,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
             if(use_direct_lighting)
             {
-                payload.radiance += payload.beta * ray::sample_sun_light_phase(payload.ray, trace_data.sunlight_params,
+                payload.radiance += payload.beta * ray::sample_sun_light_phase(payload.ray, trace_data.lights[0],
                                                                                topLevelAS, g, rng_state);
             }
 
@@ -543,7 +549,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         if(use_direct_lighting)
         {
             payload.radiance +=
-                    payload.beta * ray::sample_sun_light(material, trace_data.sunlight_params, topLevelAS,
+                    payload.beta * ray::sample_sun_light(material, trace_data.lights[0], topLevelAS,
                                                          payload.position, payload.normal, V, eta, rng_state);
         }
 

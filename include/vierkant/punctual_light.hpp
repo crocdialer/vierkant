@@ -25,7 +25,7 @@ struct lightsource_component_t
 };
 
 //! padded buffer-data
-struct alignas(16) lightsource_ubo_t
+struct alignas(16) light_t
 {
     glm::vec3 position;
     uint32_t type;
@@ -35,12 +35,16 @@ struct alignas(16) lightsource_ubo_t
     float range;
     float spot_angle_scale;
     float spot_angle_offset;
+
+    //! >0 on directional lights indicates a sun-style disc-light (apex angle in radians)
+    float angular_size;
+    float pad;
 };
 
-static inline lightsource_ubo_t convert_light(const vierkant::lightsource_component_t &light_cmp,
-                                              const vierkant::transform_t &t)
+static inline light_t convert_light(const vierkant::lightsource_component_t &light_cmp,
+                                    const vierkant::transform_t &t)
 {
-    lightsource_ubo_t ret = {};
+    light_t ret = {};
     ret.position = t.translation;
     ret.type = static_cast<uint32_t>(light_cmp.type);
     ret.color = light_cmp.color;

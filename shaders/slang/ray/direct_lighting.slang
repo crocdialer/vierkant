@@ -12,7 +12,7 @@ import "../utils/phase_function.slang";
 namespace ray
 {
 
-public float3 sample_sun_light(material_t material, sunlight_params_t p, RaytracingAccelerationStructure as, float3 pos,
+public float3 sample_sun_light(material_t material, light_t p, RaytracingAccelerationStructure as, float3 pos,
                                float3 N, float3 V, float eta, inout uint rng_state)
 {
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
@@ -40,7 +40,7 @@ public float3 sample_sun_light(material_t material, sunlight_params_t p, Raytrac
     return radiance;
 }
 
-public float3 sample_sun_light_phase(Ray ray, sunlight_params_t p, RaytracingAccelerationStructure as, float phase_g,
+public float3 sample_sun_light_phase(Ray ray, light_t p, RaytracingAccelerationStructure as, float phase_g,
                                      inout uint rng_state)
 {
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));

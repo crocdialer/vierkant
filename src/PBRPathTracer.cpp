@@ -1,5 +1,6 @@
 #include "vierkant/PBRPathTracer.hpp"
 #include <vierkant/Visitor.hpp>
+#include <vierkant/punctual_light.hpp>
 #include <vierkant/gpu_timestamp_util.hpp>
 #include <vierkant/shaders.hpp>
 #include <vierkant/shaders_slang.hpp>
@@ -103,6 +104,10 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         frame_context.trace_data_ubo =
                 vierkant::Buffer::create(m_device, nullptr, sizeof(trace_data_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
+        frame_context.lights_buffer = vierkant::Buffer::create(
+                m_device, nullptr, sizeof(vierkant::light_t),
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         vierkant::CommandBuffer::create_info_t cmd_buffer_info = {};
         cmd_buffer_info.device = m_device;
@@ -463,7 +468,8 @@ void PBRPathTracer::post_fx_pass(frame_context_t &frame_context)
 //! object containing the camera position. mirrors the shader's 'has_volume' test
 //! (finite attenuation_distance). OBB containment is exact for rotated boxes but still loose for
 //! concave hulls; exactly covers the common 'large box with a volumetric material' case.
-static std::optional<vierkant::medium_params_t> detect_camera_medium(const vierkant::SceneConstPtr &scene,
+static std::optional<vierkant::medium_params_t> detect_camera_medium(const std::vector<vierkant::Object3D *> &objects,
+                                                                     const vierkant::SceneConstPtr &scene,
                                                                      const vierkant::Object3DPtr &cam)
 {
     const glm::vec3 cam_pos = cam->global_transform().translation;
@@ -471,10 +477,7 @@ static std::optional<vierkant::medium_params_t> detect_camera_medium(const vierk
     std::optional<vierkant::medium_params_t> result;
     float best_volume = std::numeric_limits<float>::max();
 
-    vierkant::SelectVisitor<Object3D> visitor;
-    scene->root()->accept(visitor);
-
-    for(const auto *object: visitor.objects)
+    for(const auto *object: objects)
     {
         if(!object->has_component<vierkant::mesh_component_t>()) { continue; }
 
@@ -584,26 +587,48 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 
     trace_data.camera_params = camera_params;
 
+    // single scene-traversal, shared by camera-media detection and light-gather
+    vierkant::SelectVisitor<Object3D> scene_visitor;
+    scene->root()->accept(scene_visitor);
+
     // default media: air. submerge the camera in a medium if one is set: an explicit global medium
     // (settings override) wins, otherwise auto-detect the volumetric object the camera is inside.
     trace_data.camera_media = {};
     std::optional<vierkant::medium_params_t> camera_medium = frame_context.settings.camera_medium;
-    if(!camera_medium) { camera_medium = detect_camera_medium(scene, cam); }
+    if(!camera_medium) { camera_medium = detect_camera_medium(scene_visitor.objects, scene, cam); }
     if(camera_medium)
     {
         trace_data.camera_media = vierkant::to_media(*camera_medium);
         trace_data.trace_params.camera_inside_media = true;
     }
 
-    // optional sunlight (disc-light). intensity stays 0 (disabled) when unset.
-    if(frame_context.settings.sunlight_params)
+    // gather lights into one device-array: optional sunlight (disc-light) folded in as light[0]
+    std::vector<vierkant::light_t> lights;
+    const auto &sun_params = frame_context.settings.sunlight_params;
+    if(sun_params && sun_params->intensity > 0.f)
     {
-        trace_data.sunlight_params = *frame_context.settings.sunlight_params;
-        if(glm::dot(trace_data.sunlight_params.direction, trace_data.sunlight_params.direction) > 0.f)
+        vierkant::light_t sun = {};
+        sun.type = static_cast<uint32_t>(vierkant::model::LightType::Directional);
+        sun.color = sun_params->color;
+        sun.intensity = sun_params->intensity;
+        sun.direction = sun_params->direction;
+        if(glm::dot(sun.direction, sun.direction) > 0.f) { sun.direction = glm::normalize(sun.direction); }
+        sun.range = std::numeric_limits<float>::infinity();
+        sun.angular_size = sun_params->angular_size;
+        lights.push_back(sun);
+    }
+
+    // scene lightsources
+    for(const auto *object: scene_visitor.objects)
+    {
+        if(object->has_component<vierkant::lightsource_component_t>())
         {
-            trace_data.sunlight_params.direction = glm::normalize(trace_data.sunlight_params.direction);
+            const auto &light_cmp = object->get_component<vierkant::lightsource_component_t>();
+            lights.push_back(vierkant::convert_light(light_cmp, object->global_transform()));
         }
     }
+    if(!lights.empty()) { frame_context.lights_buffer->set_data(lights); }
+    trace_data.num_lights = lights.size();
 
     // assign buffer-addresses
     trace_data.vertex_buffers = frame_context.scene_ray_acceleration.vertex_buffer_addresses->device_address();
@@ -611,6 +636,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.entries = frame_context.scene_ray_acceleration.entry_buffer->device_address();
     trace_data.materials = frame_context.scene_ray_acceleration.material_buffer->device_address();
     trace_data.out_pixels = m_storage.pixel_buffer->device_address();
+    trace_data.lights = frame_context.lights_buffer->device_address();
 
     // upload data
     frame_context.trace_data_ubo->set_data(&trace_data, sizeof(trace_data_t));

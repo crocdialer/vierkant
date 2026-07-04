@@ -219,7 +219,7 @@ private:
 
         vierkant::ImagePtr out_image, out_depth;
 
-        vierkant::BufferPtr trace_data_ubo, composition_ubo;
+        vierkant::BufferPtr trace_data_ubo, composition_ubo, lights_buffer;
 
         BloomUPtr bloom;
 
@@ -289,13 +289,14 @@ private:
         trace_params_t trace_params;
         camera_params_t camera_params;
         media_t camera_media;
-        sunlight_params_t sunlight_params;
 
         VkDeviceAddress vertex_buffers{};
         VkDeviceAddress index_buffers{};
         VkDeviceAddress entries{};
         VkDeviceAddress materials{};
         VkDeviceAddress out_pixels{};
+        VkDeviceAddress lights{};
+        uint32_t num_lights = 0;
     };
 
     struct alignas(16) composition_ubo_t
