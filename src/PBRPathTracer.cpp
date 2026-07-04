@@ -608,7 +608,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     if(sun_params && sun_params->intensity > 0.f)
     {
         vierkant::light_t sun = {};
-        sun.type = static_cast<uint32_t>(vierkant::model::LightType::Directional);
+        sun.type = static_cast<uint32_t>(vierkant::LightType::Directional);
         sun.color = sun_params->color;
         sun.intensity = sun_params->intensity;
         // sunlight_params.direction points toward the sun, light_t stores propagation-direction (glTF convention)
@@ -619,15 +619,15 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
         lights.push_back(sun);
     }
 
-    // scene lightsources
+    // scene lightsources: resolve component light-ids via asset-provider
     for(const auto *object: scene_visitor.objects)
     {
-        if(object->has_component<vierkant::lightsource_component_t>())
+        if(const auto *light_cmp = object->get_component_ptr<vierkant::lightsource_component_t>())
         {
-            const auto &light_cmp = object->get_component<vierkant::lightsource_component_t>();
-            if(light_cmp.intensity > 0.f)
+            const auto *light_asset = scene->asset_provider()->light(light_cmp->light_id);
+            if(light_asset && light_asset->intensity > 0.f)
             {
-                lights.push_back(vierkant::convert_light(light_cmp, object->global_transform()));
+                lights.push_back(vierkant::convert_light(*light_asset, object->global_transform()));
             }
         }
     }

@@ -21,6 +21,22 @@ material_t *AssetProvider::material(const MaterialId &id)
     return it != m_materials.end() ? &it->second : nullptr;
 }
 
+void AssetProvider::add_light(lightsource_t l) { m_lights[l.id] = std::move(l); }
+
+void AssetProvider::remove_light(const LightId &id) { m_lights.erase(id); }
+
+const lightsource_t *AssetProvider::light(const LightId &id) const
+{
+    auto it = m_lights.find(id);
+    return it != m_lights.end() ? &it->second : nullptr;
+}
+
+lightsource_t *AssetProvider::light(const LightId &id)
+{
+    auto it = m_lights.find(id);
+    return it != m_lights.end() ? &it->second : nullptr;
+}
+
 void AssetProvider::add_texture(const texture_key_t &key, ImagePtr img) { m_textures[key] = std::move(img); }
 
 ImagePtr AssetProvider::texture(const texture_key_t &key) const
@@ -48,6 +64,7 @@ void AssetProvider::populate(const model::load_mesh_result_t &result)
     for(const auto &[id, mat]: result.materials) { m_materials[id] = mat; }
     for(const auto &[key, img]: result.textures) { m_textures[key] = img; }
     for(const auto &[id, vk_sampler]: result.samplers) { m_samplers[id] = vk_sampler; }
+    for(const auto &[id, l]: result.lights) { m_lights[id] = l; }
 
     // attach mesh without a bundle; callers needing the persist-able bundle (physics) add_mesh afterwards
     if(result.mesh) { m_meshes[result.mesh->id] = {.mesh = result.mesh}; }
@@ -59,6 +76,7 @@ void AssetProvider::prune(const asset_live_set_t &live)
     std::erase_if(m_textures, [&live](const auto &p) { return !live.textures.contains(p.first); });
     std::erase_if(m_samplers, [&live](const auto &p) { return !live.samplers.contains(p.first); });
     std::erase_if(m_meshes, [&live](const auto &p) { return !live.meshes.contains(p.first); });
+    std::erase_if(m_lights, [&live](const auto &p) { return !live.lights.contains(p.first); });
 }
 
 std::function<const mesh_asset_t *(MeshId)> AssetProvider::mesh_provider() const

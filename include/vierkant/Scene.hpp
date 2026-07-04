@@ -80,19 +80,28 @@ public:
     vierkant::Object3DPtr
     create_camera(const vierkant::camera_params_variant_t &params = vierkant::physical_camera_params_t{});
 
-    vierkant::Object3DPtr create_lightsource(const vierkant::lightsource_component_t &light_cmp = {});
+    /**
+     * @brief   'create_lightsource' registers a lightsource-asset with the asset-provider
+     *          and creates an Object3D referencing it.
+     *
+     * @param   params  lightsource-parameters, registered as asset under params.id
+     * @return  a newly created Object3D with attached lightsource-component
+     */
+    vierkant::Object3DPtr create_lightsource(const vierkant::lightsource_t &params = {});
 
     [[nodiscard]] const vierkant::AssetProviderPtr &asset_provider() const { return m_asset_provider; }
 
     /**
-     * @brief   prune_assets walks the scene-graph, collects the live material/texture/sampler/mesh ids
+     * @brief   prune_assets walks the scene-graph, collects the live material/texture/sampler/mesh/light ids
      *          and hands them to the AssetProvider, which reaps everything else.
      *
      * @param   extra_live_materials    additional material-ids to keep alive regardless of scene-graph
      *                                  references (e.g. a user-authored material-library) - their
      *                                  textures/samplers are kept as well.
+     * @param   extra_live_lights       additional light-ids to keep alive regardless of scene-graph references.
      */
-    void prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_live_materials = {});
+    void prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_live_materials = {},
+                      const std::unordered_set<vierkant::LightId> &extra_live_lights = {});
 
 protected:
     explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store,
