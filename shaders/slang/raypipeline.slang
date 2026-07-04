@@ -376,6 +376,9 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             ray_local.origin = utils::apply_transform(to_media, ray_local.origin);
             ray_local.direction = scale * utils::apply_rotation(to_media, ray_local.direction);
 
+            // event-ratios at a real collision are density-independent (both coefficients scale with density)
+            float3 scatter_ratio = sigma_s / max(sigma_t, float3(ray::EPS));
+
             while(true)
             {
                 t -= log(1 - utils::rnd(rng_state)) * inv_max_density / sigma_t[channel];
@@ -386,6 +389,16 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
                         clamp(0.5 * (utils::simplex(float4(4 * p, trace_data.params.time * 0.1)) + 1.0), 0.0, 1.0);
                 if(density * inv_max_density > utils::rnd(rng_state))
                 {
+                    // real collision: weighted event-split instead of analog absorb-vs-scatter.
+                    // emission via collision-estimator (sigma_a/sigma_t * Le), then continue as
+                    // scattering with throughput scaled by the single-scattering albedo
+                    if(any(payload.media.emission > float3(0)))
+                    {
+                        payload.radiance +=
+                                payload.beta * (float3(1) - scatter_ratio) * payload.media.emission;
+                    }
+                    payload.beta *= scatter_ratio;
+
                     sample_medium = true;
                     break;
                 }
