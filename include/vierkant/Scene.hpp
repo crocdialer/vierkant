@@ -10,6 +10,7 @@
 #include <vierkant/Object3D.hpp>
 #include <vierkant/mesh_component.hpp>
 #include <vierkant/model/model_loading.hpp>
+#include <vierkant/punctual_light.hpp>
 
 namespace vierkant
 {
@@ -78,6 +79,8 @@ public:
 
     vierkant::Object3DPtr
     create_camera(const vierkant::camera_params_variant_t &params = vierkant::physical_camera_params_t{});
+
+    vierkant::Object3DPtr create_lightsource(const vierkant::lightsource_component_t &light_cmp = {});
 
     [[nodiscard]] const vierkant::AssetProviderPtr &asset_provider() const { return m_asset_provider; }
 

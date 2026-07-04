@@ -59,6 +59,13 @@ vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_params_variant
     return cam;
 }
 
+vierkant::Object3DPtr Scene::create_lightsource(const vierkant::lightsource_component_t &light_cmp)
+{
+    auto light = create_object();
+    light->add_component<vierkant::lightsource_component_t>(light_cmp);
+    return light;
+}
+
 
 Scene::Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store,
              const vierkant::AssetProviderPtr &asset_provider)
