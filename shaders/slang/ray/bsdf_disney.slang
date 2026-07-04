@@ -370,7 +370,11 @@ public float3 eval_disney(material_t material, float3 L, float3 N, float3 V, flo
     }
 
     pdf = lerp(brdfPdf, bsdfPdf, trans_weight);
-    return lerp(brdf, bsdf, trans_weight);
+    float3 F = lerp(brdf, bsdf, trans_weight);
+
+    // invariant: F is zero whenever pdf is zero or invalid.
+    // covers asymmetric lobe corners (e.g. diffuse-transmission with zero pdf-weight) and NaN-pdfs (grazing clearcoat)
+    return pdf > 0.0 ? F : float3(0.0);
 }
 
 }// namespace ray

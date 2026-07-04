@@ -90,12 +90,10 @@ public float3 nee_surface(material_t material, Ptr<light_t, Access.Read> lights,
     float3 radiance = float3(0);
     if(visibility_test(r, as))
     {
-        float unused_pdf = 0.0;
+        // bsdf-pdf is unused until MIS enters the picture (area/env lights)
+        float bsdf_pdf = 0.0;
         float cos_theta = max(dot(N, ls.direction), 0.0);
-        float3 F = eval_disney(material, ls.direction, N, V, eta, unused_pdf);
-
-        // NOTE: not nice. returning early here causing artifacts
-        F = unused_pdf > 0 ? F : float3(0.0);
+        float3 F = eval_disney(material, ls.direction, N, V, eta, bsdf_pdf);
 
         // divide by pick-pdf (1/num_lights) and solid-angle pdf
         radiance = float(num_lights) * ls.radiance * F * cos_theta / ls.pdf;
