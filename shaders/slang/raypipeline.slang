@@ -114,6 +114,7 @@ trace_result_t trace(uint2 coord, uint2 size)
         vacuum_media.ior = 1.0;
         vacuum_media.sigma_a = float3(0);
         vacuum_media.phase_g = 0.0;
+        vacuum_media.emission = float3(0);
         media[0] = vacuum_media;
 
         // when the camera starts submerged, push its medium as the current one. seeding
@@ -347,6 +348,14 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         if(homogenous_medium)
         {
+            // emissive medium: analytic emission integral over the full segment,
+            // integral(Tr(t) * sigma_a * Le, dt) = sigma_a * Le * (1 - exp(-sigma_t * s)) / sigma_t
+            if(any(payload.media.emission > float3(0)))
+            {
+                float3 tr_int = (float3(1) - exp(-sigma_t * RayTCurrent())) / max(sigma_t, float3(ray::EPS));
+                payload.radiance += payload.beta * payload.media.sigma_a * payload.media.emission * tr_int;
+            }
+
             t = min(-log(1 - utils::rnd(rng_state)) / max(sigma_t[channel], ray::EPS), RayTCurrent());
             sample_medium = t < RayTCurrent();
 
@@ -431,6 +440,9 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     payload.media.sigma_a = (1.0 - rho_ss) * sigma_t;
     payload.media.phase_g = material.phase_asymmetry_g;
     payload.media.ior = sample_surface ? material.ior : payload.media.ior;
+
+    // null-surface volumes route material-emission into the medium (emitted radiance Le)
+    payload.media.emission = material.null_surface ? material.emission.a * material.emission.rgb : float3(0);
 
     // determine next media-op. a transmission event touches the media stack only when it crosses a
     // real boundary: a volume (Beer-Lambert / scattering interior) or a specular-refractive surface

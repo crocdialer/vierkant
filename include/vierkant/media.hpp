@@ -16,6 +16,10 @@ struct alignas(16) media_t
     float ior = 1.f;
     glm::vec3 sigma_a = glm::vec3(0.f);
     float phase_g = 0.f;
+
+    //! emitted radiance Le. volumetric emission is sigma_a * Le, so it requires absorption
+    glm::vec3 emission = glm::vec3(0.f);
+    float pad = 0.f;
 };
 
 //! material-facing volume parameters (subset of vierkant::Material), the input the user/geometry
@@ -39,6 +43,10 @@ struct medium_params_t
 
     //! index of refraction of the medium
     float ior = 1.f;
+
+    //! emitted radiance Le = emission_color * emission_intensity (effective emission scales with sigma_a)
+    glm::vec3 emission_color = glm::vec3(1.f);
+    float emission_intensity = 0.f;
 };
 
 //! convert material-facing volume-parameters into a media_t, mirroring the path-tracer shader

@@ -18,6 +18,7 @@ media_t to_media(const medium_params_t &params)
     media.sigma_a = (1.f - rho_ss) * sigma_t;
     media.phase_g = params.phase_asymmetry_g;
     media.ior = params.ior;
+    media.emission = params.emission_color * params.emission_intensity;
     return media;
 }
 

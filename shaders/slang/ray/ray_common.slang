@@ -47,6 +47,10 @@ public struct media_t
     public float ior;
     public float3 sigma_a;
     public float phase_g;
+
+    //! emitted radiance Le. volumetric emission is sigma_a * Le, so it requires absorption
+    public float3 emission;
+    float pad;
 };
 
 public struct sunlight_params_t
