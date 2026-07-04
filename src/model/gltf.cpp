@@ -1037,17 +1037,21 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
         }
     }
 
-    // create lights
+    // create lightsource-assets
     for(const auto &tiny_light: model.lights)
     {
-        lightsource_t l = {};
+        vierkant::lightsource_t l = {};
+        l.name = tiny_light.name;
 
-        if(tiny_light.type == ext_light_spot) { l.type = LightType::Spot; }
-        else if(tiny_light.type == ext_light_directional) { l.type = LightType::Directional; }
+        if(tiny_light.type == ext_light_spot) { l.type = vierkant::LightType::Spot; }
+        else if(tiny_light.type == ext_light_directional) { l.type = vierkant::LightType::Directional; }
 
         if(tiny_light.color.size() == 3) { l.color = {tiny_light.color[0], tiny_light.color[1], tiny_light.color[2]}; }
         l.intensity = static_cast<float>(tiny_light.intensity);
-        l.range = static_cast<float>(tiny_light.range);
+
+        // range 0 means unlimited (gltf-spec)
+        l.range = tiny_light.range > 0.0 ? static_cast<float>(tiny_light.range)
+                                         : std::numeric_limits<float>::infinity();
         l.inner_cone_angle = static_cast<float>(tiny_light.spot.innerConeAngle);
         l.outer_cone_angle = static_cast<float>(tiny_light.spot.outerConeAngle);
 
@@ -1171,7 +1175,7 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
             }
         }
 
-        // node references light-source
+        // node references light-source -> add a placed instance
         if(tiny_node.extensions.count(KHR_lights_punctual))
         {
             const auto &value = tiny_node.extensions.at(KHR_lights_punctual);
@@ -1179,11 +1183,7 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
 
             if(light_index < out_assets.lights.size())
             {
-                auto &l = out_assets.lights[light_index];
-                l.position = world_transform.translation;
-
-                auto m = glm::mat3_cast(world_transform.rotation);
-                l.direction = -m[2];
+                out_assets.light_instances.push_back({world_transform, out_assets.lights[light_index].id});
             }
         }
 

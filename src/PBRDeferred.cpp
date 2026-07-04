@@ -85,7 +85,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         frame_context.lights_ubo =
-                vierkant::Buffer::create(device, nullptr, sizeof(vierkant::lightsource_ubo_t),
+                vierkant::Buffer::create(device, nullptr, sizeof(vierkant::light_t),
                                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         vierkant::Buffer::create_info_t composition_buffer_info = {};

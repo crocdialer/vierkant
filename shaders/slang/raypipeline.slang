@@ -336,7 +336,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     bool sample_medium = false;
     float3 sigma_t = payload.media.sigma_s + payload.media.sigma_a;
 
-    bool use_direct_lighting = trace_data.sunlight_params.intensity > 0.0;
+    // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
+    bool use_direct_lighting = trace_data.num_lights > 0;
 
     if(any(sigma_t > float3(0)))
     {
@@ -399,8 +400,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
             if(use_direct_lighting)
             {
-                payload.radiance += payload.beta * ray::sample_sun_light_phase(payload.ray, trace_data.sunlight_params,
-                                                                               topLevelAS, g, rng_state);
+                payload.radiance += payload.beta * ray::nee_volume(payload.ray, trace_data.lights,
+                                                                   trace_data.num_lights, topLevelAS, g, rng_state);
             }
 
             float phase_pdf;
@@ -543,8 +544,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         if(use_direct_lighting)
         {
             payload.radiance +=
-                    payload.beta * ray::sample_sun_light(material, trace_data.sunlight_params, topLevelAS,
-                                                         payload.position, payload.normal, V, eta, rng_state);
+                    payload.beta * ray::nee_surface(material, trace_data.lights, trace_data.num_lights, topLevelAS,
+                                                    payload.position, payload.normal, V, eta, rng_state);
         }
 
         if(bsdf_sample.pdf <= 0.0)

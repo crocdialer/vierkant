@@ -13,6 +13,7 @@
 
 #include "imgui_internal.h"
 #include <vierkant/Visitor.hpp>
+#include <vierkant/punctual_light.hpp>
 
 using namespace crocore;
 
@@ -57,7 +58,7 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
 
 bool draw_material_ui(const vierkant::ScenePtr &scene, const MaterialId &material_id);
 
-void draw_light_ui(vierkant::model::lightsource_t &light);
+void draw_light_ui(vierkant::lightsource_t &light);
 
 void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::WindowPtr &window)
 {
@@ -810,15 +811,21 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
     }
     if(ImGui::BeginTabItem("lights"))
     {
-        auto view = scene->registry()->view<vierkant::Object3D *, vierkant::model::lightsource_t>();
+        auto *assets = scene->asset_provider().get();
 
-        // uniquely gather all materials in order
-        for(auto [entity, object, light]: view.each())
+        if(ImGui::Button("add light")) { assets->add_light({}); }
+        ImGui::SameLine();
+        if(ImGui::Button("prune unused")) { scene->prune_assets(); }
+
+        for(const auto &light_id: std::views::keys(assets->lights()))
         {
-            if(ImGui::TreeNode((void *) object, "%s", object->name.c_str()))
+            auto &light = *assets->light(light_id);
+
+            if(ImGui::TreeNode(&light, "%s", light.name.empty() ? "<unnamed>" : light.name.c_str()))
             {
-                ImGui::Separator();
                 draw_light_ui(light);
+                ImGui::Spacing();
+                ImGui::Separator();
                 ImGui::TreePop();
             }
         }
@@ -1058,11 +1065,24 @@ bool draw_material_ui(const vierkant::ScenePtr &scene, const MaterialId &materia
     return material && draw_material_ui(*material, draw_texture);
 }
 
-void draw_light_ui(vierkant::model::lightsource_t &light)
+void draw_light_ui(vierkant::lightsource_t &light)
 {
+    constexpr size_t buf_size = 4096;
+    char text_buf[buf_size];
+
+    // allow grabbing the light-id
+    strcpy(text_buf, light.id.str().c_str());
+    ImGui::InputText("light-id", text_buf, sizeof(text_buf), ImGuiInputTextFlags_ReadOnly);
+
+    strcpy(text_buf, light.name.c_str());
+    if(ImGui::InputText("name", text_buf, IM_ARRAYSIZE(text_buf), ImGuiInputTextFlags_EnterReturnsTrue))
+    {
+        light.name = text_buf;
+    }
+    ImGui::Separator();
+
     const char *light_type_strings[] = {"Omni", "Spot", "Directional"};
-    constexpr vierkant::model::LightType light_types[] = {model::LightType::Omni, model::LightType::Spot,
-                                                          model::LightType::Directional};
+    constexpr vierkant::LightType light_types[] = {LightType::Omni, LightType::Spot, LightType::Directional};
     int light_type_index = 0;
 
     for(auto type: light_types)
@@ -1071,15 +1091,19 @@ void draw_light_ui(vierkant::model::lightsource_t &light)
         light_type_index++;
     }
 
-    if(ImGui::Combo("blend-mode", &light_type_index, light_type_strings, IM_ARRAYSIZE(light_type_strings)))
+    if(ImGui::Combo("type", &light_type_index, light_type_strings, IM_ARRAYSIZE(light_type_strings)))
     {
         light.type = light_types[light_type_index];
     }
     ImGui::ColorEdit3("color", glm::value_ptr(light.color));
     ImGui::InputFloat("intensity", &light.intensity);
     ImGui::InputFloat("range", &light.range);
-    ImGui::InputFloat("inner_cone_angle", &light.inner_cone_angle);
-    ImGui::InputFloat("outer_cone_angle", &light.outer_cone_angle);
+
+    if(light.type == LightType::Spot)
+    {
+        ImGui::SliderAngle("inner_cone_angle", &light.inner_cone_angle, 0.f, 89.f);
+        ImGui::SliderAngle("outer_cone_angle", &light.outer_cone_angle, 0.f, 89.f);
+    }
 }
 
 void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &object,
@@ -1366,6 +1390,33 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
 
             auto &flag_cmp = object->add_component<flag_component_t>();
             flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
+        }
+    }
+
+    // lightsource-component: references a lightsource-asset by id
+    bool has_light = object->has_component<vierkant::lightsource_component_t>();
+    if(ImGui::Checkbox("lightsource", &has_light))
+    {
+        if(has_light) { object->add_component<vierkant::lightsource_component_t>(); }
+        else { object->remove_component<vierkant::lightsource_component_t>(); }
+    }
+    if(has_light)
+    {
+        auto &light_cmp = object->get_component<vierkant::lightsource_component_t>();
+
+        strcpy(text_buf, light_cmp.light_id.str().c_str());
+        if(ImGui::InputText("light-id", text_buf, sizeof(text_buf), ImGuiInputTextFlags_EnterReturnsTrue))
+        {
+            light_cmp.light_id = vierkant::LightId::from_string(text_buf);
+        }
+
+        if(auto *light_asset = scene->asset_provider()->light(light_cmp.light_id))
+        {
+            if(ImGui::TreeNode(light_asset, "%s", light_asset->name.empty() ? "<unnamed>" : light_asset->name.c_str()))
+            {
+                draw_light_ui(*light_asset);
+                ImGui::TreePop();
+            }
         }
     }
 

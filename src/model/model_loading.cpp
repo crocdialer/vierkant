@@ -332,6 +332,10 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
     // node animations
     ret.mesh->node_animations = mesh_assets.node_animations;
 
+    // lightsource-assets + placed instances
+    for(const auto &l: mesh_assets.lights) { ret.lights[l.id] = l; }
+    ret.light_instances = mesh_assets.light_instances;
+
     // generate base-textures under their default-sampler key {texture_id, nil}
     for(const auto &[id, tex_variant]: mesh_assets.textures)
     {

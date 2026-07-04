@@ -26,7 +26,7 @@ struct cull_result_t
     std::unordered_set<const vierkant::Mesh*> meshes;
 
     //! list of light-sources
-    std::vector<vierkant::lightsource_ubo_t> lights;
+    std::vector<vierkant::light_t> lights;
 
     //! lookup: drawable-id -> entity/entry
     std::unordered_map<vierkant::DrawableId, id_entry_t> entity_map;

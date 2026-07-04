@@ -59,6 +59,14 @@ vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_params_variant
     return cam;
 }
 
+vierkant::Object3DPtr Scene::create_lightsource(const vierkant::lightsource_t &params)
+{
+    m_asset_provider->add_light(params);
+    auto light = create_object();
+    light->add_component<vierkant::lightsource_component_t>({params.id});
+    return light;
+}
+
 
 Scene::Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store,
              const vierkant::AssetProviderPtr &asset_provider)
@@ -83,9 +91,11 @@ void Scene::clear()
     m_root->name = s_scene_root_name;
 }
 
-void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_live_materials)
+void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_live_materials,
+                         const std::unordered_set<vierkant::LightId> &extra_live_lights)
 {
     vierkant::asset_live_set_t live;
+    live.lights = extra_live_lights;
 
     // mark a material live, along with the textures/samplers it references
     auto mark_material = [this, &live](const vierkant::MaterialId &mat_id) {
@@ -112,6 +122,10 @@ void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_l
 
             const auto &material_ids = mesh_cmp->material_ids ? *mesh_cmp->material_ids : mesh_cmp->mesh->material_ids;
             for(const auto &mat_id: material_ids) { mark_material(mat_id); }
+        }
+        if(auto *light_cmp = obj.template get_component_ptr<vierkant::lightsource_component_t>())
+        {
+            live.lights.insert(light_cmp->light_id);
         }
         return true;
     });

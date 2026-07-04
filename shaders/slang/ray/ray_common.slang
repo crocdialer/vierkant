@@ -53,12 +53,31 @@ public struct media_t
     float pad;
 };
 
-public struct sunlight_params_t
+public enum LightType : uint
 {
+    Omni = 0,
+    Spot = 1,
+    Directional = 2,
+
+    //! reserved for emissive-triangle lights (later phase)
+    Area = 3,
+};
+
+//! packed lightsource-data, matches host-side vierkant::light_t
+public struct light_t
+{
+    public float3 position;
+    public LightType type;
     public float3 color;
     public float intensity;
     public float3 direction;
+    public float range;
+    public float spot_angle_scale;
+    public float spot_angle_offset;
+
+    //! >0 on directional lights indicates a sun-style disc-light (apex angle in radians)
     public float angular_size;
+    float pad;
 };
 
 //! simple struct to group rayhit-parameters
@@ -159,7 +178,6 @@ public struct trace_data_t
     public trace_params_t params;
     public camera_ubo_t camera;
     public media_t camera_media;
-    public sunlight_params_t sunlight_params;
 
     // device pointers
     public Ptr<utils::packed_vertex_t, Access.Read> *vertex_buffers;
@@ -167,6 +185,8 @@ public struct trace_data_t
     public Ptr<entry_t, Access.Read> entries;
     public Ptr<material_t, Access.Read> materials;
     public pixel_data_t *out_pixels;
+    public Ptr<light_t, Access.Read> lights;
+    public uint num_lights;
 };
 
 }// namespace ray

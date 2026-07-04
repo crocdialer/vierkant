@@ -16,6 +16,7 @@
 #include <vierkant/Mesh.hpp>
 #include <vierkant/camera_params.hpp>
 #include <vierkant/hash.hpp>
+#include <vierkant/punctual_light.hpp>
 #include <vierkant/texture_block_compression.hpp>
 
 namespace vierkant
@@ -31,24 +32,11 @@ using geometry_variant_t =
 namespace vierkant::model
 {
 
-enum class LightType : uint32_t
+//! a placed lightsource-instance: model-space transform + referenced light-asset
+struct lightsource_instance_t
 {
-    Omni = 0,
-    Spot,
-    Directional
-};
-
-//! adhoc lightsource_t
-struct lightsource_t
-{
-    glm::vec3 position;
-    LightType type = LightType::Omni;
-    glm::vec3 color = glm::vec3(1);
-    float intensity = 1.f;
-    glm::vec3 direction = glm::vec3(0.f, 0.f, -1.f);
-    float range = std::numeric_limits<float>::infinity();
-    float inner_cone_angle = 0.f;
-    float outer_cone_angle = glm::quarter_pi<float>();
+    vierkant::transform_t transform = {};
+    vierkant::LightId light_id = vierkant::LightId::nil();
 };
 
 //! adhoc camera_t
@@ -99,8 +87,11 @@ struct model_assets_t
     //! texture-sample-states for all materials
     std::unordered_map<vierkant::SamplerId, texture_sampler_t> texture_samplers;
 
-    //! optional lights defined in model-file
-    std::vector<lightsource_t> lights;
+    //! optional lightsource-assets defined in model-file
+    std::vector<vierkant::lightsource_t> lights;
+
+    //! optional placed lightsource-instances, referencing 'lights'
+    std::vector<lightsource_instance_t> light_instances;
 
     //! optional cameras defined in model-file
     std::vector<camera_t> cameras;
@@ -188,6 +179,10 @@ struct load_mesh_result_t
     //! GPU-textures keyed by {texture_id, sampler_id}; an entry per realized texture/sampler combination
     std::unordered_map<vierkant::texture_key_t, vierkant::ImagePtr> textures;
     std::unordered_map<vierkant::SamplerId, vierkant::VkSamplerPtr> samplers;
+
+    //! lightsource-assets and placed instances defined in the model-file
+    std::unordered_map<vierkant::LightId, vierkant::lightsource_t> lights;
+    std::vector<lightsource_instance_t> light_instances;
 
     //! CPU-side OMM data; caller accumulates into a scene-level cache and passes to RayBuilder
     mesh_omm_cache_t omm_cache;

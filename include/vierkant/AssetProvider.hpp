@@ -8,6 +8,7 @@
 #include <vierkant/Material.hpp>
 #include <vierkant/mesh_component.hpp>
 #include <vierkant/model/model_loading.hpp>
+#include <vierkant/punctual_light.hpp>
 
 namespace vierkant
 {
@@ -21,6 +22,7 @@ struct asset_live_set_t
     std::unordered_set<vierkant::texture_key_t> textures;
     std::unordered_set<vierkant::SamplerId> samplers;
     std::unordered_set<vierkant::MeshId> meshes;
+    std::unordered_set<vierkant::LightId> lights;
 };
 
 /**
@@ -48,6 +50,12 @@ public:
     // samplers (GPU) - owned + deduped by SamplerId; created by the model-loader, inserted via populate()
     [[nodiscard]] VkSamplerPtr sampler(const SamplerId &id) const;
 
+    // lights
+    void add_light(lightsource_t l);
+    void remove_light(const LightId &id);
+    [[nodiscard]] const lightsource_t *light(const LightId &id) const;
+    lightsource_t *light(const LightId &id);
+
     // meshes
     [[nodiscard]] const mesh_asset_t *mesh_asset(const MeshId &id) const;
     void add_mesh(const MeshId &id, mesh_asset_t asset);
@@ -61,6 +69,7 @@ public:
     // borrowed whole-map access for cull/imgui (render-thread only)
     [[nodiscard]] const std::unordered_map<MaterialId, material_t> &materials() const { return m_materials; }
     [[nodiscard]] const std::unordered_map<texture_key_t, ImagePtr> &textures() const { return m_textures; }
+    [[nodiscard]] const std::unordered_map<LightId, lightsource_t> &lights() const { return m_lights; }
 
     //! adapter satisfying physics' mesh_provider_fn
     [[nodiscard]] std::function<const mesh_asset_t *(MeshId)> mesh_provider() const;
@@ -71,6 +80,7 @@ private:
     std::unordered_map<MaterialId, material_t> m_materials;
     std::unordered_map<texture_key_t, ImagePtr> m_textures;
     std::unordered_map<SamplerId, VkSamplerPtr> m_samplers;
+    std::unordered_map<LightId, lightsource_t> m_lights;
     mesh_map_t m_meshes;
 };
 
