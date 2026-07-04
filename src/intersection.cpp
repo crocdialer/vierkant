@@ -177,7 +177,10 @@ ray_intersection intersect(const OBB &obb, const Ray &ray)
         else if((-e - obb.half_lengths[i]) > 0 || (-e + obb.half_lengths[i]) < 0) { return REJECT; }
     }
     if(t_min > 0) { return {INTERSECT, t_min}; }
-    else { return {INTERSECT, t_max}; }
+    else
+    {
+        return {INTERSECT, t_max};
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -221,6 +224,16 @@ OBB::OBB(const AABB &aabb, const glm::mat4 &t)
     axis[1] = normalize(t[1].xyz());
     axis[2] = normalize(t[2].xyz());
     half_lengths = aabb.half_extents() * scale;
+}
+
+OBB &OBB::transform(const vierkant::transform_t &t)
+{
+    // fallback to matrix-path to support non-uniform scaling
+    if(!is_scale_uniform(t)) { return transform(vierkant::mat4_cast(t)); }
+    half_lengths *= t.scale;
+    axis = glm::mat3_cast(t.rotation) * axis;
+    center = t * center;
+    return *this;
 }
 
 OBB &OBB::transform(const glm::mat4 &t)
@@ -353,7 +366,7 @@ uint32_t intersect(const Triangle &t, const AABB &b)
     auto box_center = b.center();
     auto box_half_extents = b.half_extents();
     return tri_box_overlap(glm::value_ptr(box_center), glm::value_ptr(box_half_extents),
-                           reinterpret_cast<const float(*)[3]>(&t));
+                           reinterpret_cast<const float (*)[3]>(&t));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

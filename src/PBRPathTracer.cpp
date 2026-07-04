@@ -479,7 +479,7 @@ static std::optional<vierkant::medium_params_t> detect_camera_medium(const vierk
         if(!object->has_component<vierkant::mesh_component_t>()) { continue; }
 
         // world-space OBB containment test
-        auto world_obb = object->obb().transform(vierkant::mat4_cast(object->global_transform()));
+        auto world_obb = object->obb().transform(object->global_transform());
         if(!world_obb.contains(cam_pos)) { continue; }
 
         const glm::vec3 &h = world_obb.half_lengths;

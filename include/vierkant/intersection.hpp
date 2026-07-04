@@ -357,15 +357,17 @@ struct OBB
 
     OBB(const AABB &aabb, const glm::mat4 &t);
 
+    OBB &transform(const vierkant::transform_t &t);
     OBB &transform(const glm::mat4 &t);
 
-    [[nodiscard]] inline OBB transform(const glm::mat4 &t) const
+    template<typename T>
+    [[nodiscard]] OBB transform(const T &t) const
     {
         OBB ret = *this;
         return ret.transform(t);
     }
 
-    [[nodiscard]] inline bool contains(const glm::vec3 &p) const
+    [[nodiscard]] bool contains(const glm::vec3 &p) const
     {
         // project (p - center) onto each box-axis (same convention as intersect(OBB, Ray))
         const glm::vec3 d = p - center;
