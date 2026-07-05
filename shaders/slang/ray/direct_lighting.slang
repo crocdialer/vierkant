@@ -77,21 +77,31 @@ public light_sample_t sample_light(light_t l, float3 P, float2 Xi)
             ret.dist = b - sqrt(max(b * b - d2 + r2, 0.0));
         }
     }
-    else if(l.type == LightType::Rect || l.type == LightType::Disk)
+    else if(l.type == LightType::Rect || l.type == LightType::Disk || l.type == LightType::Tube)
     {
-        // uniform-area sample Q on the light surface, area-pdf converted to solid-angle below
-        float3 Q;
+        // uniform-area sample Q on the light surface with emit-normal n, area-pdf converted to solid-angle below.
+        // rect/disk are one-sided and emit along l.direction (glTF propagation convention)
+        float3 Q, n;
         if(l.type == LightType::Rect)
         {
             float3 bitangent = cross(l.direction, l.tangent);
             Q = l.position + (2.0 * Xi.x - 1.0) * l.size_x * l.tangent + (2.0 * Xi.y - 1.0) * l.size_y * bitangent;
+            n = l.direction;
             ret.pdf = 1.0 / (4.0 * l.size_x * l.size_y);
         }
-        else
+        else if(l.type == LightType::Disk)
         {
             // disks are rotation-symmetric: any fixed frame around the normal works
             Q = l.position + mul(float3(l.size_x * utils::sample_unit_disc(Xi), 0.0), utils::local_frame(l.direction));
+            n = l.direction;
             ret.pdf = 1.0 / (utils::PI * l.size_x * l.size_x);
+        }
+        else// Tube: open cylinder mantle around the axis (l.direction), emitting radially
+        {
+            float phi = 2.0 * utils::PI * Xi.x;
+            n = mul(float3(cos(phi), sin(phi), 0.0), utils::local_frame(l.direction));
+            Q = l.position + (2.0 * Xi.y - 1.0) * l.size_y * l.direction + l.size_x * n;
+            ret.pdf = 1.0 / (4.0 * utils::PI * l.size_x * l.size_y);
         }
 
         float3 to_q = Q - P;
@@ -99,9 +109,8 @@ public light_sample_t sample_light(light_t l, float3 P, float2 Xi)
         ret.dist = max(sqrt(d2), EPS);
         ret.direction = to_q / ret.dist;
 
-        // one-sided emitter: light leaves along l.direction (glTF propagation convention),
-        // backfacing shading points get a black sample (nee_* skips the shadow ray)
-        float cos_light = dot(l.direction, -ret.direction);
+        // backfacing surface elements yield a black sample (nee_* skips the shadow ray)
+        float cos_light = dot(n, -ret.direction);
         ret.pdf *= d2 / max(cos_light, EPS);
         if(cos_light <= 0.0) { ret.radiance = float3(0); }
     }
