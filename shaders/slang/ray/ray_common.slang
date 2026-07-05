@@ -144,6 +144,14 @@ public struct payload_t
     public media_t media;
 };
 
+//! debug: force a single direct-light estimator (verification: all modes must converge to the same image)
+public enum MisMode : uint
+{
+    Full = 0,
+    NeeOnly = 1,
+    BsdfOnly = 2,
+};
+
 public struct trace_params_t
 {
     //! current time since start in seconds
@@ -176,7 +184,10 @@ public struct trace_params_t
     //! camera starts inside 'camera_media' (seed media-stack, disable back-face culling)
     public bool camera_inside_media;
 
-    private int pad1, pad2;
+    //! debug: force a single direct-light estimator
+    public MisMode mis_mode;
+
+    private int pad1;
 };
 
 public struct camera_ubo_t

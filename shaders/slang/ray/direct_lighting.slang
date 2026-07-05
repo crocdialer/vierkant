@@ -143,8 +143,24 @@ public float power_heuristic(float p_a, float p_b)
     return 1.0 / (1.0 + r * r);
 }
 
-//! whether bsdf/phase-sampled rays can hit this light (M2 adds the sun-disc, M3 analytic light bodies)
-public bool bsdf_reachable(light_t l) { return false; }
+//! whether bsdf/phase-sampled rays can hit this light (M2: sun-discs via miss shaders; M3 adds analytic light bodies)
+public bool bsdf_reachable(light_t l) { return l.type == LightType::Directional && l.angular_size > 0.0; }
+
+//! NEE-side MIS weight against a bsdf/phase competitor-pdf, respecting a forced estimator-mode
+public float mis_weight_nee(MisMode mode, float p_nee, float p_bsdf)
+{
+    if(mode == MisMode::NeeOnly) { return 1.0; }
+    if(mode == MisMode::BsdfOnly) { return 0.0; }
+    return power_heuristic(p_nee, p_bsdf);
+}
+
+//! hit-side MIS weight for a bsdf/phase ray that reached a light (prev_bsdf_pdf <= 0: no NEE competitor -> full)
+public float mis_weight_hit(MisMode mode, float prev_bsdf_pdf, float p_nee)
+{
+    if(mode == MisMode::NeeOnly) { return 0.0; }
+    if(mode == MisMode::BsdfOnly || prev_bsdf_pdf <= 0.0) { return 1.0; }
+    return power_heuristic(prev_bsdf_pdf, p_nee);
+}
 
 //! solid-angle pdf of sample_light() generating direction `dir` from P — the hit-side density for MIS.
 //! must mirror the sampling strategies in sample_light() exactly
@@ -249,7 +265,9 @@ public float3 nee_surface(material_t material, trace_data_t trace_data, Raytraci
         float3 F = eval_disney(material, ls.direction, N, V, eta, bsdf_pdf);
 
         // MIS vs. bsdf-sampling for lights that bsdf-rays can hit (weight == 1 for all others)
-        float weight = bsdf_reachable(trace_data.lights[index]) ? power_heuristic(ls.pdf / num_lights, bsdf_pdf) : 1.0;
+        float weight = bsdf_reachable(trace_data.lights[index])
+                               ? mis_weight_nee(trace_data.params.mis_mode, ls.pdf / num_lights, bsdf_pdf)
+                               : 1.0;
 
         // divide by pick-pdf (1/num_lights) and solid-angle pdf
         radiance = weight * float(num_lights) * ls.radiance * F * cos_theta / ls.pdf;
@@ -285,7 +303,9 @@ public float3 nee_volume(Ray ray, trace_data_t trace_data, RaytracingAcceleratio
     float phase = utils::phase_hg(dot(ray.direction, ls.direction), phase_g);
 
     // MIS vs. phase-sampling for lights that phase-rays can hit (weight == 1 for all others)
-    float weight = bsdf_reachable(trace_data.lights[index]) ? power_heuristic(ls.pdf / num_lights, phase) : 1.0;
+    float weight = bsdf_reachable(trace_data.lights[index])
+                           ? mis_weight_nee(trace_data.params.mis_mode, ls.pdf / num_lights, phase)
+                           : 1.0;
 
     // divide by pick-pdf (1/num_lights) and solid-angle pdf
     return weight * float(num_lights) * ls.radiance * phase / ls.pdf;

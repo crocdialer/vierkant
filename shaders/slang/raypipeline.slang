@@ -564,7 +564,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
                                                                 payload.position, payload.normal, V, eta, rng_state);
         }
 
-        if(bsdf_sample.pdf <= 0.0)
+        // negated form also stops NaN-pdfs, which would poison beta and MIS weights
+        if(!(bsdf_sample.pdf > 0.0))
         {
             payload.stop = true;
             return;
@@ -662,6 +663,26 @@ void any_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes
 // miss shaders
 //-----------------------------------------------------------------------------
 
+//! sun-style directional disc-lights are visible on miss, MIS-weighted against their NEE strategy.
+//! local analytic light bodies terminate rays elsewhere and never show up here (M3)
+float3 eval_distant_lights(float3 dir, float prev_bsdf_pdf)
+{
+    float3 radiance = float3(0);
+    for(uint i = 0; i < trace_data.num_lights; ++i)
+    {
+        ray::light_t l = trace_data.lights[i];
+        if(l.type != ray::LightType::Directional) { continue; }
+
+        // constant disc-radiance inside the cone; delta suns (angular_size == 0) yield pdf 0
+        float pdf = ray::light_pdf(l, float3(0), dir);
+        if(pdf <= 0.0) { continue; }
+
+        float w = ray::mis_weight_hit(trace_data.params.mis_mode, prev_bsdf_pdf, pdf / trace_data.num_lights);
+        radiance += w * l.color * l.intensity;
+    }
+    return radiance;
+}
+
 [shader("miss")]
 void miss_default(inout ray::payload_t payload)
 {
@@ -671,6 +692,7 @@ void miss_default(inout ray::payload_t payload)
 
     float3 col = utils::environment_white(payload.ray.direction);
     payload.radiance += trace_data.params.environment * payload.beta * col;
+    payload.radiance += payload.beta * eval_distant_lights(payload.ray.direction, payload.prev_bsdf_pdf);
 }
 
 [shader("miss")]
@@ -685,4 +707,5 @@ void miss_environment(inout ray::payload_t payload)
 
     payload.radiance +=
             trace_data.params.environment * payload.beta * u_sampler_cube.SampleLevel(WorldRayDirection(), lod).rgb;
+    payload.radiance += payload.beta * eval_distant_lights(payload.ray.direction, payload.prev_bsdf_pdf);
 }
