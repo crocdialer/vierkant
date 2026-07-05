@@ -21,7 +21,16 @@ enum class LightType : uint32_t
 {
     Omni = 0,
     Spot,
-    Directional
+    Directional,
+
+    //! reserved for emissive-triangle lights (later phase)
+    Area,
+
+    // analytic area lights
+    Rect,
+    Sphere,
+    Tube,
+    Disk
 };
 
 //! lightsource-asset, owned by an AssetProvider and referenced by LightId
@@ -36,6 +45,9 @@ struct lightsource_t
     float range = std::numeric_limits<float>::infinity();
     float inner_cone_angle = 0.f;
     float outer_cone_angle = glm::quarter_pi<float>();
+
+    //! area-light extents: x = radius (Sphere/Disk/Tube) or half-width (Rect), y = half-height (Rect) / half-length (Tube)
+    glm::vec2 size = glm::vec2(1.f);
 };
 
 //! lightsource object-component, referencing a lightsource-asset. position/direction come from the object-transform
@@ -59,8 +71,17 @@ struct alignas(16) light_t
 
     //! >0 on directional lights indicates a sun-style disc-light (apex angle in radians)
     float angular_size;
-    float pad;
+
+    //! area-light extent: half-height (Rect) / half-length (Tube)
+    float size_y;
+
+    //! area-light in-plane x-axis (Rect)
+    glm::vec3 tangent;
+
+    //! area-light extent: radius (Sphere/Disk/Tube) / half-width (Rect)
+    float size_x;
 };
+static_assert(sizeof(light_t) == 80, "light_t layout must match shader-side (ray_common.slang)");
 
 static inline light_t convert_light(const vierkant::lightsource_t &light, const vierkant::transform_t &t)
 {
@@ -75,6 +96,11 @@ static inline light_t convert_light(const vierkant::lightsource_t &light, const 
     ret.spot_angle_scale =
             1.f / std::max(0.001f, std::cos(light.inner_cone_angle) - std::cos(light.outer_cone_angle));
     ret.spot_angle_offset = -std::cos(light.outer_cone_angle) * ret.spot_angle_scale;
+
+    // area-light extents come from the asset, transform-scale is ignored (ill-defined for sphere/tube)
+    ret.tangent = t.rotation * glm::vec3(1.f, 0.f, 0.f);
+    ret.size_x = light.size.x;
+    ret.size_y = light.size.y;
     return ret;
 }
 

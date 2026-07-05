@@ -625,7 +625,9 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
         if(const auto *light_cmp = object->get_component_ptr<vierkant::lightsource_component_t>())
         {
             const auto *light_asset = scene->asset_provider()->light(light_cmp->light_id);
-            if(light_asset && light_asset->intensity > 0.f)
+
+            // Area stays reserved for emissive triangles (extracted, not authored)
+            if(light_asset && light_asset->intensity > 0.f && light_asset->type != vierkant::LightType::Area)
             {
                 lights.push_back(vierkant::convert_light(*light_asset, object->global_transform()));
             }

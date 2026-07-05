@@ -61,6 +61,12 @@ public enum LightType : uint
 
     //! reserved for emissive-triangle lights (later phase)
     Area = 3,
+
+    // analytic area lights
+    Rect = 4,
+    Sphere = 5,
+    Tube = 6,
+    Disk = 7,
 };
 
 //! packed lightsource-data, matches host-side vierkant::light_t
@@ -77,7 +83,15 @@ public struct light_t
 
     //! >0 on directional lights indicates a sun-style disc-light (apex angle in radians)
     public float angular_size;
-    float pad;
+
+    //! area-light extent: half-height (Rect) / half-length (Tube)
+    public float size_y;
+
+    //! area-light in-plane x-axis (Rect)
+    public float3 tangent;
+
+    //! area-light extent: radius (Sphere/Disk/Tube) / half-width (Rect)
+    public float size_x;
 };
 
 //! simple struct to group rayhit-parameters

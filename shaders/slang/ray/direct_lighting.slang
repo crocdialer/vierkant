@@ -48,6 +48,72 @@ public light_sample_t sample_light(light_t l, float3 P, float2 Xi)
             ret.pdf = 1.0 / (2.0 * utils::PI * (1.0 - cos(l.angular_size)));
         }
     }
+    else if(l.type == LightType::Sphere)
+    {
+        // exact solid-angle sampling (Shirley): the sphere subtends a cone with sin(sigma) = r/d
+        float3 to_center = l.position - P;
+        float d2 = dot(to_center, to_center);
+        float r2 = l.size_x * l.size_x;
+
+        if(d2 <= r2)
+        {
+            // shading point inside the sphere: no valid sample, return black (nee_* skips the shadow ray)
+            ret.radiance = float3(0);
+            ret.direction = float3(0, 0, 1);
+            ret.dist = EPS;
+        }
+        else
+        {
+            float sin2_sigma = r2 / d2;
+            float cos_sigma = sqrt(1.0 - sin2_sigma);
+            ret.direction = mul(utils::sample_unit_sphere_cap(Xi, asin(sqrt(sin2_sigma))),
+                                utils::local_frame(to_center * rsqrt(d2)));
+
+            // uniform-cone pdf, cancellation-free form of 1 / (2pi * (1 - cos_sigma))
+            ret.pdf = (1.0 + cos_sigma) / (2.0 * utils::PI * sin2_sigma);
+
+            // visibility-ray tmax: distance to sphere-entry along the sampled direction
+            float b = dot(ret.direction, to_center);
+            ret.dist = b - sqrt(max(b * b - d2 + r2, 0.0));
+        }
+    }
+    else if(l.type == LightType::Rect || l.type == LightType::Disk || l.type == LightType::Tube)
+    {
+        // uniform-area sample Q on the light surface with emit-normal n, area-pdf converted to solid-angle below.
+        // rect/disk are one-sided and emit along l.direction (glTF propagation convention)
+        float3 Q, n;
+        if(l.type == LightType::Rect)
+        {
+            float3 bitangent = cross(l.direction, l.tangent);
+            Q = l.position + (2.0 * Xi.x - 1.0) * l.size_x * l.tangent + (2.0 * Xi.y - 1.0) * l.size_y * bitangent;
+            n = l.direction;
+            ret.pdf = 1.0 / (4.0 * l.size_x * l.size_y);
+        }
+        else if(l.type == LightType::Disk)
+        {
+            // disks are rotation-symmetric: any fixed frame around the normal works
+            Q = l.position + mul(float3(l.size_x * utils::sample_unit_disc(Xi), 0.0), utils::local_frame(l.direction));
+            n = l.direction;
+            ret.pdf = 1.0 / (utils::PI * l.size_x * l.size_x);
+        }
+        else// Tube: open cylinder mantle around the axis (l.direction), emitting radially
+        {
+            float phi = 2.0 * utils::PI * Xi.x;
+            n = mul(float3(cos(phi), sin(phi), 0.0), utils::local_frame(l.direction));
+            Q = l.position + (2.0 * Xi.y - 1.0) * l.size_y * l.direction + l.size_x * n;
+            ret.pdf = 1.0 / (4.0 * utils::PI * l.size_x * l.size_y);
+        }
+
+        float3 to_q = Q - P;
+        float d2 = dot(to_q, to_q);
+        ret.dist = max(sqrt(d2), EPS);
+        ret.direction = to_q / ret.dist;
+
+        // backfacing surface elements yield a black sample (nee_* skips the shadow ray)
+        float cos_light = dot(n, -ret.direction);
+        ret.pdf *= d2 / max(cos_light, EPS);
+        if(cos_light <= 0.0) { ret.radiance = float3(0); }
+    }
     else// Omni / Spot
     {
         float3 to_light = l.position - P;
@@ -81,6 +147,9 @@ public float3 nee_surface(material_t material, Ptr<light_t, Access.Read> lights,
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
     light_sample_t ls = sample_light(lights[index], pos, Xi);
 
+    // skip the shadow ray for black samples (beyond range, inside a sphere-light)
+    if(!any(ls.radiance > 0.0)) { return float3(0); }
+
     ray::Ray r;
     r.origin = pos + ray::EPS * N;
     r.direction = ls.direction;
@@ -110,6 +179,9 @@ public float3 nee_volume(Ray ray, Ptr<light_t, Access.Read> lights, uint num_lig
     uint index = num_lights > 1 ? min(uint(utils::rnd(rng_state) * num_lights), num_lights - 1) : 0;
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
     light_sample_t ls = sample_light(lights[index], ray.origin, Xi);
+
+    // skip the shadow ray for black samples (beyond range, inside a sphere-light)
+    if(!any(ls.radiance > 0.0)) { return float3(0); }
 
     // shadow ray from inside volume: cull back faces from enclosing mesh
     RayDesc shadow_desc;
