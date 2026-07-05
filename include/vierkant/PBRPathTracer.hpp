@@ -60,6 +60,9 @@ public:
         //! disable colors from textures, material, positions
         bool disable_material = false;
 
+        //! debug: force a single direct-light estimator (0: MIS, 1: NEE-only, 2: BSDF-only)
+        uint32_t mis_mode = 0;
+
         //! draw the skybox, if any
         bool draw_skybox = true;
 
@@ -263,6 +266,9 @@ private:
 
         //! flag: camera starts inside 'camera_media' (seed media-stack, disable back-face culling)
         uint32_t camera_inside_media = false;
+
+        //! debug: force a single direct-light estimator (0: MIS, 1: NEE-only, 2: BSDF-only)
+        uint32_t mis_mode = 0;
     };
 
     struct denoise_params_t

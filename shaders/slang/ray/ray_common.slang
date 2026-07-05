@@ -138,7 +138,18 @@ public struct payload_t
     //! object/entity
     public uint entity_index;
 
+    //! solid-angle pdf of the bsdf/phase sample that spawned this ray; <= 0: no MIS competitor (camera ray, NEE off)
+    public float prev_bsdf_pdf;
+
     public media_t media;
+};
+
+//! debug: force a single direct-light estimator (verification: all modes must converge to the same image)
+public enum MisMode : uint
+{
+    Full = 0,
+    NeeOnly = 1,
+    BsdfOnly = 2,
 };
 
 public struct trace_params_t
@@ -173,7 +184,10 @@ public struct trace_params_t
     //! camera starts inside 'camera_media' (seed media-stack, disable back-face culling)
     public bool camera_inside_media;
 
-    private int pad1, pad2;
+    //! debug: force a single direct-light estimator
+    public MisMode mis_mode;
+
+    private int pad1;
 };
 
 public struct camera_ubo_t

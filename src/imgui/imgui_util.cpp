@@ -452,6 +452,14 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     ImGui::Checkbox("skybox", &path_tracer->settings.draw_skybox);
     ImGui::Checkbox("suspend_trace_when_done", &path_tracer->settings.suspend_trace_when_done);
     ImGui::Checkbox("disable material", &path_tracer->settings.disable_material);
+
+    // debug: force a single direct-light estimator (all modes must converge to the same image)
+    constexpr const char *mis_mode_items[] = {"MIS", "NEE only", "BSDF only"};
+    int mis_mode = static_cast<int>(path_tracer->settings.mis_mode);
+    if(ImGui::Combo("direct-light estimator", &mis_mode, mis_mode_items, IM_ARRAYSIZE(mis_mode_items)))
+    {
+        path_tracer->settings.mis_mode = static_cast<uint32_t>(mis_mode);
+    }
     ImGui::Checkbox("denoiser", &path_tracer->settings.denoising);
     ImGui::Checkbox("tonemap", &path_tracer->settings.tonemap);
     ImGui::Checkbox("bloom", &path_tracer->settings.bloom);

@@ -131,6 +131,7 @@ trace_result_t trace(uint2 coord, uint2 size)
         float disp_lambda = -1.0;
 
         ray::payload_t payload;
+        payload.prev_bsdf_pdf = 0.0;
         bool ray_miss = false;
 
         for(uint i = 0; i < trace_data.params.max_trace_depth; i++)
@@ -158,6 +159,11 @@ trace_result_t trace(uint2 coord, uint2 size)
             ray_desc.Direction = next_ray.direction;
             ray_desc.TMax = next_ray.tmax;
 
+            // segment state for the ghost-light pass below (closest_hit updates beta/prev_bsdf_pdf/ray)
+            ray::Ray seg_ray = next_ray;
+            float3 seg_beta = beta;
+            float seg_prev_pdf = payload.prev_bsdf_pdf;
+
             //let hit = HitObject.TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
             //ReorderThread(hit);
             //HitObject.Invoke(topLevelAS, hit, payload);
@@ -174,6 +180,31 @@ trace_result_t trace(uint2 coord, uint2 size)
                 media[media_index] = payload.media;
             }
             else if(payload.media_op == ray::MediaOp::Leave) { media_index = media_index > 0u ? media_index - 1u : 0u; }
+
+            // ghost-light pass: analytic light bodies are additive, non-terminating emitters.
+            // front-facing intersections within the traced segment add MIS-weighted emission; the segment
+            // itself (media integration, scatter, surface shading) is untouched. media-transmittance toward
+            // the light is deliberately omitted until NEE shadow rays get it too (keeps both strategies
+            // estimating the same integral, so the estimator-toggle A/B stays valid)
+            {
+                // segment endpoint: where the path continued (surface hit, scatter point or
+                // null-surface boundary alike), or the traced tmax on a miss
+                bool seg_miss = payload.entity_index == utils::MAX_UINT16;
+                float t_end = seg_miss ? seg_ray.tmax : length(payload.ray.origin - seg_ray.origin);
+
+                for(uint li = 0; li < trace_data.num_lights; ++li)
+                {
+                    ray::light_t l = trace_data.lights[li];
+
+                    // non-area types never intersect
+                    ray::light_hit_t hit = ray::intersect_light(l, seg_ray.origin, seg_ray.direction);
+                    if(hit.t <= seg_ray.tmin || hit.t >= t_end) { continue; }
+
+                    float p_nee = ray::light_pdf(l, seg_ray.origin, seg_ray.direction) / trace_data.num_lights;
+                    float w = ray::mis_weight_hit(trace_data.params.mis_mode, seg_prev_pdf, p_nee);
+                    payload.radiance += seg_beta * w * l.color * l.intensity;
+                }
+            }
 
             path_radiance = payload.radiance;
 
@@ -413,13 +444,16 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
             if(use_direct_lighting)
             {
-                payload.radiance += payload.beta * ray::nee_volume(payload.ray, trace_data.lights,
-                                                                   trace_data.num_lights, topLevelAS, g, rng_state);
+                payload.radiance +=
+                        payload.beta * ray::nee_volume(payload.ray, trace_data, topLevelAS, u_textures, g, rng_state);
             }
 
             float phase_pdf;
             payload.ray.direction =
                     mul(utils::sample_phase_hg(Xi, g, phase_pdf), utils::local_frame(payload.ray.direction));
+
+            // solid-angle pdf of this bounce for MIS at the next vertex (<= 0: no NEE competitor here)
+            payload.prev_bsdf_pdf = use_direct_lighting ? phase_pdf : 0.0;
         }
     }
 
@@ -556,18 +590,22 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         if(use_direct_lighting)
         {
-            payload.radiance +=
-                    payload.beta * ray::nee_surface(material, trace_data.lights, trace_data.num_lights, topLevelAS,
-                                                    payload.position, payload.normal, V, eta, rng_state);
+            payload.radiance += payload.beta * ray::nee_surface(material, trace_data, topLevelAS, u_textures,
+                                                                payload.position, payload.normal, V, eta, rng_state);
         }
 
-        if(bsdf_sample.pdf <= 0.0)
+        // negated form also stops NaN-pdfs, which would poison beta and MIS weights
+        if(!(bsdf_sample.pdf > 0.0))
         {
             payload.stop = true;
             return;
         }
 
         payload.ray.direction = bsdf_sample.direction;
+
+        // solid-angle pdf of this bounce for MIS at the next vertex (<= 0: no NEE competitor here)
+        payload.prev_bsdf_pdf = use_direct_lighting ? bsdf_sample.pdf : 0.0;
+
         float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
 
         float3 path_throughput = bsdf_sample.F * cos_theta / max(bsdf_sample.pdf, ray::PDF_EPS);
@@ -655,6 +693,26 @@ void any_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes
 // miss shaders
 //-----------------------------------------------------------------------------
 
+//! sun-style directional disc-lights are visible on miss, MIS-weighted against their NEE strategy.
+//! local analytic light bodies terminate rays elsewhere and never show up here (M3)
+float3 eval_distant_lights(float3 dir, float prev_bsdf_pdf)
+{
+    float3 radiance = float3(0);
+    for(uint i = 0; i < trace_data.num_lights; ++i)
+    {
+        ray::light_t l = trace_data.lights[i];
+        if(l.type != ray::LightType::Directional) { continue; }
+
+        // constant disc-radiance inside the cone; delta suns (angular_size == 0) yield pdf 0
+        float pdf = ray::light_pdf(l, float3(0), dir);
+        if(pdf <= 0.0) { continue; }
+
+        float w = ray::mis_weight_hit(trace_data.params.mis_mode, prev_bsdf_pdf, pdf / trace_data.num_lights);
+        radiance += w * l.color * l.intensity;
+    }
+    return radiance;
+}
+
 [shader("miss")]
 void miss_default(inout ray::payload_t payload)
 {
@@ -664,6 +722,7 @@ void miss_default(inout ray::payload_t payload)
 
     float3 col = utils::environment_white(payload.ray.direction);
     payload.radiance += trace_data.params.environment * payload.beta * col;
+    payload.radiance += payload.beta * eval_distant_lights(payload.ray.direction, payload.prev_bsdf_pdf);
 }
 
 [shader("miss")]
@@ -678,4 +737,5 @@ void miss_environment(inout ray::payload_t payload)
 
     payload.radiance +=
             trace_data.params.environment * payload.beta * u_sampler_cube.SampleLevel(WorldRayDirection(), lod).rgb;
+    payload.radiance += payload.beta * eval_distant_lights(payload.ray.direction, payload.prev_bsdf_pdf);
 }
