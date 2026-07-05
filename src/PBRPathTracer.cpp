@@ -626,8 +626,9 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
         {
             const auto *light_asset = scene->asset_provider()->light(light_cmp->light_id);
 
-            // analytic area-light types (Rect/Sphere/Tube/Disk) join once sample_light() handles them
-            if(light_asset && light_asset->intensity > 0.f && light_asset->type <= vierkant::LightType::Directional)
+            // Tube joins once sample_light() handles it (A4); Area stays reserved for emissive triangles
+            if(light_asset && light_asset->intensity > 0.f && light_asset->type != vierkant::LightType::Tube &&
+               light_asset->type != vierkant::LightType::Area)
             {
                 lights.push_back(vierkant::convert_light(*light_asset, object->global_transform()));
             }
