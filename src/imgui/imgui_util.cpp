@@ -1081,8 +1081,10 @@ void draw_light_ui(vierkant::lightsource_t &light)
     }
     ImGui::Separator();
 
-    const char *light_type_strings[] = {"Omni", "Spot", "Directional"};
-    constexpr vierkant::LightType light_types[] = {LightType::Omni, LightType::Spot, LightType::Directional};
+    const char *light_type_strings[] = {"Omni", "Spot", "Directional", "Rect", "Sphere", "Tube", "Disk"};
+    constexpr vierkant::LightType light_types[] = {LightType::Omni,   LightType::Spot, LightType::Directional,
+                                                   LightType::Rect,   LightType::Sphere,
+                                                   LightType::Tube,   LightType::Disk};
     int light_type_index = 0;
 
     for(auto type: light_types)
@@ -1103,6 +1105,16 @@ void draw_light_ui(vierkant::lightsource_t &light)
     {
         ImGui::SliderAngle("inner_cone_angle", &light.inner_cone_angle, 0.f, 89.f);
         ImGui::SliderAngle("outer_cone_angle", &light.outer_cone_angle, 0.f, 89.f);
+    }
+    else if(light.type == LightType::Rect) { ImGui::InputFloat2("half_extents", glm::value_ptr(light.size)); }
+    else if(light.type == LightType::Sphere || light.type == LightType::Disk)
+    {
+        ImGui::InputFloat("radius", &light.size.x);
+    }
+    else if(light.type == LightType::Tube)
+    {
+        ImGui::InputFloat("radius", &light.size.x);
+        ImGui::InputFloat("half_length", &light.size.y);
     }
 }
 
