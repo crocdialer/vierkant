@@ -159,6 +159,11 @@ trace_result_t trace(uint2 coord, uint2 size)
             ray_desc.Direction = next_ray.direction;
             ray_desc.TMax = next_ray.tmax;
 
+            // segment state for the ghost-light pass below (closest_hit updates beta/prev_bsdf_pdf/ray)
+            ray::Ray seg_ray = next_ray;
+            float3 seg_beta = beta;
+            float seg_prev_pdf = payload.prev_bsdf_pdf;
+
             //let hit = HitObject.TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
             //ReorderThread(hit);
             //HitObject.Invoke(topLevelAS, hit, payload);
@@ -175,6 +180,31 @@ trace_result_t trace(uint2 coord, uint2 size)
                 media[media_index] = payload.media;
             }
             else if(payload.media_op == ray::MediaOp::Leave) { media_index = media_index > 0u ? media_index - 1u : 0u; }
+
+            // ghost-light pass: analytic light bodies are additive, non-terminating emitters.
+            // front-facing intersections within the traced segment add MIS-weighted emission; the segment
+            // itself (media integration, scatter, surface shading) is untouched. media-transmittance toward
+            // the light is deliberately omitted until NEE shadow rays get it too (keeps both strategies
+            // estimating the same integral, so the estimator-toggle A/B stays valid)
+            {
+                // segment endpoint: where the path continued (surface hit, scatter point or
+                // null-surface boundary alike), or the traced tmax on a miss
+                bool seg_miss = payload.entity_index == utils::MAX_UINT16;
+                float t_end = seg_miss ? seg_ray.tmax : length(payload.ray.origin - seg_ray.origin);
+
+                for(uint li = 0; li < trace_data.num_lights; ++li)
+                {
+                    ray::light_t l = trace_data.lights[li];
+
+                    // non-area types never intersect
+                    ray::light_hit_t hit = ray::intersect_light(l, seg_ray.origin, seg_ray.direction);
+                    if(hit.t <= seg_ray.tmin || hit.t >= t_end) { continue; }
+
+                    float p_nee = ray::light_pdf(l, seg_ray.origin, seg_ray.direction) / trace_data.num_lights;
+                    float w = ray::mis_weight_hit(trace_data.params.mis_mode, seg_prev_pdf, p_nee);
+                    payload.radiance += seg_beta * w * l.color * l.intensity;
+                }
+            }
 
             path_radiance = payload.radiance;
 

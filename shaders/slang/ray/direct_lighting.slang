@@ -143,8 +143,97 @@ public float power_heuristic(float p_a, float p_b)
     return 1.0 / (1.0 + r * r);
 }
 
-//! whether bsdf/phase-sampled rays can hit this light (M2: sun-discs via miss shaders; M3 adds analytic light bodies)
-public bool bsdf_reachable(light_t l) { return l.type == LightType::Directional && l.angular_size > 0.0; }
+//! whether bsdf/phase-sampled rays can hit this light: sun-discs via the miss shaders,
+//! analytic light bodies via the raygen ghost-light pass
+public bool bsdf_reachable(light_t l)
+{
+    return (l.type == LightType::Directional && l.angular_size > 0.0) || l.type == LightType::Rect ||
+           l.type == LightType::Sphere || l.type == LightType::Tube || l.type == LightType::Disk;
+}
+
+//! closed-form ray-intersection with an analytic light body
+public struct light_hit_t
+{
+    //! hit distance, <= 0 marks a miss
+    public float t;
+
+    //! cosine at the light surface (facing the ray origin)
+    public float cos_light;
+};
+
+//! intersect a ray with an analytic light body. front-facing surfaces only: back sides are
+//! transparent, consistent with the one-sided black NEE samples. non-area types never hit
+public light_hit_t intersect_light(light_t l, float3 P, float3 dir)
+{
+    light_hit_t ret;
+    ret.t = 0.0;
+    ret.cos_light = 0.0;
+
+    switch(l.type)
+    {
+        case LightType::Sphere:
+        {
+            float3 to_center = l.position - P;
+            float d2 = dot(to_center, to_center);
+            float r2 = l.size_x * l.size_x;
+
+            // inside the sphere: no hit (matches the black NEE sample)
+            if(d2 <= r2) { break; }
+            float b = dot(dir, to_center);
+            float disc = b * b - d2 + r2;
+            if(disc <= 0.0) { break; }
+            float t = b - sqrt(disc);
+            if(t <= 0.0) { break; }
+            ret.t = t;
+            ret.cos_light = dot((P + t * dir - l.position) / l.size_x, -dir);
+            break;
+        }
+        case LightType::Rect:
+        case LightType::Disk:
+        {
+            float cos_light = dot(l.direction, -dir);
+            if(cos_light <= 0.0) { break; }
+            float t = dot(l.position - P, l.direction) / -cos_light;
+            if(t <= 0.0) { break; }
+
+            float3 q = P + t * dir - l.position;
+            if(l.type == LightType::Rect)
+            {
+                float3 bitangent = cross(l.direction, l.tangent);
+                if(abs(dot(q, l.tangent)) > l.size_x || abs(dot(q, bitangent)) > l.size_y) { break; }
+            }
+            else if(dot(q, q) > l.size_x * l.size_x) { break; }
+            ret.t = t;
+            ret.cos_light = cos_light;
+            break;
+        }
+        case LightType::Tube:
+        {
+            // nearest mantle intersection (quadratic in the plane perpendicular to the axis)
+            float3 o = P - l.position;
+            float3 d_perp = dir - l.direction * dot(dir, l.direction);
+            float3 o_perp = o - l.direction * dot(o, l.direction);
+            float A = dot(d_perp, d_perp);
+            float B = dot(o_perp, d_perp);
+            float C = dot(o_perp, o_perp) - l.size_x * l.size_x;
+            float disc = B * B - A * C;
+
+            // parallel to the axis, miss, or P inside the mantle radius (backfacing hit)
+            if(A <= EPS || disc <= 0.0 || C <= 0.0) { break; }
+            float t = (-B - sqrt(disc)) / A;
+            if(t <= 0.0 || abs(dot(o + t * dir, l.direction)) > l.size_y) { break; }
+
+            // radial unit-normal at the hit
+            float cos_light = dot((o_perp + t * d_perp) / l.size_x, -dir);
+            if(cos_light <= 0.0) { break; }
+            ret.t = t;
+            ret.cos_light = cos_light;
+            break;
+        }
+        default: break;
+    }
+    return ret;
+}
 
 //! NEE-side MIS weight against a bsdf/phase competitor-pdf, respecting a forced estimator-mode
 public float mis_weight_nee(MisMode mode, float p_nee, float p_bsdf)
@@ -189,49 +278,15 @@ public float light_pdf(light_t l, float3 P, float3 dir)
         }
         case LightType::Rect:
         case LightType::Disk:
-        {
-            // intersect the light plane, check the shape's extent, convert the area-pdf at the hit
-            float cos_light = dot(l.direction, -dir);
-            if(cos_light <= 0.0) { return 0.0; }
-            float t = dot(l.position - P, l.direction) / -cos_light;
-            if(t <= 0.0) { return 0.0; }
-
-            float3 q = P + t * dir - l.position;
-            float pdf_area;
-            if(l.type == LightType::Rect)
-            {
-                float3 bitangent = cross(l.direction, l.tangent);
-                if(abs(dot(q, l.tangent)) > l.size_x || abs(dot(q, bitangent)) > l.size_y) { return 0.0; }
-                pdf_area = 1.0 / (4.0 * l.size_x * l.size_y);
-            }
-            else
-            {
-                if(dot(q, q) > l.size_x * l.size_x) { return 0.0; }
-                pdf_area = 1.0 / (utils::PI * l.size_x * l.size_x);
-            }
-            return pdf_area * t * t / cos_light;
-        }
         case LightType::Tube:
         {
-            // nearest mantle intersection (quadratic in the plane perpendicular to the axis)
-            float3 o = P - l.position;
-            float3 d_perp = dir - l.direction * dot(dir, l.direction);
-            float3 o_perp = o - l.direction * dot(o, l.direction);
-            float A = dot(d_perp, d_perp);
-            float B = dot(o_perp, d_perp);
-            float C = dot(o_perp, o_perp) - l.size_x * l.size_x;
-            float disc = B * B - A * C;
-
-            // parallel to the axis, miss, or P inside the mantle radius (backfacing hit)
-            if(A <= EPS || disc <= 0.0 || C <= 0.0) { return 0.0; }
-            float t = (-B - sqrt(disc)) / A;
-            if(t <= 0.0 || abs(dot(o + t * dir, l.direction)) > l.size_y) { return 0.0; }
-
-            // radial unit-normal at the hit
-            float3 n = (o_perp + t * d_perp) / l.size_x;
-            float cos_light = dot(n, -dir);
-            if(cos_light <= 0.0) { return 0.0; }
-            return t * t / (4.0 * utils::PI * l.size_x * l.size_y * cos_light);
+            // uniform-area strategies: convert the area-pdf at the front-facing hit
+            light_hit_t hit = intersect_light(l, P, dir);
+            if(hit.t <= 0.0) { return 0.0; }
+            float area = l.type == LightType::Rect   ? 4.0 * l.size_x * l.size_y
+                         : l.type == LightType::Disk ? utils::PI * l.size_x * l.size_x
+                                                     : 4.0 * utils::PI * l.size_x * l.size_y;
+            return hit.t * hit.t / (area * hit.cos_light);
         }
         default: return 0.0;// punctual delta lights: never bsdf-reachable
     }
