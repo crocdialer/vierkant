@@ -136,16 +136,101 @@ public light_sample_t sample_light(light_t l, float3 P, float2 Xi)
     return ret;
 }
 
+//! overflow-safe power-heuristic weight (beta = 2): p_a^2 / (p_a^2 + p_b^2)
+public float power_heuristic(float p_a, float p_b)
+{
+    float r = p_b / p_a;
+    return 1.0 / (1.0 + r * r);
+}
+
+//! whether bsdf/phase-sampled rays can hit this light (M2 adds the sun-disc, M3 analytic light bodies)
+public bool bsdf_reachable(light_t l) { return false; }
+
+//! solid-angle pdf of sample_light() generating direction `dir` from P — the hit-side density for MIS.
+//! must mirror the sampling strategies in sample_light() exactly
+public float light_pdf(light_t l, float3 P, float3 dir)
+{
+    switch(l.type)
+    {
+        case LightType::Directional:
+        {
+            // sun-disc: constant over the cone; delta lights (angular_size == 0) are never bsdf-reachable
+            if(l.angular_size <= 0.0) { return 0.0; }
+            float cos_sigma = cos(l.angular_size);
+            return dot(dir, -l.direction) < cos_sigma ? 0.0 : 1.0 / (2.0 * utils::PI * (1.0 - cos_sigma));
+        }
+        case LightType::Sphere:
+        {
+            // constant over the subtended cone
+            float3 to_center = l.position - P;
+            float d2 = dot(to_center, to_center);
+            float r2 = l.size_x * l.size_x;
+            if(d2 <= r2) { return 0.0; }
+            float sin2_sigma = r2 / d2;
+            float cos_sigma = sqrt(1.0 - sin2_sigma);
+            return dot(dir, to_center * rsqrt(d2)) < cos_sigma ? 0.0
+                                                               : (1.0 + cos_sigma) / (2.0 * utils::PI * sin2_sigma);
+        }
+        case LightType::Rect:
+        case LightType::Disk:
+        {
+            // intersect the light plane, check the shape's extent, convert the area-pdf at the hit
+            float cos_light = dot(l.direction, -dir);
+            if(cos_light <= 0.0) { return 0.0; }
+            float t = dot(l.position - P, l.direction) / -cos_light;
+            if(t <= 0.0) { return 0.0; }
+
+            float3 q = P + t * dir - l.position;
+            float pdf_area;
+            if(l.type == LightType::Rect)
+            {
+                float3 bitangent = cross(l.direction, l.tangent);
+                if(abs(dot(q, l.tangent)) > l.size_x || abs(dot(q, bitangent)) > l.size_y) { return 0.0; }
+                pdf_area = 1.0 / (4.0 * l.size_x * l.size_y);
+            }
+            else
+            {
+                if(dot(q, q) > l.size_x * l.size_x) { return 0.0; }
+                pdf_area = 1.0 / (utils::PI * l.size_x * l.size_x);
+            }
+            return pdf_area * t * t / cos_light;
+        }
+        case LightType::Tube:
+        {
+            // nearest mantle intersection (quadratic in the plane perpendicular to the axis)
+            float3 o = P - l.position;
+            float3 d_perp = dir - l.direction * dot(dir, l.direction);
+            float3 o_perp = o - l.direction * dot(o, l.direction);
+            float A = dot(d_perp, d_perp);
+            float B = dot(o_perp, d_perp);
+            float C = dot(o_perp, o_perp) - l.size_x * l.size_x;
+            float disc = B * B - A * C;
+
+            // parallel to the axis, miss, or P inside the mantle radius (backfacing hit)
+            if(A <= EPS || disc <= 0.0 || C <= 0.0) { return 0.0; }
+            float t = (-B - sqrt(disc)) / A;
+            if(t <= 0.0 || abs(dot(o + t * dir, l.direction)) > l.size_y) { return 0.0; }
+
+            // radial unit-normal at the hit
+            float3 n = (o_perp + t * d_perp) / l.size_x;
+            float cos_light = dot(n, -dir);
+            if(cos_light <= 0.0) { return 0.0; }
+            return t * t / (4.0 * utils::PI * l.size_x * l.size_y * cos_light);
+        }
+        default: return 0.0;// punctual delta lights: never bsdf-reachable
+    }
+}
+
 //! next-event estimation at a surface: uniformly pick one light, sample it, trace a visibility ray.
-//! requires num_lights > 0
-public float3 nee_surface(material_t material, Ptr<light_t, Access.Read> lights, uint num_lights,
-                          RaytracingAccelerationStructure as, float3 pos, float3 N, float3 V, float eta,
-                          inout uint rng_state)
+//! requires trace_data.num_lights > 0
+public float3 nee_surface(material_t material, trace_data_t trace_data, RaytracingAccelerationStructure as,
+                          Sampler2D textures[], float3 pos, float3 N, float3 V, float eta, inout uint rng_state)
 {
     // uniform 1/N light-pick (single light: keep rng-stream untouched)
+    uint num_lights = trace_data.num_lights;
     uint index = num_lights > 1 ? min(uint(utils::rnd(rng_state) * num_lights), num_lights - 1) : 0;
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
-    light_sample_t ls = sample_light(lights[index], pos, Xi);
+    light_sample_t ls = sample_light(trace_data.lights[index], pos, Xi);
 
     // skip the shadow ray for black samples (beyond range, inside a sphere-light)
     if(!any(ls.radiance > 0.0)) { return float3(0); }
@@ -157,50 +242,53 @@ public float3 nee_surface(material_t material, Ptr<light_t, Access.Read> lights,
     r.tmax = ls.dist;
 
     float3 radiance = float3(0);
-    if(visibility_test(r, as))
+    if(visibility_test(r, as, 0, trace_data, textures, rng_state))
     {
-        // bsdf-pdf is unused until MIS enters the picture (area/env lights)
         float bsdf_pdf = 0.0;
         float cos_theta = max(dot(N, ls.direction), 0.0);
         float3 F = eval_disney(material, ls.direction, N, V, eta, bsdf_pdf);
 
+        // MIS vs. bsdf-sampling for lights that bsdf-rays can hit (weight == 1 for all others)
+        float weight = bsdf_reachable(trace_data.lights[index]) ? power_heuristic(ls.pdf / num_lights, bsdf_pdf) : 1.0;
+
         // divide by pick-pdf (1/num_lights) and solid-angle pdf
-        radiance = float(num_lights) * ls.radiance * F * cos_theta / ls.pdf;
+        radiance = weight * float(num_lights) * ls.radiance * F * cos_theta / ls.pdf;
     }
     return radiance;
 }
 
 //! next-event estimation at a volume-scattering event, using the phase function.
-//! requires num_lights > 0
-public float3 nee_volume(Ray ray, Ptr<light_t, Access.Read> lights, uint num_lights,
-                         RaytracingAccelerationStructure as, float phase_g, inout uint rng_state)
+//! requires trace_data.num_lights > 0
+public float3 nee_volume(Ray ray, trace_data_t trace_data, RaytracingAccelerationStructure as, Sampler2D textures[],
+                         float phase_g, inout uint rng_state)
 {
     // uniform 1/N light-pick (single light: keep rng-stream untouched)
+    uint num_lights = trace_data.num_lights;
     uint index = num_lights > 1 ? min(uint(utils::rnd(rng_state) * num_lights), num_lights - 1) : 0;
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
-    light_sample_t ls = sample_light(lights[index], ray.origin, Xi);
+    light_sample_t ls = sample_light(trace_data.lights[index], ray.origin, Xi);
 
     // skip the shadow ray for black samples (beyond range, inside a sphere-light)
     if(!any(ls.radiance > 0.0)) { return float3(0); }
 
     // shadow ray from inside volume: cull back faces from enclosing mesh
-    RayDesc shadow_desc;
-    shadow_desc.Origin = ray.origin;
-    shadow_desc.Direction = ls.direction;
-    shadow_desc.TMin = EPS;
-    shadow_desc.TMax = ls.dist;
-
-    RayQuery<RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER |
-             RAY_FLAG_CULL_BACK_FACING_TRIANGLES> shadow_query;
-    shadow_query.TraceRayInline(as, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
-                                0xFF, shadow_desc);
-    shadow_query.Proceed();
-    if(shadow_query.CommittedStatus() != COMMITTED_NOTHING) { return float3(0); }
+    Ray r;
+    r.origin = ray.origin;
+    r.direction = ls.direction;
+    r.tmin = EPS;
+    r.tmax = ls.dist;
+    if(!visibility_test(r, as, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, trace_data, textures, rng_state))
+    {
+        return float3(0);
+    }
 
     float phase = utils::phase_hg(dot(ray.direction, ls.direction), phase_g);
 
+    // MIS vs. phase-sampling for lights that phase-rays can hit (weight == 1 for all others)
+    float weight = bsdf_reachable(trace_data.lights[index]) ? power_heuristic(ls.pdf / num_lights, phase) : 1.0;
+
     // divide by pick-pdf (1/num_lights) and solid-angle pdf
-    return float(num_lights) * ls.radiance * phase / ls.pdf;
+    return weight * float(num_lights) * ls.radiance * phase / ls.pdf;
 }
 
 }// namespace ray

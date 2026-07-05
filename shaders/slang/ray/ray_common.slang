@@ -138,6 +138,9 @@ public struct payload_t
     //! object/entity
     public uint entity_index;
 
+    //! solid-angle pdf of the bsdf/phase sample that spawned this ray; <= 0: no MIS competitor (camera ray, NEE off)
+    public float prev_bsdf_pdf;
+
     public media_t media;
 };
 

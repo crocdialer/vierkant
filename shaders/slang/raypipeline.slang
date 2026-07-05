@@ -131,6 +131,7 @@ trace_result_t trace(uint2 coord, uint2 size)
         float disp_lambda = -1.0;
 
         ray::payload_t payload;
+        payload.prev_bsdf_pdf = 0.0;
         bool ray_miss = false;
 
         for(uint i = 0; i < trace_data.params.max_trace_depth; i++)
@@ -413,13 +414,16 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
             if(use_direct_lighting)
             {
-                payload.radiance += payload.beta * ray::nee_volume(payload.ray, trace_data.lights,
-                                                                   trace_data.num_lights, topLevelAS, g, rng_state);
+                payload.radiance +=
+                        payload.beta * ray::nee_volume(payload.ray, trace_data, topLevelAS, u_textures, g, rng_state);
             }
 
             float phase_pdf;
             payload.ray.direction =
                     mul(utils::sample_phase_hg(Xi, g, phase_pdf), utils::local_frame(payload.ray.direction));
+
+            // solid-angle pdf of this bounce for MIS at the next vertex (<= 0: no NEE competitor here)
+            payload.prev_bsdf_pdf = use_direct_lighting ? phase_pdf : 0.0;
         }
     }
 
@@ -556,9 +560,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         if(use_direct_lighting)
         {
-            payload.radiance +=
-                    payload.beta * ray::nee_surface(material, trace_data.lights, trace_data.num_lights, topLevelAS,
-                                                    payload.position, payload.normal, V, eta, rng_state);
+            payload.radiance += payload.beta * ray::nee_surface(material, trace_data, topLevelAS, u_textures,
+                                                                payload.position, payload.normal, V, eta, rng_state);
         }
 
         if(bsdf_sample.pdf <= 0.0)
@@ -568,6 +571,10 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         }
 
         payload.ray.direction = bsdf_sample.direction;
+
+        // solid-angle pdf of this bounce for MIS at the next vertex (<= 0: no NEE competitor here)
+        payload.prev_bsdf_pdf = use_direct_lighting ? bsdf_sample.pdf : 0.0;
+
         float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
 
         float3 path_throughput = bsdf_sample.F * cos_theta / max(bsdf_sample.pdf, ray::PDF_EPS);
