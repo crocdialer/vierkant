@@ -480,7 +480,10 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     if(ImGui::Checkbox("camera medium", &camera_medium_enabled))
     {
         if(camera_medium_enabled) { path_tracer->settings.camera_medium = vierkant::medium_params_t{}; }
-        else { path_tracer->settings.camera_medium.reset(); }
+        else
+        {
+            path_tracer->settings.camera_medium.reset();
+        }
     }
     if(path_tracer->settings.camera_medium)
     {
@@ -499,22 +502,34 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     {
         if(sunlight_enabled)
         {
-            path_tracer->settings.sunlight_params = vierkant::sunlight_params_t{
-                    .color = glm::vec3(1.f, 0.6f, 0.4f),
-                    .intensity = 25000.f,
-                    .direction = glm::normalize(glm::vec3(0.4f, 1.f, 0.7f)),
-                    .angular_size = glm::radians(0.524167f)};
+            path_tracer->settings.sunlight_params =
+                    vierkant::sunlight_params_t{.color = glm::vec3(1.f, 0.6f, 0.4f),
+                                                .intensity = 25000.f,
+                                                .angular_size = glm::radians(0.524167f)};
         }
-        else { path_tracer->settings.sunlight_params.reset(); }
+        else
+        {
+            path_tracer->settings.sunlight_params.reset();
+        }
     }
     if(path_tracer->settings.sunlight_params)
     {
         auto &sun = *path_tracer->settings.sunlight_params;
         ImGui::ColorEdit3("sun color", &sun.color[0]);
         ImGui::DragFloat("sun intensity", &sun.intensity, 10.f, 0.f, 1e6f);
-        ImGui::DragFloat3("sun direction", &sun.direction[0], 0.01f);
+
+        glm::vec2 degrees = glm::degrees(sun.spherical_coords);
+        if(ImGui::SliderFloat("elevation", &degrees.x, -90.f, 90.f) ||
+           ImGui::SliderFloat("azimuth", &degrees.y, 0.f, 360.f))
+        {
+            sun.spherical_coords = glm::radians(degrees);
+        }
+
         float angular_deg = glm::degrees(sun.angular_size);
-        if(ImGui::SliderFloat("sun angular size", &angular_deg, 0.f, 10.f)) { sun.angular_size = glm::radians(angular_deg); }
+        if(ImGui::SliderFloat("sun angular size", &angular_deg, 0.f, 10.f))
+        {
+            sun.angular_size = glm::radians(angular_deg);
+        }
     }
 }
 
@@ -1090,9 +1105,9 @@ void draw_light_ui(vierkant::lightsource_t &light)
     ImGui::Separator();
 
     const char *light_type_strings[] = {"Omni", "Spot", "Directional", "Rect", "Sphere", "Tube", "Disk"};
-    constexpr vierkant::LightType light_types[] = {LightType::Omni,   LightType::Spot, LightType::Directional,
-                                                   LightType::Rect,   LightType::Sphere,
-                                                   LightType::Tube,   LightType::Disk};
+    constexpr vierkant::LightType light_types[] = {LightType::Omni, LightType::Spot,   LightType::Directional,
+                                                   LightType::Rect, LightType::Sphere, LightType::Tube,
+                                                   LightType::Disk};
     int light_type_index = 0;
 
     for(auto type: light_types)
@@ -1418,7 +1433,10 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
     if(ImGui::Checkbox("lightsource", &has_light))
     {
         if(has_light) { object->add_component<vierkant::lightsource_component_t>(); }
-        else { object->remove_component<vierkant::lightsource_component_t>(); }
+        else
+        {
+            object->remove_component<vierkant::lightsource_component_t>();
+        }
     }
     if(has_light)
     {

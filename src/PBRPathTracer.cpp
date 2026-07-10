@@ -1,7 +1,7 @@
 #include "vierkant/PBRPathTracer.hpp"
 #include <vierkant/Visitor.hpp>
-#include <vierkant/punctual_light.hpp>
 #include <vierkant/gpu_timestamp_util.hpp>
+#include <vierkant/punctual_light.hpp>
 #include <vierkant/shaders.hpp>
 #include <vierkant/shaders_slang.hpp>
 
@@ -104,10 +104,10 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         frame_context.trace_data_ubo =
                 vierkant::Buffer::create(m_device, nullptr, sizeof(trace_data_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
-        frame_context.lights_buffer = vierkant::Buffer::create(
-                m_device, nullptr, sizeof(vierkant::light_t),
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                VMA_MEMORY_USAGE_CPU_TO_GPU);
+        frame_context.lights_buffer =
+                vierkant::Buffer::create(m_device, nullptr, sizeof(vierkant::light_t),
+                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         vierkant::CommandBuffer::create_info_t cmd_buffer_info = {};
         cmd_buffer_info.device = m_device;
@@ -612,8 +612,10 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
         sun.type = static_cast<uint32_t>(vierkant::LightType::Directional);
         sun.color = sun_params->color;
         sun.intensity = sun_params->intensity;
-        // sunlight_params.direction points toward the sun, light_t stores propagation-direction (glTF convention)
-        sun.direction = -sun_params->direction;
+
+        // direction from elevation/azimuth angles
+        sun.direction = glm::quat(glm::vec3(sun_params->spherical_coords, 0.f)) * glm::vec3(0, 0, 1);
+
         if(glm::dot(sun.direction, sun.direction) > 0.f) { sun.direction = glm::normalize(sun.direction); }
         sun.range = std::numeric_limits<float>::infinity();
         sun.angular_size = sun_params->angular_size;
