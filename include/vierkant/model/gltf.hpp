@@ -14,9 +14,11 @@ namespace vierkant::model
  *          json-, json-embedded and binary flavours are supported.
  *
  *  @param  path    path to a model-file with either .gltf or .glb extension.
+ *  @param  id_seed optional stable string seeding deterministic asset-ids (default: path).
  *
  *  @return an optional struct grouping the loaded assets.
  */
-std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPoolClassic* pool = nullptr);
+std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPoolClassic* pool = nullptr,
+                                   const std::string &id_seed = {});
 
 }// namespace vierkant::model

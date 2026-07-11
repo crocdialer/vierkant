@@ -493,12 +493,13 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
     return compressed_img;
 }
 
-std::optional<model_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPoolClassic *pool)
+std::optional<model_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPoolClassic *pool,
+                                         const std::string &id_seed)
 {
     auto ext_str = path.extension().string();
     std::transform(ext_str.begin(), ext_str.end(), ext_str.begin(), ::tolower);
-    if(ext_str == ".gltf" || ext_str == ".glb") { return gltf(path, pool); }
-    else if(ext_str == ".obj") { return wavefront_obj(path, pool); }
+    if(ext_str == ".gltf" || ext_str == ".glb") { return gltf(path, pool, id_seed); }
+    else if(ext_str == ".obj") { return wavefront_obj(path, pool, id_seed); }
     return {};
 }
 

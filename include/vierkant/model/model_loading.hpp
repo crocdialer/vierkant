@@ -165,10 +165,12 @@ struct load_mesh_params_t
  *  @brief  model-loading facade-routine, delegating depending on file-type
  *
  *  @param  path    path to a supported model-file.
+ *  @param  id_seed optional stable string seeding deterministic asset-ids (default: path).
  *
  *  @return a struct grouping the loaded assets.
  */
-std::optional<model_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPoolClassic *pool = nullptr);
+std::optional<model_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPoolClassic *pool = nullptr,
+                                         const std::string &id_seed = {});
 
 //! struct grouping results of a load_mesh operation
 struct load_mesh_result_t
