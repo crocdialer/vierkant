@@ -930,8 +930,11 @@ bool LoadImageDataFunction(tinygltf::Image * /*tiny_image*/, const int image_idx
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPoolClassic *const pool)
+std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPoolClassic *const pool,
+                                   const std::string &id_seed)
 {
+    // stable seed for deterministic asset-ids; defaults to the (machine-local) path
+    const std::string seed = id_seed.empty() ? path.string() : id_seed;
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;
     std::string err, warn;
@@ -1005,16 +1008,16 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
     std::unordered_map<uint32_t, TextureId> tex_id_cache;
     for(const auto &[index, img]: image_cache)
     {
-        auto texture_id = TextureId::from_name(path.string() + "_" + std::to_string(index));
+        auto texture_id = TextureId::from_name(seed + "_" + std::to_string(index));
         tex_id_cache[index] = texture_id;
         out_assets.textures[texture_id] = img;
     }
 
-    // populate out-samplers, generate UUIDs-handles
+    // populate out-samplers, generate UUIDs-handles (deterministic when loading same path)
     std::unordered_map<uint32_t, SamplerId> sampler_id_cache;
     for(const auto &[index, sampler]: sampler_cache)
     {
-        auto sampler_id = SamplerId ::random();
+        auto sampler_id = SamplerId::from_name(seed + "_sampler_" + std::to_string(index));
         sampler_id_cache[index] = sampler_id;
         out_assets.texture_samplers[sampler_id] = sampler;
     }
@@ -1028,7 +1031,7 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
             auto mat = convert_material(tiny_mat, model, image_cache, tex_id_cache, sampler_id_cache);
 
             // deterministic material-ids when loading same path
-            mat.id = MaterialId::from_name(path.string() + "/" + std::to_string(i));
+            mat.id = MaterialId::from_name(seed + "/" + std::to_string(i));
             out_assets.materials.push_back(std::move(mat));
         } catch(std::exception &e)
         {

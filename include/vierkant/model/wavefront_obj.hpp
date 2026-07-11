@@ -9,10 +9,12 @@ namespace vierkant::model
  *  @brief  wavefront_obj can be used to load 3d-models in the Wavefront obj-format.
  *
  *  @param  path    path to a model-file with .obj extension.
+ *  @param  id_seed optional stable string seeding deterministic asset-ids (default: path).
  *
  *  @return an optional struct grouping the loaded assets.
  */
 std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path,
-                                            crocore::ThreadPoolClassic *pool = nullptr);
+                                            crocore::ThreadPoolClassic *pool = nullptr,
+                                            const std::string &id_seed = {});
 
 }// namespace vierkant::model

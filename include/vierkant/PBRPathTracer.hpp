@@ -26,7 +26,7 @@ struct sunlight_params_t
     float intensity = 0.f;
 
     //! elevation- and azimuth-angles in radians
-    glm::vec2 spherical_coords = {glm::radians(-28.6479f), glm::radians(20.f)};
+    glm::vec2 spherical_coords = {glm::radians(30.f), glm::radians(20.f)};
 
     // solid angle in radians
     float angular_size = 0.f;

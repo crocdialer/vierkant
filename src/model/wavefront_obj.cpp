@@ -45,9 +45,13 @@ vierkant::GeometryPtr create_geometry(const tinyobj::attrib_t &inattrib, const s
     return geom;
 }
 
-std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, crocore::ThreadPoolClassic * /*pool*/)
+std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, crocore::ThreadPoolClassic * /*pool*/,
+                                            const std::string &id_seed)
 {
     if(!exists(path) || !is_regular_file(path)) { return {}; }
+
+    // stable seed for deterministic asset-ids; defaults to the (machine-local) path
+    const std::string seed = id_seed.empty() ? path.string() : id_seed;
 
     tinyobj::attrib_t inattrib;
     std::vector<tinyobj::shape_t> shapes;
@@ -64,14 +68,15 @@ std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, c
     if(!ret) { spdlog::error("failed to load {}", path.string()); }
 
     std::unordered_map<std::string, std::tuple<TextureId, crocore::ImagePtr>> image_cache;
-    auto get_image = [&image_cache](const std::string &path) -> std::tuple<TextureId, crocore::ImagePtr> {
-        if(auto it = image_cache.find(path); it != image_cache.end()) { return it->second; }
+    auto get_image = [&image_cache, &seed, &base_dir](const std::string &texname) -> std::tuple<TextureId, crocore::ImagePtr> {
+        if(auto it = image_cache.find(texname); it != image_cache.end()) { return it->second; }
 
         std::tuple<TextureId, crocore::ImagePtr> ret;
         try
         {
-            ret = {TextureId::from_name(path), crocore::create_image_from_file(path, 4)};
-            image_cache[path] = ret;
+            ret = {TextureId::from_name(seed + "/" + texname),
+                   crocore::create_image_from_file((base_dir / texname).string(), 4)};
+            image_cache[texname] = ret;
         } catch(std::exception &e) { spdlog::warn(e.what()); }
         return ret;
     };
@@ -82,7 +87,7 @@ std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, c
     for(const auto &mat: materials)
     {
         vierkant::material_t m = {};
-        m.id = MaterialId::from_name(path.string() + "/" + mat.name);
+        m.id = MaterialId::from_name(seed + "/" + mat.name);
         m.name = mat.name;
         m.base_color = {mat.diffuse[0], mat.diffuse[1], mat.diffuse[2], std::clamp(1.f - mat.dissolve, 0.f, 1.f)};
         m.emission = {mat.emission[0], mat.emission[1], mat.emission[2]};
@@ -95,7 +100,7 @@ std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, c
 
         if(!mat.diffuse_texname.empty())
         {
-            auto [tex_id, img] = get_image((base_dir / mat.diffuse_texname).string());
+            auto [tex_id, img] = get_image(mat.diffuse_texname);
 
             vierkant::texture_data_t tex_data = {};
             tex_data.texture_id = tex_id;
@@ -109,7 +114,7 @@ std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, c
         }
         if(!mat.normal_texname.empty())
         {
-            auto [tex_id, img] = get_image((base_dir / mat.normal_texname).string());
+            auto [tex_id, img] = get_image(mat.normal_texname);
             m.texture_data[vierkant::TextureType::Normal].texture_id = tex_id;
             mesh_assets.textures[tex_id] = img;
         }
