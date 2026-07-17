@@ -496,13 +496,17 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     float3 rho_ms = material.scatter_factor * material.scatter_color;
     float3 kc = 4.09712 + 4.20863 * rho_ms - sqrt(9.59217 + 41.6808 * rho_ms + 17.7126 * rho_ms * rho_ms);
     float3 rho_ss = 1.0 - kc * kc;
-    payload.media.sigma_s = rho_ss * sigma_t;
-    payload.media.sigma_a = (1.0 - rho_ss) * sigma_t;
-    payload.media.phase_g = material.phase_asymmetry_g;
-    payload.media.ior = sample_surface ? material.ior : payload.media.ior;
+
+    // batch media-writes through a local: one payload decode/encode instead of five
+    ray::media_t next_media = payload.media;
+    next_media.sigma_s = rho_ss * sigma_t;
+    next_media.sigma_a = (1.0 - rho_ss) * sigma_t;
+    next_media.phase_g = material.phase_asymmetry_g;
+    next_media.ior = sample_surface ? material.ior : next_media.ior;
 
     // null-surface volumes route material-emission into the medium (emitted radiance Le)
-    payload.media.emission = material.null_surface ? material.emission.a * material.emission.rgb : float3(0);
+    next_media.emission = material.null_surface ? material.emission.a * material.emission.rgb : float3(0);
+    payload.media = next_media;
 
     // determine next media-op. a transmission event touches the media stack only when it crosses a
     // real boundary: a volume (Beer-Lambert / scattering interior) or a specular-refractive surface
