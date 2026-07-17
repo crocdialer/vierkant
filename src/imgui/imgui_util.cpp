@@ -651,6 +651,43 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
     ImGui::BeginTabBar("scene_tabs");
     if(ImGui::BeginTabItem("scenegraph"))
     {
+        if(ImGui::BeginMenu("add"))
+        {
+            if(ImGui::Button("empty object"))
+            {
+                auto new_obj = scene->create_object();
+                new_obj->name = spdlog::fmt_lib::format("blank_{}", new_obj->id() % 1000);
+                scene->add_object(new_obj);
+            }
+
+            ImGui::BeginDisabled(!scene->asset_provider()->has_mesh_factory());
+            if(ImGui::BeginMenu("primitive"))
+            {
+                constexpr std::pair<vierkant::primitive_type, const char *> primitives[] = {
+                        {vierkant::primitive_type::PLANE, "plane"},
+                        {vierkant::primitive_type::BOX, "box"},
+                        {vierkant::primitive_type::SPHERE, "sphere"},
+                        {vierkant::primitive_type::CYLINDER, "cylinder"},
+                        {vierkant::primitive_type::CAPSULE, "capsule"}};
+
+                for(const auto &[type, label]: primitives)
+                {
+                    if(ImGui::Button(label))
+                    {
+                        if(auto new_object = scene->create_primitive_object(type))
+                        {
+                            new_object->name = spdlog::fmt_lib::format("{}_{}", label, new_object->id() % 1000);
+                            scene->add_object(new_object);
+                        }
+                    }
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndDisabled();
+            ImGui::EndMenu();
+        }
+        ImGui::Spacing();
+        
         // draw a scrollable tree for all scene-objects
         ImGui::BeginChild("scrolling", ImVec2(0, 400), ImGuiChildFlags_ResizeY);
         auto clicked_obj = draw_scenegraph_ui_helper(scene->root(), selection, ImGuiTreeNodeFlags_DefaultOpen);

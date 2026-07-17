@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -24,6 +26,19 @@ struct asset_live_set_t
     std::unordered_set<vierkant::MeshId> meshes;
     std::unordered_set<vierkant::LightId> lights;
 };
+
+//! enumeration of built-in primitives
+enum class primitive_type
+{
+    PLANE,
+    BOX,
+    SPHERE,
+    CYLINDER,
+    CAPSULE
+};
+
+//! factory-callback used to create gpu-meshes from geometry, provided by an application
+using mesh_factory_fn = std::function<vierkant::MeshPtr(const vierkant::GeometryConstPtr &)>;
 
 /**
  * @brief   AssetProvider owns the runtime (GPU) assets consumed during rendering:
@@ -60,6 +75,23 @@ public:
     [[nodiscard]] const mesh_asset_t *mesh_asset(const MeshId &id) const;
     void add_mesh(const MeshId &id, mesh_asset_t asset);
 
+    // built-in primitive-meshes, created lazily via an application-provided mesh-factory
+    void set_mesh_factory(mesh_factory_fn fn);
+    [[nodiscard]] bool has_mesh_factory() const;
+
+    /**
+     * @brief   'primitive_mesh' returns a built-in primitive-mesh, lazily created via the mesh-factory
+     *          and cached (thread-safe). created meshes carry a deterministic, name-based mesh-id
+     *          (see 'primitive_names') and reference a default 'primitive_material'.
+     *
+     * @param   type    a provided primitive-type
+     * @return  a mesh or nullptr, if no mesh-factory was provided
+     */
+    [[nodiscard]] MeshPtr primitive_mesh(primitive_type type);
+
+    //! stable names for built-in primitives ("plane", "cube", ...), also used for serialization
+    [[nodiscard]] static const std::map<primitive_type, std::string> &primitive_names();
+
     //! bulk-merge a finished load (render-thread; see W2 #6)
     void populate(const model::load_mesh_result_t &result);
 
@@ -82,6 +114,12 @@ private:
     std::unordered_map<SamplerId, VkSamplerPtr> m_samplers;
     std::unordered_map<LightId, lightsource_t> m_lights;
     mesh_map_t m_meshes;
+
+    // primitives are kept separate from m_meshes: lazy creation may happen off the render-thread,
+    // while m_meshes follows the render-thread mutation contract above
+    mesh_factory_fn m_mesh_factory;
+    std::map<primitive_type, MeshPtr> m_primitive_meshes;
+    mutable std::mutex m_primitive_mutex;
 };
 
 }// namespace vierkant

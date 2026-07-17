@@ -73,12 +73,21 @@ public:
     * @param    mesh_component  a provided mesh-component
     * @return   a newly created Object3D with attached components.
     */
-    vierkant::Object3DPtr create_mesh_object(const vierkant::mesh_component_t &mesh_component) const;
+    [[nodiscard]] vierkant::Object3DPtr create_mesh_object(const vierkant::mesh_component_t &mesh_component) const;
 
-    vierkant::Object3DPtr create_object() const;
+    /**
+     * @brief   'create_primitive_object' is a factory to create an Object3D containing a built-in
+     *          primitive-mesh, provided by the asset-provider.
+     *
+     * @param   type    a provided primitive-type
+     * @return  a newly created Object3D or nullptr, if the asset-provider has no mesh-factory
+     */
+    [[nodiscard]] vierkant::Object3DPtr create_primitive_object(vierkant::primitive_type type) const;
 
-    vierkant::Object3DPtr
-    create_camera(const vierkant::camera_params_variant_t &params = vierkant::physical_camera_params_t{});
+    [[nodiscard]] vierkant::Object3DPtr create_object() const;
+
+    [[nodiscard]] vierkant::Object3DPtr
+    create_camera(const vierkant::camera_params_variant_t &params = vierkant::physical_camera_params_t{}) const;
 
     /**
      * @brief   'create_lightsource' registers a lightsource-asset with the asset-provider
@@ -87,7 +96,7 @@ public:
      * @param   params  lightsource-parameters, registered as asset under params.id
      * @return  a newly created Object3D with attached lightsource-component
      */
-    vierkant::Object3DPtr create_lightsource(const vierkant::lightsource_t &params = {});
+    [[nodiscard]] vierkant::Object3DPtr create_lightsource(const vierkant::lightsource_t &params = {}) const;
 
     [[nodiscard]] const vierkant::AssetProviderPtr &asset_provider() const { return m_asset_provider; }
 

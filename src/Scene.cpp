@@ -50,16 +50,23 @@ vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_com
     return object;
 }
 
+vierkant::Object3DPtr Scene::create_primitive_object(vierkant::primitive_type type) const
+{
+    auto mesh = m_asset_provider->primitive_mesh(type);
+    if(!mesh) { return nullptr; }
+    return create_mesh_object({mesh});
+}
+
 vierkant::Object3DPtr Scene::create_object() const { return m_object_store->create_object(); }
 
-vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_params_variant_t &params)
+vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_params_variant_t &params) const
 {
     auto cam = create_object();
     cam->add_component<vierkant::camera_component_t>({params});
     return cam;
 }
 
-vierkant::Object3DPtr Scene::create_lightsource(const vierkant::lightsource_t &params)
+vierkant::Object3DPtr Scene::create_lightsource(const vierkant::lightsource_t &params) const
 {
     m_asset_provider->add_light(params);
     auto light = create_object();

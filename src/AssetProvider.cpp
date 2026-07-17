@@ -59,6 +59,55 @@ const mesh_asset_t *AssetProvider::mesh_asset(const MeshId &id) const
 
 void AssetProvider::add_mesh(const MeshId &id, mesh_asset_t asset) { m_meshes[id] = std::move(asset); }
 
+void AssetProvider::set_mesh_factory(mesh_factory_fn fn)
+{
+    std::unique_lock lock(m_primitive_mutex);
+    m_mesh_factory = std::move(fn);
+}
+
+bool AssetProvider::has_mesh_factory() const
+{
+    std::unique_lock lock(m_primitive_mutex);
+    return static_cast<bool>(m_mesh_factory);
+}
+
+const std::map<primitive_type, std::string> &AssetProvider::primitive_names()
+{
+    static const std::map<primitive_type, std::string> names = {{primitive_type::PLANE, "plane"},
+                                                                {primitive_type::BOX, "cube"},
+                                                                {primitive_type::SPHERE, "sphere"},
+                                                                {primitive_type::CYLINDER, "cylinder"},
+                                                                {primitive_type::CAPSULE, "capsule"}};
+    return names;
+}
+
+MeshPtr AssetProvider::primitive_mesh(primitive_type type)
+{
+    std::unique_lock lock(m_primitive_mutex);
+
+    auto it = m_primitive_meshes.find(type);
+    if(it != m_primitive_meshes.end()) { return it->second; }
+    if(!m_mesh_factory) { return nullptr; }
+
+    GeometryPtr geom;
+    switch(type)
+    {
+        case primitive_type::PLANE: geom = Geometry::Plane(1.f, 1.f, 4, 4); break;
+        case primitive_type::BOX: geom = Geometry::Box(); break;
+        case primitive_type::SPHERE: geom = Geometry::UVSphere(); break;
+        case primitive_type::CYLINDER: geom = Geometry::Cylinder(); break;
+        case primitive_type::CAPSULE: geom = Geometry::Capsule(); break;
+    }
+    auto mesh = m_mesh_factory(geom);
+    if(!mesh) { return nullptr; }
+
+    // deterministic name-based ids, so scene-serialization can reference primitives
+    mesh->id = MeshId::from_name(primitive_names().at(type));
+    mesh->material_ids = {MaterialId::from_name("primitive_material")};
+    m_primitive_meshes[type] = mesh;
+    return mesh;
+}
+
 void AssetProvider::populate(const model::load_mesh_result_t &result)
 {
     for(const auto &[id, mat]: result.materials) { m_materials[id] = mat; }
