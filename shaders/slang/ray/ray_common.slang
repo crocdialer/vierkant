@@ -1,6 +1,8 @@
 module ray_common;
 
 import "../utils/packed_vertex.slang";
+import "../utils/octahedral_map.slang";
+import "../utils/color.slang";
 import "pixel_data.slang";
 import "types.slang";
 
@@ -106,17 +108,17 @@ public struct payload_t
     //! rng-seed
     public uint rng_state;
 
-    //! current depth of path
-    public uint depth;
+    //! packed: entity_index[15:0] | depth[23:16] | stop[24] | media_op[26:25] | regularize[27]
+    public uint flags;
 
     //! worldspace position
     public float3 position;
 
-    //! terminate path
-    public bool stop;
+    //! worldspace normal, oct-encoded snorm_2x16
+    public uint packed_normal;
 
-    //! worldspace normal
-    public float3 normal;
+    //! primary-hit surface albedo (material color after texture sampling), RGBA8
+    public uint packed_albedo;
 
     public float last_ior;
 
@@ -126,25 +128,62 @@ public struct payload_t
     //! accumulated radiance along a path
     public float3 radiance;
 
-    //! media-transition in/out/no-op
-    public MediaOp media_op;
-
     //! path throughput
     public float3 beta;
-
-    //! primary-hit surface albedo (material color after texture sampling)
-    public float3 albedo;
-
-    //! object/entity
-    public uint entity_index;
 
     //! solid-angle pdf of the bsdf/phase sample that spawned this ray; <= 0: no MIS competitor (camera ray, NEE off)
     public float prev_bsdf_pdf;
 
-    //! path regularization: sticky, set after the first low-pdf bounce
-    public bool regularize;
-
     public media_t media;
+
+    //! object/entity
+    public property uint entity_index
+    {
+        get { return flags & 0xFFFFu; }
+        set { flags = (flags & ~0xFFFFu) | (newValue & 0xFFFFu); }
+    }
+
+    //! current depth of path
+    public property uint depth
+    {
+        get { return (flags >> 16) & 0xFFu; }
+        set { flags = (flags & ~(0xFFu << 16)) | ((newValue & 0xFFu) << 16); }
+    }
+
+    //! terminate path
+    public property bool stop
+    {
+        get { return (flags & (1u << 24)) != 0u; }
+        set { flags = newValue ? flags | (1u << 24) : flags & ~(1u << 24); }
+    }
+
+    //! media-transition in/out/no-op
+    public property MediaOp media_op
+    {
+        get { return MediaOp((flags >> 25) & 0x3u); }
+        set { flags = (flags & ~(0x3u << 25)) | ((uint(newValue) & 0x3u) << 25); }
+    }
+
+    //! path regularization: sticky, set after the first low-pdf bounce
+    public property bool regularize
+    {
+        get { return (flags & (1u << 27)) != 0u; }
+        set { flags = newValue ? flags | (1u << 27) : flags & ~(1u << 27); }
+    }
+
+    //! worldspace normal
+    public property float3 normal
+    {
+        get { return utils::octahedral_mapping_to_normalized_vector(utils::unpack_snorm_2x16(packed_normal)); }
+        set { packed_normal = utils::pack_snorm_2x16(utils::normalized_vector_to_octahedral_mapping(newValue)); }
+    }
+
+    //! primary-hit surface albedo (material color after texture sampling)
+    public property float3 albedo
+    {
+        get { return utils::color_cast(packed_albedo).rgb; }
+        set { packed_albedo = utils::color_cast(float4(newValue, 1.0)); }
+    }
 };
 
 //! debug: force a single direct-light estimator (verification: all modes must converge to the same image)

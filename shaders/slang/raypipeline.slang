@@ -44,11 +44,15 @@ struct trace_result_t
 {
     float3 radiance;
     float coverage;
-    float3 normal;
+
+    //! normal in octahedral encoding
+    uint normal;
     float depth;
     float3 position;
     uint entity_index;
-    float3 albedo;
+
+    //! albedo as RGBA8
+    uint albedo;
 };
 
 ray::Ray camera_ray(float2 coord, float2 size, float2 Xi)
@@ -136,7 +140,9 @@ trace_result_t trace(uint2 coord, uint2 size)
 
         ray::payload_t payload;
         payload.prev_bsdf_pdf = 0.0;
-        payload.regularize = false;
+
+        // zero packed storage before any read-modify-write property set
+        payload.flags = 0;
         bool ray_miss = false;
 
         for(uint i = 0; i < trace_data.params.max_trace_depth; i++)
@@ -216,9 +222,9 @@ trace_result_t trace(uint2 coord, uint2 size)
             if(i == 0)
             {
                 result.entity_index = payload.entity_index;
-                result.normal = payload.normal;
+                result.normal = payload.packed_normal;
                 result.position = payload.position;
-                result.albedo = payload.albedo;
+                result.albedo = payload.packed_albedo;
                 float4 depth_proj = mul(trace_data.camera.projection_view, float4(result.position, 1.0));
 
                 ray_miss = payload.entity_index == utils::MAX_UINT16;
@@ -517,6 +523,9 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         material.color = trace_data.params.disable_material ? float4(float3(0.8), 1.0) : material.color;
         if(payload.depth == 0) { payload.albedo = material.color.rgb; }
 
+        // full-precision shading normal; payload.normal only stores the oct-encoded result
+        float3 shading_normal = v.normal;
+
         if((material.texture_type_flags & uint(ray::TextureTypeBits::Normal)) != 0)
         {
             float3 normal;
@@ -532,10 +541,11 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             normal = normalize(mul(normal, float3x3(v.tangent, backface ? -b : b, v.normal)));
 
             // hemisphere clamp
-            payload.normal = normalize(normal + max(0, -dot(normal, v.normal) + 1e-3) * v.normal);
+            shading_normal = normalize(normal + max(0, -dot(normal, v.normal) + 1e-3) * v.normal);
+            payload.normal = shading_normal;
         }
 
-        float3 ff_normal = faceforward(payload.normal, WorldRayDirection(), payload.normal);
+        float3 ff_normal = faceforward(shading_normal, WorldRayDirection(), shading_normal);
 
         if((material.texture_type_flags & uint(ray::TextureTypeBits::Emission)) != 0)
         {
@@ -548,7 +558,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
                 material.emission.rgb = emmision_tex;
             }
         }
-        material.emission.rgb *= dot(payload.normal, ff_normal) > 0 ? material.emission.a : 0.0;
+        material.emission.rgb *= dot(shading_normal, ff_normal) > 0 ? material.emission.a : 0.0;
         payload.radiance += payload.beta * material.emission.rgb;
 
         if((material.texture_type_flags & uint(ray::TextureTypeBits::AoRoughMetal)) != 0)
@@ -592,12 +602,12 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         // path regularization, applied before both sample and NEE-eval
         if(payload.regularize) { material.roughness = max(material.roughness, REGULARIZE_MIN_ROUGHNESS); }
 
-        ray::bsdf_sample_t bsdf_sample = ray::sample_disney(material, payload.normal, V, eta, rng_state);
+        ray::bsdf_sample_t bsdf_sample = ray::sample_disney(material, shading_normal, V, eta, rng_state);
 
         if(use_direct_lighting)
         {
             payload.radiance += payload.beta * ray::nee_surface(material, trace_data, topLevelAS, u_textures,
-                                                                payload.position, payload.normal, V, eta, rng_state);
+                                                                payload.position, shading_normal, V, eta, rng_state);
         }
 
         // negated form also stops NaN-pdfs, which would poison beta and MIS weights
@@ -613,7 +623,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         payload.prev_bsdf_pdf = use_direct_lighting ? bsdf_sample.pdf : 0.0;
         payload.regularize = payload.regularize || bsdf_sample.pdf < REGULARIZE_PDF_THRESHOLD;
 
-        float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
+        float cos_theta = abs(dot(shading_normal, bsdf_sample.direction));
 
         float3 path_throughput = bsdf_sample.F * cos_theta / max(bsdf_sample.pdf, ray::PDF_EPS);
 
