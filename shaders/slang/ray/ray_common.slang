@@ -1,6 +1,8 @@
 module ray_common;
 
 import "../utils/packed_vertex.slang";
+import "../utils/octahedral_map.slang";
+import "../utils/color.slang";
 import "pixel_data.slang";
 import "types.slang";
 
@@ -100,51 +102,140 @@ public struct payload_t
     //! the ray that generated this payload
     public Ray ray;
 
-    //! used to determine texture-LoD
-    public RayCone cone;
+    //! ray-cone spread_angle (lo) + width (hi), half2
+    public uint packed_cone;
 
     //! rng-seed
     public uint rng_state;
 
-    //! current depth of path
-    public uint depth;
+    //! packed: entity_index[15:0] | depth[23:16] | stop[24] | media_op[26:25] | regularize[27]
+    public uint flags;
 
     //! worldspace position
     public float3 position;
 
-    //! terminate path
-    public bool stop;
+    //! worldspace normal, oct-encoded snorm_2x16
+    public uint packed_normal;
 
-    //! worldspace normal
-    public float3 normal;
+    //! primary-hit surface albedo (material color after texture sampling), RGBA8
+    public uint packed_albedo;
 
-    public float last_ior;
-
-    //! locked dispersion wavelength in nm (< 0 = unlocked); set on first dispersive transmission
-    public float disp_lambda;
+    //! last_ior (lo) + disp_lambda (hi), half2
+    public uint packed_ior_lambda;
 
     //! accumulated radiance along a path
     public float3 radiance;
 
-    //! media-transition in/out/no-op
-    public MediaOp media_op;
-
     //! path throughput
     public float3 beta;
-
-    //! primary-hit surface albedo (material color after texture sampling)
-    public float3 albedo;
-
-    //! object/entity
-    public uint entity_index;
 
     //! solid-angle pdf of the bsdf/phase sample that spawned this ray; <= 0: no MIS competitor (camera ray, NEE off)
     public float prev_bsdf_pdf;
 
-    //! path regularization: sticky, set after the first low-pdf bounce
-    public bool regularize;
+    //! media sigma_s / sigma_a / emission, rgb9e5
+    public uint packed_sigma_s;
+    public uint packed_sigma_a;
+    public uint packed_emission;
 
-    public media_t media;
+    //! media ior (lo) + phase_g (hi), half2
+    public uint packed_media_ior_phase;
+
+    //! object/entity
+    public property uint entity_index
+    {
+        get { return flags & 0xFFFFu; }
+        set { flags = (flags & ~0xFFFFu) | (newValue & 0xFFFFu); }
+    }
+
+    //! current depth of path
+    public property uint depth
+    {
+        get { return (flags >> 16) & 0xFFu; }
+        set { flags = (flags & ~(0xFFu << 16)) | ((newValue & 0xFFu) << 16); }
+    }
+
+    //! terminate path
+    public property bool stop
+    {
+        get { return (flags & (1u << 24)) != 0u; }
+        set { flags = newValue ? flags | (1u << 24) : flags & ~(1u << 24); }
+    }
+
+    //! media-transition in/out/no-op
+    public property MediaOp media_op
+    {
+        get { return MediaOp((flags >> 25) & 0x3u); }
+        set { flags = (flags & ~(0x3u << 25)) | ((uint(newValue) & 0x3u) << 25); }
+    }
+
+    //! path regularization: sticky, set after the first low-pdf bounce
+    public property bool regularize
+    {
+        get { return (flags & (1u << 27)) != 0u; }
+        set { flags = newValue ? flags | (1u << 27) : flags & ~(1u << 27); }
+    }
+
+    //! worldspace normal
+    public property float3 normal
+    {
+        get { return utils::octahedral_mapping_to_normalized_vector(utils::unpack_snorm_2x16(packed_normal)); }
+        set { packed_normal = utils::pack_snorm_2x16(utils::normalized_vector_to_octahedral_mapping(newValue)); }
+    }
+
+    //! primary-hit surface albedo (material color after texture sampling)
+    public property float3 albedo
+    {
+        get { return utils::color_cast(packed_albedo).rgb; }
+        set { packed_albedo = utils::color_cast(float4(newValue, 1.0)); }
+    }
+
+    //! used to determine texture-LoD
+    public property RayCone cone
+    {
+        get
+        {
+            RayCone c;
+            c.spread_angle = f16tof32(packed_cone & 0xFFFFu);
+            c.width = f16tof32(packed_cone >> 16);
+            return c;
+        }
+        set { packed_cone = f32tof16(newValue.spread_angle) | (f32tof16(newValue.width) << 16); }
+    }
+
+    public property float last_ior
+    {
+        get { return f16tof32(packed_ior_lambda & 0xFFFFu); }
+        set { packed_ior_lambda = (packed_ior_lambda & 0xFFFF0000u) | f32tof16(newValue); }
+    }
+
+    //! locked dispersion wavelength in nm (< 0 = unlocked); set on first dispersive transmission
+    public property float disp_lambda
+    {
+        get { return f16tof32(packed_ior_lambda >> 16); }
+        set { packed_ior_lambda = (packed_ior_lambda & 0xFFFFu) | (f32tof16(newValue) << 16); }
+    }
+
+    public property media_t media
+    {
+        get
+        {
+            media_t m;
+            m.sigma_s = utils::unpack_rgb9e5(packed_sigma_s);
+            m.sigma_a = utils::unpack_rgb9e5(packed_sigma_a);
+            m.emission = utils::unpack_rgb9e5(packed_emission);
+            m.ior = f16tof32(packed_media_ior_phase & 0xFFFFu);
+            m.phase_g = f16tof32(packed_media_ior_phase >> 16);
+            m.pad = 0;
+            return m;
+        }
+        set
+        {
+            packed_sigma_s = utils::pack_rgb9e5(newValue.sigma_s);
+            packed_sigma_a = utils::pack_rgb9e5(newValue.sigma_a);
+            packed_emission = utils::pack_rgb9e5(newValue.emission);
+            packed_media_ior_phase = f32tof16(newValue.ior) | (f32tof16(newValue.phase_g) << 16);
+        }
+    }
 };
 
 //! debug: force a single direct-light estimator (verification: all modes must converge to the same image)
