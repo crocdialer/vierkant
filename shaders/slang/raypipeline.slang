@@ -20,6 +20,10 @@ import "utils/procedural_environment";
 
 static const uint MAX_MEDIA_STACK_SIZE = 4;
 
+// path regularization: bounces below the pdf-threshold mark the path, later vertices floor their roughness
+static const float REGULARIZE_PDF_THRESHOLD = 1e3;
+static const float REGULARIZE_MIN_ROUGHNESS = 0.25;
+
 [[vk::binding(0, 0)]]
 RaytracingAccelerationStructure topLevelAS;
 
@@ -132,6 +136,7 @@ trace_result_t trace(uint2 coord, uint2 size)
 
         ray::payload_t payload;
         payload.prev_bsdf_pdf = 0.0;
+        payload.regularize = false;
         bool ray_miss = false;
 
         for(uint i = 0; i < trace_data.params.max_trace_depth; i++)
@@ -454,6 +459,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
             // solid-angle pdf of this bounce for MIS at the next vertex (<= 0: no NEE competitor here)
             payload.prev_bsdf_pdf = use_direct_lighting ? phase_pdf : 0.0;
+            payload.regularize = payload.regularize || phase_pdf < REGULARIZE_PDF_THRESHOLD;
         }
     }
 
@@ -583,8 +589,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         payload.cone = propagate(payload.cone, 0.0, RayTCurrent());
 
-        // increase material-roughness for longer paths, reduce fireflies
-        //material.roughness = pow(material.roughness, 1.0 / (1.0 + payload.depth));
+        // path regularization, applied before both sample and NEE-eval
+        if(payload.regularize) { material.roughness = max(material.roughness, REGULARIZE_MIN_ROUGHNESS); }
 
         ray::bsdf_sample_t bsdf_sample = ray::sample_disney(material, payload.normal, V, eta, rng_state);
 
@@ -605,6 +611,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         // solid-angle pdf of this bounce for MIS at the next vertex (<= 0: no NEE competitor here)
         payload.prev_bsdf_pdf = use_direct_lighting ? bsdf_sample.pdf : 0.0;
+        payload.regularize = payload.regularize || bsdf_sample.pdf < REGULARIZE_PDF_THRESHOLD;
 
         float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
 

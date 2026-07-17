@@ -141,6 +141,9 @@ public struct payload_t
     //! solid-angle pdf of the bsdf/phase sample that spawned this ray; <= 0: no MIS competitor (camera ray, NEE off)
     public float prev_bsdf_pdf;
 
+    //! path regularization: sticky, set after the first low-pdf bounce
+    public bool regularize;
+
     public media_t media;
 };
 
