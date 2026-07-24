@@ -108,7 +108,7 @@ public struct payload_t
     //! rng-seed
     public uint rng_state;
 
-    //! packed: entity_index[15:0] | depth[23:16] | stop[24] | media_op[26:25] | regularize[27]
+    //! packed: entity_index[15:0] | depth[23:16] | stop[24] | media_op[26:25] | regularize[27] | caustic_path[28]
     public uint flags;
 
     //! worldspace position
@@ -173,6 +173,14 @@ public struct payload_t
     {
         get { return (flags & (1u << 27)) != 0u; }
         set { flags = newValue ? flags | (1u << 27) : flags & ~(1u << 27); }
+    }
+
+    //! refractive-caustic marker: a specular transmission event has occurred since the last non-specular
+    //! vertex. cleared at every non-specular bounce. used to drop hit-side light adds (no refractive caustics)
+    public property bool caustic_path
+    {
+        get { return (flags & (1u << 28)) != 0u; }
+        set { flags = newValue ? flags | (1u << 28) : flags & ~(1u << 28); }
     }
 
     //! worldspace normal
@@ -281,7 +289,8 @@ public struct trace_params_t
     //! debug: force a single direct-light estimator
     public MisMode mis_mode;
 
-    private int pad1;
+    //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
+    public bool suppress_refractive_caustics;
 };
 
 public struct camera_ubo_t
