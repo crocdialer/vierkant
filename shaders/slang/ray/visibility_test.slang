@@ -100,6 +100,10 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
 
     float3 transmittance = float3(1);
 
+    // Beer-Lambert optical depth accumulated as a signed sum of sigma_t * t (entry -, exit +), so a convex
+    // object's entry/exit pair nets sigma_t * (t_exit - t_entry); order-independent, additive over objects.
+    float3 optical_depth = float3(0);
+
     while(query.Proceed())
     {
         if(query.CandidateType() != CANDIDATE_NON_OPAQUE_TRIANGLE) { continue; }
@@ -113,7 +117,16 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
         // transmissive geometry: attenuate and pass through (no rng draw)
         if(material.transmission > 0.0)
         {
+            // per-interface tint (thin transmission factor * base colour)
             transmittance *= material.transmission * material.color.rgb;
+
+            // volume absorption for glass with a finite attenuation distance (isinf -> no interior medium)
+            if(!isinf(material.attenuation_distance))
+            {
+                float3 sigma_t = -log(material.attenuation_color) / material.attenuation_distance;
+                float t = query.CandidateTriangleRayT();
+                optical_depth += query.CandidateTriangleFrontFace() ? -sigma_t * t : sigma_t * t;
+            }
             continue;
         }
 
@@ -145,7 +158,10 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
         if(blocks) { query.CommitNonOpaqueTriangleHit(); }
     }
     // any committed hit (opaque geometry or an alpha-blocking candidate) fully occludes
-    return query.CommittedStatus() == COMMITTED_NOTHING ? transmittance : float3(0);
+    if(query.CommittedStatus() != COMMITTED_NOTHING) { return float3(0); }
+
+    // clamp to >= 0: unpaired entries (e.g. exits culled on the CULL_BACK_FACING volume path) must not amplify
+    return transmittance * exp(-max(optical_depth, float3(0)));
 }
 
 }// namespace ray
