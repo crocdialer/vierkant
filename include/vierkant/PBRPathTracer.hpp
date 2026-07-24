@@ -65,6 +65,9 @@ public:
         //! debug: force a single direct-light estimator (0: MIS, 1: NEE-only, 2: BSDF-only)
         uint32_t mis_mode = 0;
 
+        //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
+        bool suppress_refractive_caustics = false;
+
         //! draw the skybox, if any
         bool draw_skybox = true;
 
@@ -271,6 +274,9 @@ private:
 
         //! debug: force a single direct-light estimator (0: MIS, 1: NEE-only, 2: BSDF-only)
         uint32_t mis_mode = 0;
+
+        //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
+        uint32_t suppress_refractive_caustics = 0;
     };
 
     struct denoise_params_t
