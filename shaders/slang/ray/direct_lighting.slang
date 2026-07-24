@@ -313,7 +313,8 @@ public float3 nee_surface(material_t material, trace_data_t trace_data, Raytraci
     r.tmax = ls.dist;
 
     float3 radiance = float3(0);
-    if(visibility_test(r, as, 0, trace_data, textures, rng_state))
+    float3 transmittance = transmittance_test(r, as, 0, trace_data, textures, rng_state);
+    if(any(transmittance > 0.0))
     {
         float bsdf_pdf = 0.0;
         float cos_theta = max(dot(N, ls.direction), 0.0);
@@ -324,8 +325,8 @@ public float3 nee_surface(material_t material, trace_data_t trace_data, Raytraci
                                ? mis_weight_nee(trace_data.params.mis_mode, ls.pdf / num_lights, bsdf_pdf)
                                : 1.0;
 
-        // divide by pick-pdf (1/num_lights) and solid-angle pdf
-        radiance = weight * float(num_lights) * ls.radiance * F * cos_theta / ls.pdf;
+        // divide by pick-pdf (1/num_lights) and solid-angle pdf; attenuate by through-glass transmittance
+        radiance = transmittance * weight * float(num_lights) * ls.radiance * F * cos_theta / ls.pdf;
     }
     return radiance;
 }
@@ -350,10 +351,8 @@ public float3 nee_volume(Ray ray, trace_data_t trace_data, RaytracingAcceleratio
     r.direction = ls.direction;
     r.tmin = EPS;
     r.tmax = ls.dist;
-    if(!visibility_test(r, as, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, trace_data, textures, rng_state))
-    {
-        return float3(0);
-    }
+    float3 transmittance = transmittance_test(r, as, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, trace_data, textures, rng_state);
+    if(!any(transmittance > 0.0)) { return float3(0); }
 
     float phase = utils::phase_hg(dot(ray.direction, ls.direction), phase_g);
 
@@ -362,8 +361,8 @@ public float3 nee_volume(Ray ray, trace_data_t trace_data, RaytracingAcceleratio
                            ? mis_weight_nee(trace_data.params.mis_mode, ls.pdf / num_lights, phase)
                            : 1.0;
 
-    // divide by pick-pdf (1/num_lights) and solid-angle pdf
-    return weight * float(num_lights) * ls.radiance * phase / ls.pdf;
+    // divide by pick-pdf (1/num_lights) and solid-angle pdf; attenuate by through-glass transmittance
+    return transmittance * weight * float(num_lights) * ls.radiance * phase / ls.pdf;
 }
 
 }// namespace ray
