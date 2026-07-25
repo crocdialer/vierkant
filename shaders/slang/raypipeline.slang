@@ -114,7 +114,7 @@ trace_result_t trace(uint2 coord, uint2 size)
         cone.width = 0.0;
 
         uint media_index = 0;
-        ray::media_t media[MAX_MEDIA_STACK_SIZE];
+        ray::packed_media_t media[MAX_MEDIA_STACK_SIZE];
 
         // media[0] is always vacuum/air; leaving any medium returns here.
         ray::media_t vacuum_media;
@@ -123,7 +123,7 @@ trace_result_t trace(uint2 coord, uint2 size)
         vacuum_media.sigma_a = float3(0);
         vacuum_media.phase_g = 0.0;
         vacuum_media.emission = float3(0);
-        media[0] = vacuum_media;
+        media[0] = ray::pack_media(vacuum_media);
 
         // when the camera starts submerged, push its medium as the current one. seeding
         // media_index = 1 also disables back-face culling below, so the surrounding
@@ -131,7 +131,7 @@ trace_result_t trace(uint2 coord, uint2 size)
         if(trace_data.params.camera_inside_media)
         {
             media_index = 1;
-            media[media_index] = trace_data.camera_media;
+            media[media_index] = ray::pack_media(trace_data.camera_media);
         }
 
         float3 beta = float3(1);
@@ -155,8 +155,8 @@ trace_result_t trace(uint2 coord, uint2 size)
             payload.albedo = float3(0);
             payload.radiance = path_radiance;
             payload.beta = beta;
-            payload.media = media[media_index];
-            payload.last_ior = media[media_index > 0u ? media_index - 1u : 0u].ior;
+            payload.packed_media = media[media_index];
+            payload.last_ior = media[media_index > 0u ? media_index - 1u : 0u].ior();
             payload.disp_lambda = disp_lambda;
             payload.ray = next_ray;
             payload.cone = cone;
@@ -189,7 +189,7 @@ trace_result_t trace(uint2 coord, uint2 size)
             if(payload.media_op == ray::MediaOp::Enter)
             {
                 media_index = min(media_index + 1, MAX_MEDIA_STACK_SIZE - 1);
-                media[media_index] = payload.media;
+                media[media_index] = payload.packed_media;
             }
             else if(payload.media_op == ray::MediaOp::Leave) { media_index = media_index > 0u ? media_index - 1u : 0u; }
 

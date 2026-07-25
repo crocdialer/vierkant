@@ -55,6 +55,40 @@ public struct media_t
     float pad;
 };
 
+//! media_t in the payload's storage-form: sigma_s/sigma_a/emission as rgb9e5, ior + phase_g as half2.
+//! 16B instead of 48B - used for the raygen media-stack, which is live across every TraceRay.
+public struct packed_media_t
+{
+    public uint sigma_s;
+    public uint sigma_a;
+    public uint emission;
+    public uint ior_phase;
+
+    public float ior() { return f16tof32(ior_phase & 0xFFFFu); }
+};
+
+public packed_media_t pack_media(media_t m)
+{
+    packed_media_t p;
+    p.sigma_s = utils::pack_rgb9e5(m.sigma_s);
+    p.sigma_a = utils::pack_rgb9e5(m.sigma_a);
+    p.emission = utils::pack_rgb9e5(m.emission);
+    p.ior_phase = f32tof16(m.ior) | (f32tof16(m.phase_g) << 16);
+    return p;
+}
+
+public media_t unpack_media(packed_media_t p)
+{
+    media_t m;
+    m.sigma_s = utils::unpack_rgb9e5(p.sigma_s);
+    m.sigma_a = utils::unpack_rgb9e5(p.sigma_a);
+    m.emission = utils::unpack_rgb9e5(p.emission);
+    m.ior = f16tof32(p.ior_phase & 0xFFFFu);
+    m.phase_g = f16tof32(p.ior_phase >> 16);
+    m.pad = 0;
+    return m;
+}
+
 public enum LightType : uint
 {
     Omni = 0,
@@ -223,26 +257,31 @@ public struct payload_t
         set { packed_ior_lambda = (packed_ior_lambda & 0xFFFFu) | (f32tof16(newValue) << 16); }
     }
 
-    public property media_t media
+    //! media in storage-form, moved without a decode/encode roundtrip
+    public property packed_media_t packed_media
     {
         get
         {
-            media_t m;
-            m.sigma_s = utils::unpack_rgb9e5(packed_sigma_s);
-            m.sigma_a = utils::unpack_rgb9e5(packed_sigma_a);
-            m.emission = utils::unpack_rgb9e5(packed_emission);
-            m.ior = f16tof32(packed_media_ior_phase & 0xFFFFu);
-            m.phase_g = f16tof32(packed_media_ior_phase >> 16);
-            m.pad = 0;
-            return m;
+            packed_media_t p;
+            p.sigma_s = packed_sigma_s;
+            p.sigma_a = packed_sigma_a;
+            p.emission = packed_emission;
+            p.ior_phase = packed_media_ior_phase;
+            return p;
         }
         set
         {
-            packed_sigma_s = utils::pack_rgb9e5(newValue.sigma_s);
-            packed_sigma_a = utils::pack_rgb9e5(newValue.sigma_a);
-            packed_emission = utils::pack_rgb9e5(newValue.emission);
-            packed_media_ior_phase = f32tof16(newValue.ior) | (f32tof16(newValue.phase_g) << 16);
+            packed_sigma_s = newValue.sigma_s;
+            packed_sigma_a = newValue.sigma_a;
+            packed_emission = newValue.emission;
+            packed_media_ior_phase = newValue.ior_phase;
         }
+    }
+
+    public property media_t media
+    {
+        get { return unpack_media(packed_media); }
+        set { packed_media = pack_media(newValue); }
     }
 };
 
