@@ -55,6 +55,40 @@ public struct media_t
     float pad;
 };
 
+//! media_t in the payload's storage-form: sigma_s/sigma_a/emission as rgb9e5, ior + phase_g as half2.
+//! 16B instead of 48B - used for the raygen media-stack, which is live across every TraceRay.
+public struct packed_media_t
+{
+    public uint sigma_s;
+    public uint sigma_a;
+    public uint emission;
+    public uint ior_phase;
+
+    public float ior() { return f16tof32(ior_phase & 0xFFFFu); }
+};
+
+public packed_media_t pack_media(media_t m)
+{
+    packed_media_t p;
+    p.sigma_s = utils::pack_rgb9e5(m.sigma_s);
+    p.sigma_a = utils::pack_rgb9e5(m.sigma_a);
+    p.emission = utils::pack_rgb9e5(m.emission);
+    p.ior_phase = f32tof16(m.ior) | (f32tof16(m.phase_g) << 16);
+    return p;
+}
+
+public media_t unpack_media(packed_media_t p)
+{
+    media_t m;
+    m.sigma_s = utils::unpack_rgb9e5(p.sigma_s);
+    m.sigma_a = utils::unpack_rgb9e5(p.sigma_a);
+    m.emission = utils::unpack_rgb9e5(p.emission);
+    m.ior = f16tof32(p.ior_phase & 0xFFFFu);
+    m.phase_g = f16tof32(p.ior_phase >> 16);
+    m.pad = 0;
+    return m;
+}
+
 public enum LightType : uint
 {
     Omni = 0,
@@ -108,7 +142,7 @@ public struct payload_t
     //! rng-seed
     public uint rng_state;
 
-    //! packed: entity_index[15:0] | depth[23:16] | stop[24] | media_op[26:25] | regularize[27]
+    //! packed: entity_index[15:0] | depth[23:16] | stop[24] | media_op[26:25] | regularize[27] | caustic_path[28]
     public uint flags;
 
     //! worldspace position
@@ -175,6 +209,14 @@ public struct payload_t
         set { flags = newValue ? flags | (1u << 27) : flags & ~(1u << 27); }
     }
 
+    //! refractive-caustic marker: a specular transmission event has occurred since the last non-specular
+    //! vertex. cleared at every non-specular bounce. used to drop hit-side light adds (no refractive caustics)
+    public property bool caustic_path
+    {
+        get { return (flags & (1u << 28)) != 0u; }
+        set { flags = newValue ? flags | (1u << 28) : flags & ~(1u << 28); }
+    }
+
     //! worldspace normal
     public property float3 normal
     {
@@ -215,26 +257,31 @@ public struct payload_t
         set { packed_ior_lambda = (packed_ior_lambda & 0xFFFFu) | (f32tof16(newValue) << 16); }
     }
 
-    public property media_t media
+    //! media in storage-form, moved without a decode/encode roundtrip
+    public property packed_media_t packed_media
     {
         get
         {
-            media_t m;
-            m.sigma_s = utils::unpack_rgb9e5(packed_sigma_s);
-            m.sigma_a = utils::unpack_rgb9e5(packed_sigma_a);
-            m.emission = utils::unpack_rgb9e5(packed_emission);
-            m.ior = f16tof32(packed_media_ior_phase & 0xFFFFu);
-            m.phase_g = f16tof32(packed_media_ior_phase >> 16);
-            m.pad = 0;
-            return m;
+            packed_media_t p;
+            p.sigma_s = packed_sigma_s;
+            p.sigma_a = packed_sigma_a;
+            p.emission = packed_emission;
+            p.ior_phase = packed_media_ior_phase;
+            return p;
         }
         set
         {
-            packed_sigma_s = utils::pack_rgb9e5(newValue.sigma_s);
-            packed_sigma_a = utils::pack_rgb9e5(newValue.sigma_a);
-            packed_emission = utils::pack_rgb9e5(newValue.emission);
-            packed_media_ior_phase = f32tof16(newValue.ior) | (f32tof16(newValue.phase_g) << 16);
+            packed_sigma_s = newValue.sigma_s;
+            packed_sigma_a = newValue.sigma_a;
+            packed_emission = newValue.emission;
+            packed_media_ior_phase = newValue.ior_phase;
         }
+    }
+
+    public property media_t media
+    {
+        get { return unpack_media(packed_media); }
+        set { packed_media = pack_media(newValue); }
     }
 };
 
@@ -281,7 +328,8 @@ public struct trace_params_t
     //! debug: force a single direct-light estimator
     public MisMode mis_mode;
 
-    private int pad1;
+    //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
+    public bool suppress_refractive_caustics;
 };
 
 public struct camera_ubo_t

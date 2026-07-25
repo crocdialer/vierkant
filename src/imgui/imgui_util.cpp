@@ -460,6 +460,7 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     {
         path_tracer->settings.mis_mode = static_cast<uint32_t>(mis_mode);
     }
+    ImGui::Checkbox("no refractive caustics", &path_tracer->settings.suppress_refractive_caustics);
     ImGui::Checkbox("denoiser", &path_tracer->settings.denoising);
     ImGui::Checkbox("tonemap", &path_tracer->settings.tonemap);
     ImGui::Checkbox("bloom", &path_tracer->settings.bloom);

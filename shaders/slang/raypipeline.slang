@@ -114,7 +114,7 @@ trace_result_t trace(uint2 coord, uint2 size)
         cone.width = 0.0;
 
         uint media_index = 0;
-        ray::media_t media[MAX_MEDIA_STACK_SIZE];
+        ray::packed_media_t media[MAX_MEDIA_STACK_SIZE];
 
         // media[0] is always vacuum/air; leaving any medium returns here.
         ray::media_t vacuum_media;
@@ -123,7 +123,7 @@ trace_result_t trace(uint2 coord, uint2 size)
         vacuum_media.sigma_a = float3(0);
         vacuum_media.phase_g = 0.0;
         vacuum_media.emission = float3(0);
-        media[0] = vacuum_media;
+        media[0] = ray::pack_media(vacuum_media);
 
         // when the camera starts submerged, push its medium as the current one. seeding
         // media_index = 1 also disables back-face culling below, so the surrounding
@@ -131,7 +131,7 @@ trace_result_t trace(uint2 coord, uint2 size)
         if(trace_data.params.camera_inside_media)
         {
             media_index = 1;
-            media[media_index] = trace_data.camera_media;
+            media[media_index] = ray::pack_media(trace_data.camera_media);
         }
 
         float3 beta = float3(1);
@@ -155,8 +155,8 @@ trace_result_t trace(uint2 coord, uint2 size)
             payload.albedo = float3(0);
             payload.radiance = path_radiance;
             payload.beta = beta;
-            payload.media = media[media_index];
-            payload.last_ior = media[media_index > 0u ? media_index - 1u : 0u].ior;
+            payload.packed_media = media[media_index];
+            payload.last_ior = media[media_index > 0u ? media_index - 1u : 0u].ior();
             payload.disp_lambda = disp_lambda;
             payload.ray = next_ray;
             payload.cone = cone;
@@ -174,6 +174,7 @@ trace_result_t trace(uint2 coord, uint2 size)
             ray::Ray seg_ray = next_ray;
             float3 seg_beta = beta;
             float seg_prev_pdf = payload.prev_bsdf_pdf;
+            bool seg_caustic = payload.caustic_path;
 
             //let hit = HitObject.TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
             //ReorderThread(hit);
@@ -188,7 +189,7 @@ trace_result_t trace(uint2 coord, uint2 size)
             if(payload.media_op == ray::MediaOp::Enter)
             {
                 media_index = min(media_index + 1, MAX_MEDIA_STACK_SIZE - 1);
-                media[media_index] = payload.media;
+                media[media_index] = payload.packed_media;
             }
             else if(payload.media_op == ray::MediaOp::Leave) { media_index = media_index > 0u ? media_index - 1u : 0u; }
 
@@ -210,6 +211,9 @@ trace_result_t trace(uint2 coord, uint2 size)
                     // non-area types never intersect
                     ray::light_hit_t hit = ray::intersect_light(l, seg_ray.origin, seg_ray.direction);
                     if(hit.t <= seg_ray.tmin || hit.t >= t_end) { continue; }
+
+                    // drop the light-body hit-add on refractive-caustic paths (see miss shaders)
+                    if(trace_data.params.suppress_refractive_caustics && seg_caustic) { continue; }
 
                     float p_nee = ray::light_pdf(l, seg_ray.origin, seg_ray.direction) / trace_data.num_lights;
                     float w = ray::mis_weight_hit(trace_data.params.mis_mode, seg_prev_pdf, p_nee);
@@ -625,7 +629,12 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         // solid-angle pdf of this bounce for MIS at the next vertex (<= 0: no NEE competitor here)
         payload.prev_bsdf_pdf = use_direct_lighting ? bsdf_sample.pdf : 0.0;
-        payload.regularize = payload.regularize || bsdf_sample.pdf < REGULARIZE_PDF_THRESHOLD;
+        bool specular = bsdf_sample.pdf < REGULARIZE_PDF_THRESHOLD;
+        payload.regularize = payload.regularize || specular;
+
+        // refractive-caustic marker: only specular vertices carry it; any non-specular (NEE-effective)
+        // bounce clears it, a specular transmission event sets it
+        payload.caustic_path = specular && (payload.caustic_path || bsdf_sample.transmission);
 
         float cos_theta = abs(dot(shading_normal, bsdf_sample.direction));
 
@@ -743,7 +752,12 @@ void miss_default(inout ray::payload_t payload)
 
     float3 col = utils::environment_white(payload.ray.direction);
     payload.radiance += trace_data.params.environment * payload.beta * col;
-    payload.radiance += payload.beta * eval_distant_lights(payload.ray.direction, payload.prev_bsdf_pdf);
+
+    // drop the sun/light hit-add on refractive-caustic paths (S1 straight-line NEE carries that energy instead)
+    if(!(trace_data.params.suppress_refractive_caustics && payload.caustic_path))
+    {
+        payload.radiance += payload.beta * eval_distant_lights(payload.ray.direction, payload.prev_bsdf_pdf);
+    }
 }
 
 [shader("miss")]
@@ -758,5 +772,10 @@ void miss_environment(inout ray::payload_t payload)
 
     payload.radiance +=
             trace_data.params.environment * payload.beta * u_sampler_cube.SampleLevel(WorldRayDirection(), lod).rgb;
-    payload.radiance += payload.beta * eval_distant_lights(payload.ray.direction, payload.prev_bsdf_pdf);
+
+    // drop the sun/light hit-add on refractive-caustic paths (S1 straight-line NEE carries that energy instead)
+    if(!(trace_data.params.suppress_refractive_caustics && payload.caustic_path))
+    {
+        payload.radiance += payload.beta * eval_distant_lights(payload.ray.direction, payload.prev_bsdf_pdf);
+    }
 }
