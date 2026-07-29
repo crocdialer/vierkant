@@ -2,6 +2,7 @@
 // Created by crocdialer on 4/20/18.
 //
 
+#include <algorithm>
 #include <cmath>
 #include <ranges>
 
@@ -50,6 +51,71 @@ struct scoped_child_window_t
         }
     }
 };
+
+//! asset-names are optional and not unique -> disambiguate with a short id-prefix
+template<typename Id>
+std::string asset_label(const std::string &name, const Id &id)
+{
+    return (name.empty() ? "<unnamed>" : name) + " [" + id.str().substr(0, 8) + "]";
+}
+
+/**
+ * @brief   'draw_id_combo' provides a filterable combo to pick an asset-id from an asset-map,
+ *          whose values are expected to provide a 'name'.
+ *
+ * the candidate-list is only built while the popup is open and rendered via a clipper,
+ * so per-frame cost is a single map-lookup for the preview-label.
+ */
+template<typename Id, typename T>
+bool draw_id_combo(const char *label, Id &id, const std::unordered_map<Id, T> &assets)
+{
+    bool changed = false;
+    const auto it = assets.find(id);
+    const std::string preview = it != assets.end() ? asset_label(it->second.name, id) : "<none>";
+
+    if(ImGui::BeginCombo(label, preview.c_str()))
+    {
+        static ImGuiTextFilter filter;
+
+        if(ImGui::IsWindowAppearing())
+        {
+            filter.Clear();
+            ImGui::SetKeyboardFocusHere();
+        }
+        filter.Draw("##filter");
+
+        std::vector<std::pair<Id, std::string>> items;
+        items.reserve(assets.size());
+
+        for(const auto &[asset_id, asset]: assets)
+        {
+            auto item_label = asset_label(asset.name, asset_id);
+            if(filter.PassFilter(item_label.c_str())) { items.emplace_back(asset_id, std::move(item_label)); }
+        }
+        std::ranges::sort(items, {}, &std::pair<Id, std::string>::second);
+
+        ImGuiListClipper clipper;
+        clipper.Begin(static_cast<int>(items.size()));
+
+        while(clipper.Step())
+        {
+            for(int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
+            {
+                const auto &[item_id, item_label] = items[i];
+
+                ImGui::PushID(i);
+                if(ImGui::Selectable(item_label.c_str(), item_id == id) && item_id != id)
+                {
+                    id = item_id;
+                    changed = true;
+                }
+                ImGui::PopID();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    return changed;
+}
 
 void draw_object_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &object);
 
@@ -1260,11 +1326,9 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
                 auto material_id =
                         e.material_index < material_ids.size() ? material_ids[e.material_index] : MaterialId::nil();
 
-                strcpy(text_buf, material_id.str().c_str());
-                if(ImGui::InputText("material_id", text_buf, sizeof(text_buf)))
-                {
-                    auto new_mat_id = vierkant::MaterialId::from_string(text_buf);
-
+                // assign a material-override, either picked from a list or pasted as an id
+                auto assign_material = [&scene, &mesh_component, &material_id, &material_changed,
+                                        &e](const vierkant::MaterialId &new_mat_id) {
                     // check if material is defined
                     if(scene->asset_provider()->material(new_mat_id))
                     {
@@ -1282,6 +1346,18 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
                         mesh_component.material_ids.value()[e.material_index] = new_mat_id;
                         material_changed = true;
                     }
+                };
+
+                auto picked_id = material_id;
+                if(draw_id_combo("material", picked_id, scene->asset_provider()->materials()))
+                {
+                    assign_material(picked_id);
+                }
+
+                strcpy(text_buf, material_id.str().c_str());
+                if(ImGui::InputText("material_id", text_buf, sizeof(text_buf)))
+                {
+                    assign_material(vierkant::MaterialId::from_string(text_buf));
                 }
 
                 // material ui
@@ -1479,6 +1555,8 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
     if(has_light)
     {
         auto &light_cmp = object->get_component<vierkant::lightsource_component_t>();
+
+        draw_id_combo("light", light_cmp.light_id, scene->asset_provider()->lights());
 
         strcpy(text_buf, light_cmp.light_id.str().c_str());
         if(ImGui::InputText("light-id", text_buf, sizeof(text_buf), ImGuiInputTextFlags_EnterReturnsTrue))
