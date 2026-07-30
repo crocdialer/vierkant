@@ -327,6 +327,9 @@ struct physics_component_t
     float angular_damping = 0.05f;
     bool kinematic = false;
     bool sensor = false;
+
+    //! create the body as a JPH::Character, providing ground-detection. implies a dynamic body with locked rotation.
+    bool character = false;
 };
 
 //! constraints can be attached to arbitrary objects and reference via vierkant::BodyId
@@ -345,6 +348,22 @@ struct constraint_component_t
 class PhysicsContext
 {
 public:
+    //! ground-state of a character-body, refreshed after each simulation-step
+    enum class GroundState
+    {
+        //! on the ground and can move freely
+        OnGround = 0,
+
+        //! on a slope that is too steep to climb any further
+        OnSteepGround,
+
+        //! touching an object, but not supported by it
+        NotSupported,
+
+        //! not touching anything
+        InAir
+    };
+
     struct callbacks_t
     {
         using contact_cb_t = std::function<void(uint32_t, uint32_t)>;
@@ -395,6 +414,9 @@ public:
                     const vierkant::physics_component_t &cmp);
     void remove_object(uint32_t objectId, const vierkant::physics_component_t &cmp = {});
     [[nodiscard]] bool contains(uint32_t objectId) const;
+
+    //! ground-state of a character-object, empty if the object is not a character
+    [[nodiscard]] std::optional<GroundState> ground_state(uint32_t objectId) const;
 
     bool add_constraints(uint32_t objectId, const vierkant::constraint_component_t &constraint_cmp);
     void remove_constraints(uint32_t objectId);

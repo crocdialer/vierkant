@@ -75,6 +75,60 @@ TEST(PhysicsContext, add_remove_object)
     EXPECT_FALSE(context.contains(a->id()));
 }
 
+TEST(PhysicsContext, character)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+    context.set_gravity({0.f, -9.81f, 0.f});
+
+    // static, concave triangle-mesh as ground, top-surface at y == 0.5
+    constexpr float ground_height = .5f;
+    auto ground = object_store->create_object();
+    ground->transform.emplace();
+    vierkant::physics_component_t ground_cmp = {};
+    ground_cmp.shape = create_collision_shape(context, Geometry::Box(), false);
+    ground_cmp.mass = 0.f;
+    ground->add_component(ground_cmp);
+    scene->add_object(ground);
+
+    // 1.8m character: 0.3 radius + 1.2 cylinder, shape_transform puts the origin at the feet
+    constexpr float radius = .3f, cylinder_height = 1.2f, start_height = 3.f;
+    auto player = object_store->create_object();
+    player->transform = transform_t{.translation = {0.f, start_height, 0.f}};
+    vierkant::physics_component_t player_cmp = {};
+    player_cmp.shape = collision::capsule_t{.radius = radius, .height = cylinder_height};
+    player_cmp.shape_transform = transform_t{.translation = {0.f, .5f * cylinder_height + radius, 0.f}};
+    player_cmp.mass = 80.f;
+    player_cmp.character = true;
+    player->add_component(player_cmp);
+    scene->add_object(player);
+
+    // next update will pick up newly added objects
+    scene->update(0.f);
+    EXPECT_TRUE(context.contains(player->id()));
+    EXPECT_EQ(context.ground_state(player->id()), PhysicsContext::GroundState::InAir);
+
+    // only characters have a ground-state
+    EXPECT_FALSE(context.ground_state(ground->id()));
+
+    for(uint32_t i = 0; i < 200; ++i) { scene->update(1.f / 60.f); }
+
+    // the character fell, its object-transform tracked the body via the existing readback
+    EXPECT_LT(player->transform->translation.y, start_height);
+
+    // ... and came to rest with its feet on the ground
+    EXPECT_NEAR(player->transform->translation.y, ground_height, .05f);
+    EXPECT_EQ(context.ground_state(player->id()), PhysicsContext::GroundState::OnGround);
+
+    // rotation is locked -> the capsule stayed upright
+    EXPECT_NEAR(std::abs(player->transform->rotation.w), 1.f, 1.e-5f);
+
+    context.remove_object(player->id(), player_cmp);
+    EXPECT_FALSE(context.contains(player->id()));
+    EXPECT_FALSE(context.ground_state(player->id()));
+}
+
 TEST(PhysicsContext, simulation)
 {
     //    spdlog::set_level(spdlog::level::debug);

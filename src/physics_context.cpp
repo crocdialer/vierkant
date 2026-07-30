@@ -14,6 +14,7 @@
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Character/Character.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/CompoundShape.h>
@@ -521,6 +522,9 @@ public:
     /// Maximum amount of barriers to allow
     constexpr static uint32_t max_physics_barriers = 8;
 
+    /// Max distance between the floor and a character to still consider it standing on the floor
+    constexpr static float character_max_separation = 0.05f;
+
     explicit JoltContext(crocore::ThreadPool *const thread_pool = nullptr) : thread_pool(thread_pool)
     {
         // Register allocation hook. In this example we'll just let Jolt use malloc / free but you can override these if you want (see Memory.h).
@@ -589,7 +593,41 @@ public:
     // If you take larger steps than 1 / 60th of a second you need to do multiple collision steps
     // in order to keep the simulation stable. Do 1 collision step per 1 / 60th of a second (round up).
     inline void update(float delta, int num_steps = 1)
-    { physics_system.Update(delta, num_steps, m_temp_allocator.get(), job_system.get()); }
+    {
+        physics_system.Update(delta, num_steps, m_temp_allocator.get(), job_system.get());
+
+        // refresh ground-state, needs to happen after every PhysicsSystem::Update
+        for(const auto &[object_id, character]: characters) { character->PostSimulation(character_max_separation); }
+    }
+
+    //! create a JPH::Character, owning its own dynamic body with locked rotation
+    JPH::BodyID create_character(uint32_t objectId, const vierkant::transform_t &transform,
+                                 const vierkant::physics_component_t &cmp, float mass, JPH::Shape *shape)
+    {
+        JPH::Ref<JPH::CharacterSettings> settings = new JPH::CharacterSettings;
+        settings->mShape = shape;
+        settings->mLayer = Layers::MOVING;
+        settings->mMass = mass;
+        settings->mFriction = cmp.friction;
+
+        // only contacts on the shape's lower hemisphere may support the character.
+        // the default plane accepts any contact, which would let a character 'stand' by touching a ceiling.
+        // GetLocalBounds() is relative to the center-of-mass, the supporting-volume relative to the shape's origin.
+        auto bounds = shape->GetLocalBounds();
+        float bottom = bounds.mMin.GetY() + shape->GetCenterOfMass().GetY();
+        float radius = .25f * (bounds.GetSize().GetX() + bounds.GetSize().GetZ());
+        settings->mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -(bottom + radius));
+
+        auto character = new JPH::Character(settings, type_cast(transform.translation),
+                                            type_cast(transform.rotation), objectId, &physics_system);
+        character->AddToPhysicsSystem(JPH::EActivation::Activate);
+        characters[objectId] = character;
+
+        // match the motion-quality used for all other bodies
+        auto body_id = character->GetBodyID();
+        physics_system.GetBodyInterface().SetMotionQuality(body_id, JPH::EMotionQuality::LinearCast);
+        return body_id;
+    }
 
     void OnBodyActivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override {}
 
@@ -680,6 +718,9 @@ public:
     //! lookup of body-ids
     std::unordered_map<uint32_t, body_id_struct_t> body_id_map;
     std::unordered_map<vierkant::BodyId, uint32_t> body_id_rev_map;
+
+    //! character storage. their bodies are additionally tracked in body_id_map.
+    std::unordered_map<uint32_t, JPH::Ref<JPH::Character>> characters;
 
     //! lookup of callback-structs
     std::unordered_map<uint32_t, vierkant::PhysicsContext::callbacks_t> callback_map;
@@ -967,7 +1008,10 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
 
             {
                 std::unique_lock lock(m_engine->jolt.mutex);
-                JPH::BodyID jolt_bodyId = body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
+                JPH::BodyID jolt_bodyId =
+                        cmp.character ? m_engine->jolt.create_character(objectId, transform, cmp, mass,
+                                                                        shape_result.Get())
+                                      : body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
                 body_interface.SetUserData(jolt_bodyId, objectId);
                 m_engine->jolt.body_id_map[objectId] = {cmp.body_id, jolt_bodyId};
                 m_engine->jolt.body_id_rev_map[cmp.body_id] = objectId;
@@ -990,8 +1034,19 @@ void PhysicsContext::remove_object(uint32_t objectId, const vierkant::physics_co
     {
         spdlog::trace("PhysicsContext::remove_object: obj: {} / body {}", objectId, it->second.jolt_body_id.GetIndex());
         auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
-        body_interface.RemoveBody(it->second.jolt_body_id);
-        body_interface.DestroyBody(it->second.jolt_body_id);
+
+        // characters own their body, its destruction is handled by JPH::Character's destructor
+        auto character_it = m_engine->jolt.characters.find(objectId);
+        if(character_it != m_engine->jolt.characters.end())
+        {
+            character_it->second->RemoveFromPhysicsSystem();
+            m_engine->jolt.characters.erase(character_it);
+        }
+        else
+        {
+            body_interface.RemoveBody(it->second.jolt_body_id);
+            body_interface.DestroyBody(it->second.jolt_body_id);
+        }
 
         m_engine->jolt.body_id_rev_map.erase(it->second.body_id);
         m_engine->jolt.body_id_map.erase(it);
@@ -1012,6 +1067,21 @@ void PhysicsContext::remove_object(uint32_t objectId, const vierkant::physics_co
 }
 
 bool PhysicsContext::contains(uint32_t objectId) const { return m_engine->jolt.body_id_map.contains(objectId); }
+
+std::optional<PhysicsContext::GroundState> PhysicsContext::ground_state(uint32_t objectId) const
+{
+    auto it = m_engine->jolt.characters.find(objectId);
+    if(it == m_engine->jolt.characters.end()) { return {}; }
+
+    switch(it->second->GetGroundState())
+    {
+        case JPH::CharacterBase::EGroundState::OnGround: return GroundState::OnGround;
+        case JPH::CharacterBase::EGroundState::OnSteepGround: return GroundState::OnSteepGround;
+        case JPH::CharacterBase::EGroundState::NotSupported: return GroundState::NotSupported;
+        case JPH::CharacterBase::EGroundState::InAir: return GroundState::InAir;
+    }
+    return {};
+}
 
 vierkant::PhysicsContext::BodyInterface &PhysicsContext::body_interface() { return *m_engine->jolt.body_system; }
 
