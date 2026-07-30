@@ -3,6 +3,7 @@
 #include <crocore/ThreadPool.hpp>
 #include <vierkant/Visitor.hpp>
 #include <vierkant/physics_context.hpp>
+#include <vierkant/player_component.hpp>
 
 // The Jolt headers don't include Jolt.h. Always include Jolt.h before including any other Jolt header.
 // You can use Jolt.h in your precompiled header to speed up compilation.
@@ -447,6 +448,11 @@ public:
         }
     }
 
+    void add_force(uint32_t objectId, const glm::vec3 &force) override
+    {
+        if(auto body_id = get_body_id(objectId)) { m_jolt_body_interface.AddForce(*body_id, type_cast(force)); }
+    }
+
     void add_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) override
     {
         if(auto body_id = get_body_id(objectId))
@@ -581,6 +587,11 @@ public:
 
     ~JoltContext() override
     {
+        // ~Character destroys its body without removing it first, and needs the physics-system alive.
+        // neither is given by member-destruction-order, 'characters' is declared before 'physics_system'.
+        for(const auto &[object_id, character]: characters) { character->RemoveFromPhysicsSystem(); }
+        characters.clear();
+
         // stupid singleton-hack
         JPH::DebugRenderer::sInstance = debug_render.get();
         debug_render.reset();
@@ -1655,6 +1666,36 @@ void PhysicsScene::update(double time_delta)
             phys_cmp->mode = physics_component_t::ACTIVE;
             m_context.add_constraints(obj->id(), *constraint_cmp);
         }
+    }
+
+    // player-input -> forces. must run before the step, jolt clears accumulated forces after each step
+    for(auto *obj: visitor.objects)
+    {
+        auto *player_cmp = obj->get_component_ptr<vierkant::player_component_t>();
+        auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>();
+        if(!player_cmp || !phys_cmp || phys_cmp->mode != physics_component_t::ACTIVE) { continue; }
+
+        // yaw-only basis, engine is -z forward. pitch must not tilt the movement
+        const glm::vec3 forward(-std::sin(player_cmp->yaw), 0.f, -std::cos(player_cmp->yaw));
+        const glm::vec3 right(std::cos(player_cmp->yaw), 0.f, -std::sin(player_cmp->yaw));
+
+        // clamp, not normalize: preserves analog fine-control
+        glm::vec2 move = player_cmp->move;
+        float move_length = glm::length(move);
+        if(move_length > 1.f) { move /= move_length; }
+        glm::vec3 v_des = (right * move.x + forward * move.y) * player_cmp->max_speed;
+
+        // ground-state is only available for characters, anything else uses the air-tuning
+        bool on_ground = m_context.ground_state(obj->id()) == PhysicsContext::GroundState::OnGround;
+        float t_accel = on_ground ? player_cmp->t_accel_ground : player_cmp->t_accel_air;
+        float max_accel = on_ground ? player_cmp->max_accel_ground : player_cmp->max_accel_air;
+
+        // critically-damped velocity-tracker. vertical velocity is excluded, otherwise we'd fight gravity
+        glm::vec3 velocity = m_context.body_interface().velocity(obj->id());
+        glm::vec3 accel = (v_des - glm::vec3(velocity.x, 0.f, velocity.z)) / t_accel;
+        float accel_length = glm::length(accel);
+        if(accel_length > max_accel) { accel *= max_accel / accel_length; }
+        m_context.body_interface().add_force(obj->id(), phys_cmp->mass * accel);
     }
 
     // advance simulation

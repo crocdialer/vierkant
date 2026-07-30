@@ -2,6 +2,7 @@
 #include <vierkant/Object3D.hpp>
 #include <vierkant/Scene.hpp>
 #include <vierkant/physics_context.hpp>
+#include <vierkant/player_component.hpp>
 
 using namespace vierkant;
 //____________________________________________________________________________//
@@ -127,6 +128,78 @@ TEST(PhysicsContext, character)
     context.remove_object(player->id(), player_cmp);
     EXPECT_FALSE(context.contains(player->id()));
     EXPECT_FALSE(context.ground_state(player->id()));
+}
+
+TEST(PhysicsContext, player_move)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+    context.set_gravity({0.f, -9.81f, 0.f});
+
+    // static box as ground, top-surface at y == 0
+    auto ground = object_store->create_object();
+    ground->transform = transform_t{.translation = {0.f, -.5f, 0.f}};
+    vierkant::physics_component_t ground_cmp = {};
+    ground_cmp.shape = collision::box_t{.half_extents = {50.f, .5f, 50.f}};
+    ground_cmp.mass = 0.f;
+    ground->add_component(ground_cmp);
+    scene->add_object(ground);
+
+    // 1.8m character: 0.3 radius + 1.2 cylinder, shape_transform puts the origin at the feet
+    constexpr float radius = .3f, cylinder_height = 1.2f;
+    auto player = object_store->create_object();
+    player->transform = transform_t{.translation = {0.f, .1f, 0.f}};
+    vierkant::physics_component_t player_cmp = {};
+    player_cmp.shape = collision::capsule_t{.radius = radius, .height = cylinder_height};
+    player_cmp.shape_transform = transform_t{.translation = {0.f, .5f * cylinder_height + radius, 0.f}};
+    player_cmp.mass = 80.f;
+    player_cmp.character = true;
+    player->add_component(player_cmp);
+    player->add_component(vierkant::player_component_t{});
+    scene->add_object(player);
+
+    constexpr float dt = 1.f / 60.f;
+    auto &input = player->get_component<vierkant::player_component_t>();
+
+    // let the capsule settle on the ground
+    for(uint32_t i = 0; i < 60; ++i) { scene->update(dt); }
+    ASSERT_EQ(context.ground_state(player->id()), PhysicsContext::GroundState::OnGround);
+    const glm::vec3 rest_position = player->transform->translation;
+
+    // no input -> the tracker holds the position
+    for(uint32_t i = 0; i < 60; ++i) { scene->update(dt); }
+    EXPECT_NEAR(glm::length(player->transform->translation - rest_position), 0.f, .01f);
+
+    // the top-speed the tracker settles at is short of max_speed by the ground-friction it has to
+    // balance: mu * g * t_accel_ground ~ .16 m/s at the defaults. P4 removes it via friction == 0.
+    constexpr float speed_eps = .25f;
+
+    // full forward-input, yaw == 0 -> movement along -z at max_speed
+    input.move = {0.f, 1.f};
+    for(uint32_t i = 0; i < 120; ++i) { scene->update(dt); }
+    glm::vec3 velocity = context.body_interface().velocity(player->id());
+    EXPECT_NEAR(velocity.z, -input.max_speed, speed_eps);
+    EXPECT_NEAR(velocity.x, 0.f, .01f);
+    EXPECT_LT(player->transform->translation.z, rest_position.z - 1.f);
+
+    // ... yaw rotates the movement-basis, 90 degrees puts 'forward' onto -x
+    input.yaw = glm::half_pi<float>();
+    for(uint32_t i = 0; i < 120; ++i) { scene->update(dt); }
+    velocity = context.body_interface().velocity(player->id());
+    EXPECT_NEAR(velocity.x, -input.max_speed, speed_eps);
+
+    // input beyond the unit-disc is clamped, not scaled up
+    input.move = {0.f, 10.f};
+    for(uint32_t i = 0; i < 120; ++i) { scene->update(dt); }
+    EXPECT_NEAR(context.body_interface().velocity(player->id()).x, -input.max_speed, speed_eps);
+
+    // releasing the input brakes to a standstill
+    input.move = {};
+    for(uint32_t i = 0; i < 60; ++i) { scene->update(dt); }
+    EXPECT_NEAR(glm::length(context.body_interface().velocity(player->id())), 0.f, .05f);
+
+    // deliberately no remove_object here: the scene is destroyed with a live character
 }
 
 TEST(PhysicsContext, simulation)

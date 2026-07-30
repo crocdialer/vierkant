@@ -386,6 +386,10 @@ public:
         virtual ~BodyInterface() = default;
         virtual bool get_transform(uint32_t objectId, vierkant::transform_t &t) const = 0;
         virtual void set_transform(uint32_t objectId, const vierkant::transform_t &t) const = 0;
+        //! apply a force at the body's center-of-mass, generating no torque
+        virtual void add_force(uint32_t objectId, const glm::vec3 &force) = 0;
+
+        //! 'offset' is a world-space position, applying a force there does generate torque
         virtual void add_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) = 0;
         virtual void add_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) = 0;
         [[nodiscard]] virtual glm::vec3 velocity(uint32_t objectId) const = 0;

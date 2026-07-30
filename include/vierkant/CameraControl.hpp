@@ -6,6 +6,7 @@
 
 #include <crocore/define_class_ptr.hpp>
 #include <vierkant/Input.hpp>
+#include <vierkant/player_component.hpp>
 #include <vierkant/transform.hpp>
 
 namespace vierkant
@@ -111,6 +112,49 @@ private:
     void orbit(const glm::vec2 &diff);
 
     [[nodiscard]] inline glm::quat rotation() const { return {glm::vec3(spherical_coords, 0.f)}; }
+
+    std::unordered_map<int, bool> m_keys;
+
+    std::vector<Joystick> m_last_joystick_states;
+    glm::ivec2 m_last_cursor_pos{};
+};
+
+DEFINE_CLASS_PTR(PlayerControl)
+
+//! gathers input for a vierkant::player_component_t and provides an eye-camera looking along it.
+//! a pure producer: it never touches physics, so an ai-driven producer can fill the same component.
+class PlayerControl : public CameraControl
+{
+public:
+    //! eye-position, expected to be updated from the controlled object each frame
+    glm::vec3 position = {0.f, 0.f, 0.f};
+
+    // (pitch, yaw)
+    glm::vec2 spherical_coords = {0.f, 0.f};
+
+    void update(double time_delta) override;
+
+    //! copy the gathered input-state into a player-component. consumes a pending jump-press
+    void apply(vierkant::player_component_t &player_cmp);
+
+    vierkant::mouse_delegate_t mouse_delegate() override;
+
+    vierkant::key_delegate_t key_delegate() override;
+
+    vierkant::joystick_delegate_t joystick_delegate() override;
+
+    [[nodiscard]] vierkant::transform_t transform() const override;
+
+    static PlayerControlUPtr create() { return std::make_unique<PlayerControl>(); }
+
+private:
+    void orbit(const glm::vec2 &diff);
+
+    [[nodiscard]] inline glm::quat rotation() const { return {glm::vec3(spherical_coords, 0.f)}; }
+
+    //! gathered per-frame input, see player_component_t
+    glm::vec2 m_move = {};
+    bool m_jump = false;
 
     std::unordered_map<int, bool> m_keys;
 
