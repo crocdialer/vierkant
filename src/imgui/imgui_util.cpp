@@ -11,6 +11,7 @@
 #include <vierkant/PBRPathTracer.hpp>
 #include <vierkant/imgui/imgui_util.h>
 #include <vierkant/physics_context.hpp>
+#include <vierkant/player_component.hpp>
 
 #include "imgui_internal.h"
 #include <vierkant/Visitor.hpp>
@@ -1715,6 +1716,7 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
             change |= ImGui::InputFloat("angular_damping", &phys_cmp.angular_damping);
             change |= ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
             change |= ImGui::Checkbox("sensor", &phys_cmp.sensor);
+            change |= ImGui::Checkbox("character", &phys_cmp.character);
             if(change) { phys_cmp.mode = physics_component_t::UPDATE; };
 
             auto *constraint_cmp = object->get_component_ptr<vierkant::constraint_component_t>();
@@ -1992,6 +1994,32 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
             {
                 phys_cmp.mode = physics_component_t::CONSTRAINT_UPDATE;
             };
+            ImGui::TreePop();
+        }
+    }
+
+    bool has_player = object->has_component<vierkant::player_component_t>();
+    if(ImGui::Checkbox("player", &has_player))
+    {
+        if(has_player) { object->add_component<vierkant::player_component_t>(); }
+        else { object->remove_component<vierkant::player_component_t>(); }
+    }
+
+    if(has_player)
+    {
+        vierkant::object_component auto &player_cmp = object->get_component<vierkant::player_component_t>();
+
+        ImGui::SameLine();
+        if(ImGui::TreeNodeEx(&player_cmp, ImGuiTreeNodeFlags_DefaultOpen, "max_speed: %.2f", player_cmp.max_speed))
+        {
+            ImGui::InputFloat("max_speed", &player_cmp.max_speed);
+            ImGui::InputFloat("t_accel_ground", &player_cmp.t_accel_ground);
+            ImGui::InputFloat("t_accel_air", &player_cmp.t_accel_air);
+            ImGui::InputFloat("max_accel_ground", &player_cmp.max_accel_ground);
+            ImGui::InputFloat("max_accel_air", &player_cmp.max_accel_air);
+            ImGui::InputFloat("jump_height", &player_cmp.jump_height);
+            ImGui::SliderAngle("max_slope_angle", &player_cmp.max_slope_angle, 0.f, 89.f);
+            ImGui::InputFloat("eye_height", &player_cmp.eye_height);
             ImGui::TreePop();
         }
     }
