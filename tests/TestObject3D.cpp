@@ -51,6 +51,25 @@ TEST(Object3D, hierarchy)
     EXPECT_TRUE(glm::vec3(b->global_transform().translation) == glm::vec3(1, 2, 3));
 }
 
+TEST(Object3D, outliving_parent)
+{
+    auto object_store = vierkant::create_object_store();
+    Object3DPtr child = object_store->create_object();
+    child->transform = transform_t{.translation = {1.f, 2.f, 3.f}};
+
+    {
+        Object3DPtr parent = object_store->create_object();
+        parent->transform = transform_t{.translation = {0.f, 50.f, 0.f}};
+        parent->add_child(child);
+        ASSERT_TRUE(child->parent() == parent.get());
+        EXPECT_EQ(glm::vec3(child->global_transform().translation), glm::vec3(1.f, 52.f, 3.f));
+    }
+
+    // the child outlives its parent here, so its raw parent-pointer has to be cleared
+    EXPECT_TRUE(!child->parent());
+    EXPECT_EQ(glm::vec3(child->global_transform().translation), glm::vec3(1.f, 2.f, 3.f));
+}
+
 TEST(Object3D, entity)
 {
     auto object_store = vierkant::create_object_store();
