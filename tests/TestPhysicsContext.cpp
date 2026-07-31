@@ -37,6 +37,20 @@ void create_ground(const std::shared_ptr<vierkant::ObjectStore> &object_store,
     scene->add_object(ground);
 }
 
+//! static ramp, tilted around x so that -z is uphill. its top-surface passes through the origin
+void create_ramp(const std::shared_ptr<vierkant::ObjectStore> &object_store,
+                 const std::shared_ptr<vierkant::PhysicsScene> &scene, float angle_deg)
+{
+    auto ramp = object_store->create_object();
+    glm::quat rotation = glm::angleAxis(glm::radians(angle_deg), glm::vec3(1.f, 0.f, 0.f));
+    ramp->transform = transform_t{.translation = rotation * glm::vec3(0.f, -.5f, 0.f), .rotation = rotation};
+    vierkant::physics_component_t cmp = {};
+    cmp.shape = collision::box_t{.half_extents = {50.f, .5f, 50.f}};
+    cmp.mass = 0.f;
+    ramp->add_component(cmp);
+    scene->add_object(ramp);
+}
+
 //! 1.8m character: 0.3 radius + 1.2 cylinder, shape_transform puts the origin at the feet
 vierkant::Object3DPtr create_character(const std::shared_ptr<vierkant::ObjectStore> &object_store,
                                        const std::shared_ptr<vierkant::PhysicsScene> &scene,
@@ -171,16 +185,8 @@ TEST(PhysicsContext, character_slope)
     auto &context = scene->physics_context();
     context.set_gravity({0.f, -9.81f, 0.f});
 
-    // static ramp, tilted around x. its top-surface passes through the origin
     constexpr float ramp_angle = 40.f;
-    auto ramp = object_store->create_object();
-    glm::quat ramp_rotation = glm::angleAxis(glm::radians(ramp_angle), glm::vec3(1.f, 0.f, 0.f));
-    ramp->transform = transform_t{.translation = ramp_rotation * glm::vec3(0.f, -.5f, 0.f), .rotation = ramp_rotation};
-    vierkant::physics_component_t ramp_cmp = {};
-    ramp_cmp.shape = collision::box_t{.half_extents = {50.f, .5f, 50.f}};
-    ramp_cmp.mass = 0.f;
-    ramp->add_component(ramp_cmp);
-    scene->add_object(ramp);
+    create_ramp(object_store, scene, ramp_angle);
 
     // 1.8m character standing on the ramp, slope-limit below the ramp's angle
     constexpr float radius = .3f, cylinder_height = 1.2f;
@@ -249,9 +255,8 @@ TEST(PhysicsContext, player_move)
     for(uint32_t i = 0; i < 60; ++i) { scene->update(dt); }
     EXPECT_NEAR(glm::length(player->transform->translation - rest_position), 0.f, .01f);
 
-    // the top-speed the tracker settles at is short of max_speed by the ground-friction it has to
-    // balance: mu * g * t_accel_ground ~ .16 m/s at the defaults. P4 removes it via friction == 0.
-    constexpr float speed_eps = .25f;
+    // the character-body has no contact-friction, so the tracker settles right at max_speed
+    constexpr float speed_eps = .02f;
 
     // full forward-input, yaw == 0 -> movement along -z at max_speed
     input.move = {0.f, 1.f};
@@ -352,6 +357,103 @@ TEST(PhysicsContext, character_coyote_time)
 
     // ... and is gone once the window has passed
     EXPECT_LT(jump_after_leaving_ground(.2f), 0.f);
+}
+
+TEST(PhysicsContext, character_stands_on_slope)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    scene->physics_context().set_gravity({0.f, -9.81f, 0.f});
+
+    // 30 degrees, well inside the default 50 degree slope-limit
+    create_ramp(object_store, scene, 30.f);
+    auto player = create_character(object_store, scene, {0.f, .1f, 0.f});
+    auto &input = *player->get_component<vierkant::physics_component_t>().character;
+
+    constexpr float dt = 1.f / 60.f;
+    for(uint32_t i = 0; i < 120; ++i) { scene->update(dt); }
+    ASSERT_EQ(input.ground_state, vierkant::GroundState::OnGround);
+
+    // the ground-normal is read back and matches the ramp
+    EXPECT_NEAR(glm::degrees(std::acos(glm::dot(input.ground_normal, glm::vec3(0.f, 1.f, 0.f)))), 30.f, 1.f);
+
+    // the body has no friction, so only the gravity-compensation keeps it from sliding off
+    const glm::vec3 rest_position = player->transform->translation;
+    for(uint32_t i = 0; i < 120; ++i) { scene->update(dt); }
+    EXPECT_NEAR(glm::length(player->transform->translation - rest_position), 0.f, .02f);
+}
+
+TEST(PhysicsContext, character_cannot_climb_steep_slope)
+{
+    constexpr float dt = 1.f / 60.f;
+
+    // slide down a ramp the character declares unwalkable, with or without uphill input.
+    // the ramp is deliberately shallow - the tracker is strong enough to fight a 30 degree slope,
+    // so this exercises the slope-check rather than gravity. returns the distance slid.
+    auto slide = [](bool uphill_input) {
+        std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+        auto scene = vierkant::PhysicsScene::create(object_store);
+        scene->physics_context().set_gravity({0.f, -9.81f, 0.f});
+
+        create_ramp(object_store, scene, 30.f);
+        auto player = create_character(object_store, scene, {0.f, .1f, 0.f});
+        auto &phys_cmp = player->get_component<vierkant::physics_component_t>();
+        phys_cmp.character->max_slope_angle = glm::radians(20.f);
+        phys_cmp.mode = vierkant::physics_component_t::UPDATE;
+        auto &input = *phys_cmp.character;
+
+        for(uint32_t i = 0; i < 30; ++i) { scene->update(dt); }
+        EXPECT_EQ(input.ground_state, vierkant::GroundState::OnSteepGround);
+        const glm::vec3 start_position = player->transform->translation;
+
+        // -z is uphill
+        if(uphill_input) { input.move = {0.f, 1.f}; }
+        for(uint32_t i = 0; i < 120; ++i) { scene->update(dt); }
+
+        // gravity is in charge: the character keeps sliding downhill
+        EXPECT_LT(player->transform->translation.y, start_position.y);
+        EXPECT_GT(player->transform->translation.z, start_position.z);
+        return glm::length(player->transform->translation - start_position);
+    };
+
+    // ... and the tracker stays silent, so the input makes no difference at all
+    EXPECT_NEAR(slide(true), slide(false), .05f);
+}
+
+TEST(PhysicsContext, character_does_not_stick_to_walls)
+{
+    constexpr float dt = 1.f / 60.f;
+
+    // fall for a second, optionally right next to a wall the input pushes into.
+    // returns the distance fallen
+    auto fall = [](bool with_wall) {
+        std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+        auto scene = vierkant::PhysicsScene::create(object_store);
+        scene->physics_context().set_gravity({0.f, -9.81f, 0.f});
+
+        if(with_wall)
+        {
+            auto wall = object_store->create_object();
+            wall->transform = transform_t{.translation = {.8f, 0.f, 0.f}};
+            vierkant::physics_component_t cmp = {};
+            cmp.shape = collision::box_t{.half_extents = {.5f, 10.f, 10.f}};
+            cmp.mass = 0.f;
+            wall->add_component(cmp);
+            scene->add_object(wall);
+        }
+        auto player = create_character(object_store, scene, {0.f, 0.f, 0.f});
+        auto &input = *player->get_component<vierkant::physics_component_t>().character;
+
+        // full input towards +x, i.e. into the wall
+        input.move = {1.f, 0.f};
+        scene->update(dt);
+        const float start_height = player->transform->translation.y;
+        for(uint32_t i = 0; i < 60; ++i) { scene->update(dt); }
+        return start_height - player->transform->translation.y;
+    };
+
+    // pressed against a wall the character still falls freely - no friction to hang on
+    EXPECT_NEAR(fall(true), fall(false), .01f);
 }
 
 TEST(PhysicsContext, simulation)

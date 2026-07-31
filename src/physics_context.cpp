@@ -623,8 +623,12 @@ public:
         settings->mShape = shape;
         settings->mLayer = Layers::MOVING;
         settings->mMass = mass;
-        settings->mFriction = cmp.friction;
         settings->mMaxSlopeAngle = cmp.character->max_slope_angle;
+
+        // no contact-friction: it would stick the character to walls mid-air and fight the
+        // velocity-tracker on the ground. all resistance comes from the tracker instead,
+        // cmp.friction is deliberately ignored here.
+        settings->mFriction = 0.f;
 
         // only contacts on the shape's lower hemisphere may support the character.
         // the default plane accepts any contact, which would let a character 'stand' by touching a ceiling.
@@ -1088,6 +1092,8 @@ void PhysicsContext::read_character_state(uint32_t objectId, vierkant::character
 {
     auto it = m_engine->jolt.characters.find(objectId);
     if(it == m_engine->jolt.characters.end()) { return; }
+
+    character.ground_normal = type_cast(it->second->GetGroundNormal());
 
     switch(it->second->GetGroundState())
     {
@@ -1695,12 +1701,27 @@ void PhysicsScene::update(double time_delta)
         float t_accel = on_ground ? character.t_accel_ground : character.t_accel_air;
         float max_accel = on_ground ? character.max_accel_ground : character.max_accel_air;
 
-        // critically-damped velocity-tracker. vertical velocity is excluded, otherwise we'd fight gravity
         glm::vec3 velocity = m_context.body_interface().velocity(obj->id());
-        glm::vec3 accel = (v_des - glm::vec3(velocity.x, 0.f, velocity.z)) / t_accel;
-        float accel_length = glm::length(accel);
-        if(accel_length > max_accel) { accel *= max_accel / accel_length; }
-        m_context.body_interface().add_force(obj->id(), phys_cmp->mass * accel);
+
+        // on ground too steep to walk on the tracker is silent, so gravity slides the character
+        // back down. driving it there would let it walk up walls.
+        if(character.ground_state != GroundState::OnSteepGround)
+        {
+            // critically-damped velocity-tracker. vertical velocity is excluded, otherwise we'd fight gravity
+            glm::vec3 accel = (v_des - glm::vec3(velocity.x, 0.f, velocity.z)) / t_accel;
+            float accel_length = glm::length(accel);
+            if(accel_length > max_accel) { accel *= max_accel / accel_length; }
+
+            // the body has no friction, so nothing holds the character on a walkable slope.
+            // cancelling the gravity-component along the ground-plane does, and is a no-op on the flat.
+            // deliberately outside the clamp above: this is compensation, not locomotion.
+            if(on_ground)
+            {
+                const glm::vec3 &n = character.ground_normal;
+                accel -= m_context.gravity() - n * glm::dot(m_context.gravity(), n);
+            }
+            m_context.body_interface().add_force(obj->id(), phys_cmp->mass * accel);
+        }
 
         // jump is an edge and is consumed here, whether or not it can be acted on
         bool jump = character.jump;

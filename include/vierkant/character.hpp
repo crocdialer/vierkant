@@ -62,6 +62,9 @@ struct character_t
     //! simulation-result, refreshed after each step. not authored
     vierkant::GroundState ground_state = GroundState::InAir;
 
+    //! surface-normal of the ground below the character, up-vector while in the air. not authored
+    glm::vec3 ground_normal = {0.f, 1.f, 0.f};
+
     //! time since the character was last on the ground (s), driving the coyote-window. not authored
     float time_since_grounded = 0.f;
 };
