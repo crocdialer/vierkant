@@ -1744,7 +1744,7 @@ void PhysicsScene::update(double time_delta)
     }
 
     // advance simulation
-    m_context.step_simulation(static_cast<float>(time_delta), 2);
+    m_context.step_simulation(simulation_playback ? static_cast<float>(time_delta) : 0.f, 2);
 
     for(auto *obj: visitor.objects)
     {
@@ -1770,6 +1770,14 @@ void PhysicsScene::update(double time_delta)
 std::shared_ptr<PhysicsScene> PhysicsScene::create(const std::shared_ptr<vierkant::ObjectStore> &object_store,
                                                    const vierkant::AssetProviderPtr &asset_provider)
 { return std::shared_ptr<PhysicsScene>(new PhysicsScene(object_store, asset_provider)); }
+
+PhysicsScene::~PhysicsScene()
+{
+    // the job-system posts untracked tasks holding a raw JPH::Job*. members are destroyed in reverse
+    // declaration-order, i.e. the context and its job-system before the pool, so a queued task could
+    // still be picked up afterwards and execute a freed job. drain the pool while both are alive.
+    m_thread_pool.join_all();
+}
 
 PhysicsScene::PhysicsScene(const std::shared_ptr<vierkant::ObjectStore> &object_store,
                            const vierkant::AssetProviderPtr &asset_provider)

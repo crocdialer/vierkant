@@ -143,7 +143,8 @@ void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_l
 void Scene::update(double time_delta)
 {
     LambdaVisitor visitor;
-    visitor.traverse(*m_root, [time_delta, frame = m_current_frame](Object3D &obj) -> bool {
+    visitor.traverse(*m_root, [time_delta, animation_delta = time_delta * animation_speed,
+                               frame = m_current_frame](Object3D &obj) -> bool {
         if(obj.enabled)
         {
             auto animation_cmp = obj.get_component_ptr<animation_component_t>();
@@ -161,7 +162,7 @@ void Scene::update(double time_delta)
             }
             if(animation_cmp && mesh_cmp)
             {
-                vierkant::update_animation(mesh_cmp->mesh->node_animations[animation_cmp->index], time_delta,
+                vierkant::update_animation(mesh_cmp->mesh->node_animations[animation_cmp->index], animation_delta,
                                            *animation_cmp);
             }
             if(auto *update_cmp = obj.get_component_ptr<update_component_t>())

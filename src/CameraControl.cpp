@@ -410,7 +410,7 @@ vierkant::joystick_delegate_t PlayerControl::joystick_delegate()
     return ret;
 }
 
-vierkant::transform_t PlayerControl::transform() const { return {position, rotation()}; }
+vierkant::transform_t PlayerControl::transform() const { return {.rotation = rotation()}; }
 
 void PlayerControl::orbit(const glm::vec2 &diff)
 {

@@ -444,7 +444,7 @@ private:
 class PhysicsScene : public vierkant::Scene
 {
 public:
-    ~PhysicsScene() override = default;
+    ~PhysicsScene() override;
 
     static std::shared_ptr<PhysicsScene> create(const std::shared_ptr<vierkant::ObjectStore> &object_store = {},
                                                 const vierkant::AssetProviderPtr &asset_provider = {});
@@ -456,6 +456,9 @@ public:
     void clear() override;
 
     void update(double time_delta) override;
+
+    //! pause/resume the simulation. independent of Scene::animation_speed
+    bool simulation_playback = true;
 
     vierkant::PhysicsContext &physics_context() { return m_context; };
     [[nodiscard]] const vierkant::PhysicsContext &physics_context() const { return m_context; };

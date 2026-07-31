@@ -121,14 +121,11 @@ private:
 
 DEFINE_CLASS_PTR(PlayerControl)
 
-//! gathers input for a vierkant::character_t and provides an eye-camera looking along it.
+//! gathers input for a vierkant::character_t and provides the matching eye-orientation.
 //! a pure producer: it never touches physics, so an ai-driven producer can fill the same component.
 class PlayerControl : public CameraControl
 {
 public:
-    //! eye-position, expected to be updated from the controlled object each frame
-    glm::vec3 position = {0.f, 0.f, 0.f};
-
     // (pitch, yaw)
     glm::vec2 spherical_coords = {0.f, 0.f};
 
@@ -143,6 +140,8 @@ public:
 
     vierkant::joystick_delegate_t joystick_delegate() override;
 
+    //! eye-orientation only, with no translation: the eye-position comes from the controlled object,
+    //! which the camera is expected to be parented to
     [[nodiscard]] vierkant::transform_t transform() const override;
 
     static PlayerControlUPtr create() { return std::make_unique<PlayerControl>(); }
