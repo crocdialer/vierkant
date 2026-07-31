@@ -444,7 +444,7 @@ private:
 class PhysicsScene : public vierkant::Scene
 {
 public:
-    ~PhysicsScene() override;
+    ~PhysicsScene() override = default;
 
     static std::shared_ptr<PhysicsScene> create(const std::shared_ptr<vierkant::ObjectStore> &object_store = {},
                                                 const vierkant::AssetProviderPtr &asset_provider = {});

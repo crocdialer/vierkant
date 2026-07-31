@@ -272,7 +272,16 @@ public:
         : JobSystemWithBarrier(max_barriers), m_threadpool(pool), m_jobs(max_jobs, max_jobs),
           m_max_concurrency(pool.num_threads() - 1)
     {}
-    ~JoltJobSystem() override = default;
+    ~JoltJobSystem() override
+    {
+        // queued tasks hold a raw Job*, which they release back into m_jobs. none may outlive us.
+        for(uint32_t num_queued = m_num_queued; num_queued; num_queued = m_num_queued)
+        {
+            // a pool without worker-threads only runs its tasks when polled
+            if(m_threadpool.num_threads()) { m_num_queued.wait(num_queued); }
+            else { m_threadpool.poll(); }
+        }
+    }
 
     [[nodiscard]] int GetMaxConcurrency() const override { return (int) m_max_concurrency; }
     JPH::JobHandle CreateJob(const char *name, JPH::ColorArg color, const JobFunction &inJobFunction,
@@ -313,15 +322,20 @@ private:
     inline void queue(Job *inJob)
     {
         inJob->AddRef();
-        m_threadpool.post_no_track([inJob] {
+        m_num_queued++;
+        m_threadpool.post_no_track([this, inJob] {
             inJob->Execute();
             inJob->Release();
+            if(!--m_num_queued) { m_num_queued.notify_all(); }
         });
     }
 
     crocore::ThreadPool &m_threadpool;
     crocore::fixed_size_free_list<Job> m_jobs;
     std::atomic<size_t> m_max_concurrency;
+
+    //! number of tasks posted to the threadpool that have not run yet, see the destructor
+    std::atomic<uint32_t> m_num_queued = 0;
 };
 
 // Layer that objects can be in, determines which other objects it can collide with
@@ -1768,12 +1782,6 @@ void PhysicsScene::update(double time_delta)
 std::shared_ptr<PhysicsScene> PhysicsScene::create(const std::shared_ptr<vierkant::ObjectStore> &object_store,
                                                    const vierkant::AssetProviderPtr &asset_provider)
 { return std::shared_ptr<PhysicsScene>(new PhysicsScene(object_store, asset_provider)); }
-
-PhysicsScene::~PhysicsScene()
-{
-    // the job-system posts untracked tasks holding a raw JPH::Job* -> sync here
-    m_thread_pool.join_all();
-}
 
 PhysicsScene::PhysicsScene(const std::shared_ptr<vierkant::ObjectStore> &object_store,
                            const vierkant::AssetProviderPtr &asset_provider)
