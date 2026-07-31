@@ -295,4 +295,128 @@ void FlyCamera::orbit(const glm::vec2 &diff)
     spherical_coords.y = std::fmod(spherical_coords.y + glm::two_pi<float>(), glm::two_pi<float>());
 }
 
+void PlayerControl::update(double time_delta)
+{
+    m_move = {};
+    if(!enabled) { return; }
+
+    for(const auto &[key, state]: m_keys)
+    {
+        if(!state) { continue; }
+
+        switch(key)
+        {
+            case vierkant::Key::_D:
+            case vierkant::Key::_RIGHT: m_move.x += 1.f; break;
+
+            case vierkant::Key::_A:
+            case vierkant::Key::_LEFT: m_move.x -= 1.f; break;
+
+            case vierkant::Key::_W:
+            case vierkant::Key::_UP: m_move.y += 1.f; break;
+
+            case vierkant::Key::_S:
+            case vierkant::Key::_DOWN: m_move.y -= 1.f; break;
+            default: break;
+        }
+    }
+
+    // joystick-controls
+    auto joystick_states = std::move(m_last_joystick_states);
+
+    if(!joystick_states.empty())
+    {
+        const auto &state = joystick_states[0];
+        m_move.x += state.analog_left().x;
+        m_move.y -= state.analog_left().y;
+
+        auto it = state.input_events().find(Joystick::Input::BUTTON_A);
+        if(it != state.input_events().end() && it->second == Joystick::Event::BUTTON_PRESS) { m_jump = true; }
+
+        if(glm::length2(state.analog_right()) > 0.01f)
+        {
+            constexpr float controller_sensitivity = 250.f;
+            orbit(-state.analog_right() * static_cast<float>(time_delta) * controller_sensitivity *
+                  joystick_sensitivity);
+        }
+    }
+}
+
+void PlayerControl::apply(vierkant::character_t &character)
+{
+    character.move = m_move;
+    character.pitch = spherical_coords.x;
+    character.yaw = spherical_coords.y;
+
+    // a press is latched until it is handed over, otherwise it can fall between two frames
+    character.jump = m_jump;
+    m_jump = false;
+}
+
+vierkant::mouse_delegate_t PlayerControl::mouse_delegate()
+{
+    vierkant::mouse_delegate_t ret = {};
+    ret.mouse_press = [this](const MouseEvent &e) {
+        if(enabled) { m_last_cursor_pos = e.position(); }
+    };
+    ret.mouse_move = [this](const MouseEvent &e) {
+        if(!enabled) { return; }
+        orbit(glm::vec2(m_last_cursor_pos - e.position()) * mouse_sensitivity);
+        m_last_cursor_pos = e.position();
+    };
+    return ret;
+}
+
+vierkant::key_delegate_t PlayerControl::key_delegate()
+{
+    vierkant::key_delegate_t ret = {};
+    ret.key_press = [this](const vierkant::KeyEvent &e) {
+        switch(e.code())
+        {
+            case vierkant::Key::_SPACEBAR: m_jump = true; break;
+
+            case vierkant::Key::_A:
+            case vierkant::Key::_S:
+            case vierkant::Key::_D:
+            case vierkant::Key::_W:
+            case vierkant::Key::_RIGHT:
+            case vierkant::Key::_LEFT:
+            case vierkant::Key::_UP:
+            case vierkant::Key::_DOWN: m_keys[e.code()] = true; break;
+            default: break;
+        }
+    };
+    ret.key_release = [this](const vierkant::KeyEvent &e) {
+        switch(e.code())
+        {
+            case vierkant::Key::_A:
+            case vierkant::Key::_S:
+            case vierkant::Key::_D:
+            case vierkant::Key::_W:
+            case vierkant::Key::_RIGHT:
+            case vierkant::Key::_LEFT:
+            case vierkant::Key::_UP:
+            case vierkant::Key::_DOWN: m_keys[e.code()] = false; break;
+            default: break;
+        }
+    };
+    return ret;
+}
+
+vierkant::joystick_delegate_t PlayerControl::joystick_delegate()
+{
+    joystick_delegate_t ret = {};
+    ret.joystick_cb = [this](auto states) { m_last_joystick_states = std::move(states); };
+    return ret;
+}
+
+vierkant::transform_t PlayerControl::transform() const { return {.rotation = rotation()}; }
+
+void PlayerControl::orbit(const glm::vec2 &diff)
+{
+    spherical_coords += glm::vec2(glm::radians(diff.y), glm::radians(diff.x));
+    spherical_coords.x = std::clamp(spherical_coords.x, -glm::half_pi<float>(), glm::half_pi<float>());
+    spherical_coords.y = std::fmod(spherical_coords.y + glm::two_pi<float>(), glm::two_pi<float>());
+}
+
 }// namespace vierkant

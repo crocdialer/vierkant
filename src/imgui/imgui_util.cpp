@@ -1715,6 +1715,37 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
             change |= ImGui::InputFloat("angular_damping", &phys_cmp.angular_damping);
             change |= ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
             change |= ImGui::Checkbox("sensor", &phys_cmp.sensor);
+            bool is_character = phys_cmp.character.has_value();
+            if(ImGui::Checkbox("character", &is_character))
+            {
+                change = true;
+                if(is_character) { phys_cmp.character = vierkant::character_t{}; }
+                else { phys_cmp.character = {}; }
+            }
+
+            if(phys_cmp.character)
+            {
+                auto &character = *phys_cmp.character;
+                ImGui::SameLine();
+                if(ImGui::TreeNodeEx(&character, ImGuiTreeNodeFlags_DefaultOpen, "max_speed: %.2f",
+                                     character.max_speed))
+                {
+                    // consumed when creating the body, requires a rebuild
+                    change |= ImGui::SliderAngle("max_slope_angle", &character.max_slope_angle, 0.f, 89.f);
+
+                    // locomotion-tuning is consumed each frame. deliberately not folded into 'change':
+                    // a rebuild would drop velocity and ground-state while dragging a slider
+                    ImGui::InputFloat("max_speed", &character.max_speed);
+                    ImGui::InputFloat("t_accel_ground", &character.t_accel_ground);
+                    ImGui::InputFloat("t_accel_air", &character.t_accel_air);
+                    ImGui::InputFloat("max_accel_ground", &character.max_accel_ground);
+                    ImGui::InputFloat("max_accel_air", &character.max_accel_air);
+                    ImGui::InputFloat("jump_height", &character.jump_height);
+                    ImGui::InputFloat("coyote_time", &character.coyote_time);
+                    ImGui::InputFloat("eye_height", &character.eye_height);
+                    ImGui::TreePop();
+                }
+            }
             if(change) { phys_cmp.mode = physics_component_t::UPDATE; };
 
             auto *constraint_cmp = object->get_component_ptr<vierkant::constraint_component_t>();

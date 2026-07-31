@@ -14,6 +14,7 @@
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Character/Character.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/CompoundShape.h>
@@ -271,7 +272,16 @@ public:
         : JobSystemWithBarrier(max_barriers), m_threadpool(pool), m_jobs(max_jobs, max_jobs),
           m_max_concurrency(pool.num_threads() - 1)
     {}
-    ~JoltJobSystem() override = default;
+    ~JoltJobSystem() override
+    {
+        // queued tasks hold a raw Job*, which they release back into m_jobs. none may outlive us.
+        for(uint32_t num_queued = m_num_queued; num_queued; num_queued = m_num_queued)
+        {
+            // a pool without worker-threads only runs its tasks when polled
+            if(m_threadpool.num_threads()) { m_num_queued.wait(num_queued); }
+            else { m_threadpool.poll(); }
+        }
+    }
 
     [[nodiscard]] int GetMaxConcurrency() const override { return (int) m_max_concurrency; }
     JPH::JobHandle CreateJob(const char *name, JPH::ColorArg color, const JobFunction &inJobFunction,
@@ -312,15 +322,20 @@ private:
     inline void queue(Job *inJob)
     {
         inJob->AddRef();
-        m_threadpool.post_no_track([inJob] {
+        m_num_queued++;
+        m_threadpool.post_no_track([this, inJob] {
             inJob->Execute();
             inJob->Release();
+            if(!--m_num_queued) { m_num_queued.notify_all(); }
         });
     }
 
     crocore::ThreadPool &m_threadpool;
     crocore::fixed_size_free_list<Job> m_jobs;
     std::atomic<size_t> m_max_concurrency;
+
+    //! number of tasks posted to the threadpool that have not run yet, see the destructor
+    std::atomic<uint32_t> m_num_queued = 0;
 };
 
 // Layer that objects can be in, determines which other objects it can collide with
@@ -446,12 +461,22 @@ public:
         }
     }
 
+    void add_force(uint32_t objectId, const glm::vec3 &force) override
+    {
+        if(auto body_id = get_body_id(objectId)) { m_jolt_body_interface.AddForce(*body_id, type_cast(force)); }
+    }
+
     void add_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) override
     {
         if(auto body_id = get_body_id(objectId))
         {
             m_jolt_body_interface.AddForce(*body_id, type_cast(force), type_cast(offset));
         }
+    }
+
+    void add_impulse(uint32_t objectId, const glm::vec3 &impulse) override
+    {
+        if(auto body_id = get_body_id(objectId)) { m_jolt_body_interface.AddImpulse(*body_id, type_cast(impulse)); }
     }
 
     void add_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) override
@@ -521,6 +546,9 @@ public:
     /// Maximum amount of barriers to allow
     constexpr static uint32_t max_physics_barriers = 8;
 
+    /// Max distance between the floor and a character to still consider it standing on the floor
+    constexpr static float character_max_separation = 0.05f;
+
     explicit JoltContext(crocore::ThreadPool *const thread_pool = nullptr) : thread_pool(thread_pool)
     {
         // Register allocation hook. In this example we'll just let Jolt use malloc / free but you can override these if you want (see Memory.h).
@@ -577,6 +605,11 @@ public:
 
     ~JoltContext() override
     {
+        // ~Character destroys its body without removing it first, and needs the physics-system alive.
+        // neither is given by member-destruction-order, 'characters' is declared before 'physics_system'.
+        for(const auto &[object_id, character]: characters) { character->RemoveFromPhysicsSystem(); }
+        characters.clear();
+
         // stupid singleton-hack
         JPH::DebugRenderer::sInstance = debug_render.get();
         debug_render.reset();
@@ -589,7 +622,46 @@ public:
     // If you take larger steps than 1 / 60th of a second you need to do multiple collision steps
     // in order to keep the simulation stable. Do 1 collision step per 1 / 60th of a second (round up).
     inline void update(float delta, int num_steps = 1)
-    { physics_system.Update(delta, num_steps, m_temp_allocator.get(), job_system.get()); }
+    {
+        physics_system.Update(delta, num_steps, m_temp_allocator.get(), job_system.get());
+
+        // refresh ground-state, needs to happen after every PhysicsSystem::Update
+        for(const auto &[object_id, character]: characters) { character->PostSimulation(character_max_separation); }
+    }
+
+    //! create a JPH::Character, owning its own dynamic body with locked rotation
+    JPH::BodyID create_character(uint32_t objectId, const vierkant::transform_t &transform,
+                                 const vierkant::physics_component_t &cmp, float mass, JPH::Shape *shape)
+    {
+        JPH::Ref<JPH::CharacterSettings> settings = new JPH::CharacterSettings;
+        settings->mShape = shape;
+        settings->mLayer = Layers::MOVING;
+        settings->mMass = mass;
+        settings->mMaxSlopeAngle = cmp.character->max_slope_angle;
+
+        // no contact-friction: it would stick the character to walls mid-air and fight the
+        // velocity-tracker on the ground. all resistance comes from the tracker instead,
+        // cmp.friction is deliberately ignored here.
+        settings->mFriction = 0.f;
+
+        // only contacts on the shape's lower hemisphere may support the character.
+        // the default plane accepts any contact, which would let a character 'stand' by touching a ceiling.
+        // GetLocalBounds() is relative to the center-of-mass, the supporting-volume relative to the shape's origin.
+        auto bounds = shape->GetLocalBounds();
+        float bottom = bounds.mMin.GetY() + shape->GetCenterOfMass().GetY();
+        float radius = .25f * (bounds.GetSize().GetX() + bounds.GetSize().GetZ());
+        settings->mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -(bottom + radius));
+
+        auto character = new JPH::Character(settings, type_cast(transform.translation),
+                                            type_cast(transform.rotation), objectId, &physics_system);
+        character->AddToPhysicsSystem(JPH::EActivation::Activate);
+        characters[objectId] = character;
+
+        // match the motion-quality used for all other bodies
+        auto body_id = character->GetBodyID();
+        physics_system.GetBodyInterface().SetMotionQuality(body_id, JPH::EMotionQuality::LinearCast);
+        return body_id;
+    }
 
     void OnBodyActivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override {}
 
@@ -680,6 +752,9 @@ public:
     //! lookup of body-ids
     std::unordered_map<uint32_t, body_id_struct_t> body_id_map;
     std::unordered_map<vierkant::BodyId, uint32_t> body_id_rev_map;
+
+    //! character storage. their bodies are additionally tracked in body_id_map.
+    std::unordered_map<uint32_t, JPH::Ref<JPH::Character>> characters;
 
     //! lookup of callback-structs
     std::unordered_map<uint32_t, vierkant::PhysicsContext::callbacks_t> callback_map;
@@ -967,7 +1042,10 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
 
             {
                 std::unique_lock lock(m_engine->jolt.mutex);
-                JPH::BodyID jolt_bodyId = body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
+                JPH::BodyID jolt_bodyId =
+                        cmp.character ? m_engine->jolt.create_character(objectId, transform, cmp, mass,
+                                                                        shape_result.Get())
+                                      : body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
                 body_interface.SetUserData(jolt_bodyId, objectId);
                 m_engine->jolt.body_id_map[objectId] = {cmp.body_id, jolt_bodyId};
                 m_engine->jolt.body_id_rev_map[cmp.body_id] = objectId;
@@ -990,8 +1068,19 @@ void PhysicsContext::remove_object(uint32_t objectId, const vierkant::physics_co
     {
         spdlog::trace("PhysicsContext::remove_object: obj: {} / body {}", objectId, it->second.jolt_body_id.GetIndex());
         auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
-        body_interface.RemoveBody(it->second.jolt_body_id);
-        body_interface.DestroyBody(it->second.jolt_body_id);
+
+        // characters own their body, its destruction is handled by JPH::Character's destructor
+        if(auto character_it = m_engine->jolt.characters.find(objectId);
+           character_it != m_engine->jolt.characters.end())
+        {
+            character_it->second->RemoveFromPhysicsSystem();
+            m_engine->jolt.characters.erase(character_it);
+        }
+        else
+        {
+            body_interface.RemoveBody(it->second.jolt_body_id);
+            body_interface.DestroyBody(it->second.jolt_body_id);
+        }
 
         m_engine->jolt.body_id_rev_map.erase(it->second.body_id);
         m_engine->jolt.body_id_map.erase(it);
@@ -1012,6 +1101,24 @@ void PhysicsContext::remove_object(uint32_t objectId, const vierkant::physics_co
 }
 
 bool PhysicsContext::contains(uint32_t objectId) const { return m_engine->jolt.body_id_map.contains(objectId); }
+
+void PhysicsContext::read_character_state(uint32_t objectId, vierkant::character_t &character) const
+{
+    const auto it = m_engine->jolt.characters.find(objectId);
+    if(it == m_engine->jolt.characters.end()) { return; }
+
+    character.ground_normal = type_cast(it->second->GetGroundNormal());
+
+    switch(it->second->GetGroundState())
+    {
+        case JPH::CharacterBase::EGroundState::OnGround: character.ground_state = GroundState::OnGround; break;
+        case JPH::CharacterBase::EGroundState::OnSteepGround:
+            character.ground_state = GroundState::OnSteepGround;
+            break;
+        case JPH::CharacterBase::EGroundState::NotSupported: character.ground_state = GroundState::NotSupported; break;
+        case JPH::CharacterBase::EGroundState::InAir: character.ground_state = GroundState::InAir; break;
+    }
+}
 
 vierkant::PhysicsContext::BodyInterface &PhysicsContext::body_interface() { return *m_engine->jolt.body_system; }
 
@@ -1587,13 +1694,77 @@ void PhysicsScene::update(double time_delta)
         }
     }
 
+    // character-input -> forces. must run before the step, jolt clears accumulated forces after each step
+    for(auto *obj: visitor.objects)
+    {
+        auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>();
+        if(!phys_cmp || !phys_cmp->character || phys_cmp->mode != physics_component_t::ACTIVE) { continue; }
+        auto &character = *phys_cmp->character;
+
+        // yaw-only basis, engine is -z forward. pitch must not tilt the movement
+        const glm::vec3 forward(-std::sin(character.yaw), 0.f, -std::cos(character.yaw));
+        const glm::vec3 right(std::cos(character.yaw), 0.f, -std::sin(character.yaw));
+
+        // clamp, not normalize: preserves analog fine-control
+        glm::vec2 move = character.move;
+        if(float move_length = glm::length(move); move_length > 1.f) { move /= move_length; }
+        glm::vec3 v_des = (right * move.x + forward * move.y) * character.max_speed;
+
+        bool on_ground = character.ground_state == GroundState::OnGround;
+        float t_accel = on_ground ? character.t_accel_ground : character.t_accel_air;
+        float max_accel = on_ground ? character.max_accel_ground : character.max_accel_air;
+
+        glm::vec3 velocity = m_context.body_interface().velocity(obj->id());
+
+        // on ground too steep to walk on the tracker is silent, so gravity slides the character
+        // back down. driving it there would let it walk up walls.
+        if(character.ground_state != GroundState::OnSteepGround)
+        {
+            // critically-damped velocity-tracker. vertical velocity is excluded, otherwise we'd fight gravity
+            glm::vec3 accel = (v_des - glm::vec3(velocity.x, 0.f, velocity.z)) / t_accel;
+            if(float accel_length = glm::length(accel); accel_length > max_accel) { accel *= max_accel / accel_length; }
+
+            // the body has no friction, so nothing holds the character on a walkable slope.
+            // cancelling the gravity-component along the ground-plane does, and is a no-op on the flat.
+            // deliberately outside the clamp above: this is compensation, not locomotion.
+            if(on_ground)
+            {
+                const glm::vec3 &n = character.ground_normal;
+                accel -= m_context.gravity() - n * glm::dot(m_context.gravity(), n);
+            }
+            m_context.body_interface().add_force(obj->id(), phys_cmp->mass * accel);
+        }
+
+        // jump is an edge and is consumed here, whether or not it can be acted on
+        bool jump = character.jump;
+        character.jump = false;
+        character.time_since_grounded =
+                on_ground ? 0.f : character.time_since_grounded + static_cast<float>(time_delta);
+
+        if(float gravity = -m_context.gravity().y;
+           jump && gravity > 0.f && character.time_since_grounded <= character.coyote_time)
+        {
+            // a descending platform must not eat the jump
+            if(velocity.y < 0.f) { m_context.body_interface().set_velocity(obj->id(), {velocity.x, 0.f, velocity.z}); }
+
+            float v_jump = std::sqrt(2.f * gravity * character.jump_height);
+            m_context.body_interface().add_impulse(obj->id(), phys_cmp->mass * v_jump * glm::vec3(0.f, 1.f, 0.f));
+
+            // close the coyote-window, the ground-state lags a step behind and would re-open it
+            character.time_since_grounded = character.coyote_time + 1.f;
+        }
+    }
+
     // advance simulation
-    m_context.step_simulation(static_cast<float>(time_delta), 2);
+    m_context.step_simulation(simulation_playback ? static_cast<float>(time_delta) : 0.f, 2);
 
     for(auto *obj: visitor.objects)
     {
         if(auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>())
         {
+            // simulation -> character
+            if(phys_cmp->character) { m_context.read_character_state(obj->id(), *phys_cmp->character); }
+
             // manually update non-moving/kinematic objects
             if(!is_movable(*phys_cmp))
             {

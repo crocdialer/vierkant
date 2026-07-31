@@ -7,6 +7,7 @@
 #include <variant>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Scene.hpp>
+#include <vierkant/character.hpp>
 #include <vierkant/intersection.hpp>
 #include <vierkant/object_component.hpp>
 
@@ -327,6 +328,9 @@ struct physics_component_t
     float angular_damping = 0.05f;
     bool kinematic = false;
     bool sensor = false;
+
+    //! character: a dynamic body with locked rotation, ground-detection and locomotion.
+    std::optional<vierkant::character_t> character = {};
 };
 
 //! constraints can be attached to arbitrary objects and reference via vierkant::BodyId
@@ -367,7 +371,16 @@ public:
         virtual ~BodyInterface() = default;
         virtual bool get_transform(uint32_t objectId, vierkant::transform_t &t) const = 0;
         virtual void set_transform(uint32_t objectId, const vierkant::transform_t &t) const = 0;
+        //! apply a force at the body's center-of-mass, generating no torque
+        virtual void add_force(uint32_t objectId, const glm::vec3 &force) = 0;
+
+        //! 'offset' is a world-space position, applying a force there does generate torque
         virtual void add_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) = 0;
+
+        //! apply an impulse at the body's center-of-mass, generating no torque
+        virtual void add_impulse(uint32_t objectId, const glm::vec3 &impulse) = 0;
+
+        //! 'offset' is a world-space position, applying an impulse there does generate torque
         virtual void add_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) = 0;
         [[nodiscard]] virtual glm::vec3 velocity(uint32_t objectId) const = 0;
         virtual void set_velocity(uint32_t objectId, const glm::vec3 &velocity) = 0;
@@ -395,6 +408,9 @@ public:
                     const vierkant::physics_component_t &cmp);
     void remove_object(uint32_t objectId, const vierkant::physics_component_t &cmp = {});
     [[nodiscard]] bool contains(uint32_t objectId) const;
+
+    //! read simulation-results (ground-state) back into a character. no-op if the object is not a character
+    void read_character_state(uint32_t objectId, vierkant::character_t &character) const;
 
     bool add_constraints(uint32_t objectId, const vierkant::constraint_component_t &constraint_cmp);
     void remove_constraints(uint32_t objectId);
@@ -440,6 +456,9 @@ public:
     void clear() override;
 
     void update(double time_delta) override;
+
+    //! pause/resume the simulation. independent of Scene::animation_speed
+    bool simulation_playback = true;
 
     vierkant::PhysicsContext &physics_context() { return m_context; };
     [[nodiscard]] const vierkant::PhysicsContext &physics_context() const { return m_context; };

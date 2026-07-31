@@ -6,6 +6,7 @@
 
 #include <crocore/define_class_ptr.hpp>
 #include <vierkant/Input.hpp>
+#include <vierkant/character.hpp>
 #include <vierkant/transform.hpp>
 
 namespace vierkant
@@ -111,6 +112,47 @@ private:
     void orbit(const glm::vec2 &diff);
 
     [[nodiscard]] inline glm::quat rotation() const { return {glm::vec3(spherical_coords, 0.f)}; }
+
+    std::unordered_map<int, bool> m_keys;
+
+    std::vector<Joystick> m_last_joystick_states;
+    glm::ivec2 m_last_cursor_pos{};
+};
+
+DEFINE_CLASS_PTR(PlayerControl)
+
+//! gathers input for a vierkant::character_t and provides the matching eye-orientation.
+class PlayerControl : public CameraControl
+{
+public:
+    // (pitch, yaw)
+    glm::vec2 spherical_coords = {0.f, 0.f};
+
+    void update(double time_delta) override;
+
+    //! copy the gathered input-state into a character. consumes a pending jump-press
+    void apply(vierkant::character_t &character);
+
+    vierkant::mouse_delegate_t mouse_delegate() override;
+
+    vierkant::key_delegate_t key_delegate() override;
+
+    vierkant::joystick_delegate_t joystick_delegate() override;
+
+    //! eye-orientation only, with no translation: the eye-position comes from the controlled object,
+    //! which the camera is expected to be parented to
+    [[nodiscard]] vierkant::transform_t transform() const override;
+
+    static PlayerControlUPtr create() { return std::make_unique<PlayerControl>(); }
+
+private:
+    void orbit(const glm::vec2 &diff);
+
+    [[nodiscard]] inline glm::quat rotation() const { return {glm::vec3(spherical_coords, 0.f)}; }
+
+    //! gathered per-frame input, see character_t
+    glm::vec2 m_move = {};
+    bool m_jump = false;
 
     std::unordered_map<int, bool> m_keys;
 

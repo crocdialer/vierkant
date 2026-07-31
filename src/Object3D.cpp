@@ -128,6 +128,11 @@ Object3D::Object3D(entt::registry *registry, std::string name_) : name(std::move
 
 Object3D::~Object3D() noexcept
 {
+    for(const auto &child: children)
+    {
+        if(child) { child->m_parent = nullptr; }
+    }
+
     if(m_registry) { m_registry->destroy(m_entity); }
 }
 
