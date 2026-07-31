@@ -220,6 +220,21 @@ public:
     void set_cursor_position(const glm::vec2 &pos);
 
     /**
+     * @brief   Captured hides the cursor and unbounds its movement, as required for mouse-look.
+     *          Hidden only hides it, so it still travels and can leave the window.
+     */
+    enum class CursorMode
+    {
+        Normal = 0,
+        Hidden,
+        Captured
+    };
+
+    [[nodiscard]] CursorMode cursor_mode() const;
+
+    void set_cursor_mode(CursorMode mode);
+
+    /**
      * @return  true if the cursor is currently visible
      */
     bool cursor_visible() const;

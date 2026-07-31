@@ -313,14 +313,37 @@ void Window::set_cursor_position(const glm::vec2 &pos) { glfwSetCursorPos(m_hand
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Window::cursor_visible() const { return glfwGetInputMode(m_handle, GLFW_CURSOR) != GLFW_CURSOR_HIDDEN; }
+Window::CursorMode Window::cursor_mode() const
+{
+    switch(glfwGetInputMode(m_handle, GLFW_CURSOR))
+    {
+        case GLFW_CURSOR_HIDDEN: return CursorMode::Hidden;
+        case GLFW_CURSOR_DISABLED: return CursorMode::Captured;
+        default: return CursorMode::Normal;
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::set_cursor_visible(bool b)
+void Window::set_cursor_mode(CursorMode mode)
 {
-    glfwSetInputMode(m_handle, GLFW_CURSOR, b ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN);
+    int glfw_mode = GLFW_CURSOR_NORMAL;
+    switch(mode)
+    {
+        case CursorMode::Hidden: glfw_mode = GLFW_CURSOR_HIDDEN; break;
+        case CursorMode::Captured: glfw_mode = GLFW_CURSOR_DISABLED; break;
+        case CursorMode::Normal: break;
+    }
+    glfwSetInputMode(m_handle, GLFW_CURSOR, glfw_mode);
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool Window::cursor_visible() const { return cursor_mode() == CursorMode::Normal; }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::set_cursor_visible(bool b) { set_cursor_mode(b ? CursorMode::Normal : CursorMode::Hidden); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
