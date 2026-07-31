@@ -7,6 +7,7 @@
 #include <variant>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Scene.hpp>
+#include <vierkant/character.hpp>
 #include <vierkant/intersection.hpp>
 #include <vierkant/object_component.hpp>
 
@@ -328,8 +329,8 @@ struct physics_component_t
     bool kinematic = false;
     bool sensor = false;
 
-    //! create the body as a JPH::Character, providing ground-detection. implies a dynamic body with locked rotation.
-    bool character = false;
+    //! presence selects the character back-end: a dynamic body with locked rotation, ground-detection and locomotion.
+    std::optional<vierkant::character_t> character = {};
 };
 
 //! constraints can be attached to arbitrary objects and reference via vierkant::BodyId
@@ -348,22 +349,6 @@ struct constraint_component_t
 class PhysicsContext
 {
 public:
-    //! ground-state of a character-body, refreshed after each simulation-step
-    enum class GroundState
-    {
-        //! on the ground and can move freely
-        OnGround = 0,
-
-        //! on a slope that is too steep to climb any further
-        OnSteepGround,
-
-        //! touching an object, but not supported by it
-        NotSupported,
-
-        //! not touching anything
-        InAir
-    };
-
     struct callbacks_t
     {
         using contact_cb_t = std::function<void(uint32_t, uint32_t)>;
@@ -419,8 +404,8 @@ public:
     void remove_object(uint32_t objectId, const vierkant::physics_component_t &cmp = {});
     [[nodiscard]] bool contains(uint32_t objectId) const;
 
-    //! ground-state of a character-object, empty if the object is not a character
-    [[nodiscard]] std::optional<GroundState> ground_state(uint32_t objectId) const;
+    //! read simulation-results (ground-state) back into a character. no-op if the object is not a character
+    void read_character_state(uint32_t objectId, vierkant::character_t &character) const;
 
     bool add_constraints(uint32_t objectId, const vierkant::constraint_component_t &constraint_cmp);
     void remove_constraints(uint32_t objectId);

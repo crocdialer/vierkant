@@ -6,7 +6,7 @@
 
 #include <crocore/define_class_ptr.hpp>
 #include <vierkant/Input.hpp>
-#include <vierkant/player_component.hpp>
+#include <vierkant/character.hpp>
 #include <vierkant/transform.hpp>
 
 namespace vierkant
@@ -121,7 +121,7 @@ private:
 
 DEFINE_CLASS_PTR(PlayerControl)
 
-//! gathers input for a vierkant::player_component_t and provides an eye-camera looking along it.
+//! gathers input for a vierkant::character_t and provides an eye-camera looking along it.
 //! a pure producer: it never touches physics, so an ai-driven producer can fill the same component.
 class PlayerControl : public CameraControl
 {
@@ -134,8 +134,8 @@ public:
 
     void update(double time_delta) override;
 
-    //! copy the gathered input-state into a player-component. consumes a pending jump-press
-    void apply(vierkant::player_component_t &player_cmp);
+    //! copy the gathered input-state into a character. consumes a pending jump-press
+    void apply(vierkant::character_t &character);
 
     vierkant::mouse_delegate_t mouse_delegate() override;
 
@@ -152,7 +152,7 @@ private:
 
     [[nodiscard]] inline glm::quat rotation() const { return {glm::vec3(spherical_coords, 0.f)}; }
 
-    //! gathered per-frame input, see player_component_t
+    //! gathered per-frame input, see character_t
     glm::vec2 m_move = {};
     bool m_jump = false;
 

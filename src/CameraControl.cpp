@@ -342,14 +342,14 @@ void PlayerControl::update(double time_delta)
     }
 }
 
-void PlayerControl::apply(vierkant::player_component_t &player_cmp)
+void PlayerControl::apply(vierkant::character_t &character)
 {
-    player_cmp.move = m_move;
-    player_cmp.pitch = spherical_coords.x;
-    player_cmp.yaw = spherical_coords.y;
+    character.move = m_move;
+    character.pitch = spherical_coords.x;
+    character.yaw = spherical_coords.y;
 
     // a press is latched until it is handed over, otherwise it can fall between two frames
-    player_cmp.jump = m_jump;
+    character.jump = m_jump;
     m_jump = false;
 }
 

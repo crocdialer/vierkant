@@ -2,7 +2,6 @@
 #include <vierkant/Object3D.hpp>
 #include <vierkant/Scene.hpp>
 #include <vierkant/physics_context.hpp>
-#include <vierkant/player_component.hpp>
 
 using namespace vierkant;
 //____________________________________________________________________________//
@@ -101,17 +100,22 @@ TEST(PhysicsContext, character)
     player_cmp.shape = collision::capsule_t{.radius = radius, .height = cylinder_height};
     player_cmp.shape_transform = transform_t{.translation = {0.f, .5f * cylinder_height + radius, 0.f}};
     player_cmp.mass = 80.f;
-    player_cmp.character = true;
+    player_cmp.character = vierkant::character_t{};
     player->add_component(player_cmp);
     scene->add_object(player);
+
+    // the character-state is part of the physics-component, refreshed after each step
+    const auto &character = *player->get_component<vierkant::physics_component_t>().character;
 
     // next update will pick up newly added objects
     scene->update(0.f);
     EXPECT_TRUE(context.contains(player->id()));
-    EXPECT_EQ(context.ground_state(player->id()), PhysicsContext::GroundState::InAir);
+    EXPECT_EQ(character.ground_state, vierkant::GroundState::InAir);
 
-    // only characters have a ground-state
-    EXPECT_FALSE(context.ground_state(ground->id()));
+    // reading the state of a non-character is a no-op, it does not clobber the passed-in state
+    vierkant::character_t not_a_character = {.ground_state = vierkant::GroundState::OnGround};
+    context.read_character_state(ground->id(), not_a_character);
+    EXPECT_EQ(not_a_character.ground_state, vierkant::GroundState::OnGround);
 
     for(uint32_t i = 0; i < 200; ++i) { scene->update(1.f / 60.f); }
 
@@ -120,14 +124,58 @@ TEST(PhysicsContext, character)
 
     // ... and came to rest with its feet on the ground
     EXPECT_NEAR(player->transform->translation.y, ground_height, .05f);
-    EXPECT_EQ(context.ground_state(player->id()), PhysicsContext::GroundState::OnGround);
+    EXPECT_EQ(character.ground_state, vierkant::GroundState::OnGround);
 
     // rotation is locked -> the capsule stayed upright
     EXPECT_NEAR(std::abs(player->transform->rotation.w), 1.f, 1.e-5f);
 
     context.remove_object(player->id(), player_cmp);
     EXPECT_FALSE(context.contains(player->id()));
-    EXPECT_FALSE(context.ground_state(player->id()));
+}
+
+TEST(PhysicsContext, character_slope)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+    context.set_gravity({0.f, -9.81f, 0.f});
+
+    // static ramp, tilted around x. its top-surface passes through the origin
+    constexpr float ramp_angle = 40.f;
+    auto ramp = object_store->create_object();
+    glm::quat ramp_rotation = glm::angleAxis(glm::radians(ramp_angle), glm::vec3(1.f, 0.f, 0.f));
+    ramp->transform = transform_t{.translation = ramp_rotation * glm::vec3(0.f, -.5f, 0.f), .rotation = ramp_rotation};
+    vierkant::physics_component_t ramp_cmp = {};
+    ramp_cmp.shape = collision::box_t{.half_extents = {50.f, .5f, 50.f}};
+    ramp_cmp.mass = 0.f;
+    ramp->add_component(ramp_cmp);
+    scene->add_object(ramp);
+
+    // 1.8m character standing on the ramp, slope-limit below the ramp's angle
+    constexpr float radius = .3f, cylinder_height = 1.2f;
+    auto player = object_store->create_object();
+    player->transform = transform_t{.translation = {0.f, .1f, 0.f}};
+    vierkant::physics_component_t player_cmp = {};
+    player_cmp.shape = collision::capsule_t{.radius = radius, .height = cylinder_height};
+    player_cmp.shape_transform = transform_t{.translation = {0.f, .5f * cylinder_height + radius, 0.f}};
+    player_cmp.mass = 80.f;
+    player_cmp.character = vierkant::character_t{.max_slope_angle = glm::radians(ramp_angle - 10.f)};
+    player->add_component(player_cmp);
+    scene->add_object(player);
+
+    constexpr float dt = 1.f / 60.f;
+    auto &phys_cmp = player->get_component<vierkant::physics_component_t>();
+
+    // max_slope_angle reaches the body: the ramp is too steep to stand on
+    for(uint32_t i = 0; i < 60; ++i) { scene->update(dt); }
+    EXPECT_EQ(phys_cmp.character->ground_state, vierkant::GroundState::OnSteepGround);
+
+    // raising the limit above the ramp's angle is a creation-time change -> rebuild the body
+    phys_cmp.character->max_slope_angle = glm::radians(ramp_angle + 10.f);
+    phys_cmp.mode = vierkant::physics_component_t::UPDATE;
+
+    for(uint32_t i = 0; i < 60; ++i) { scene->update(dt); }
+    EXPECT_EQ(phys_cmp.character->ground_state, vierkant::GroundState::OnGround);
 }
 
 TEST(PhysicsContext, player_move)
@@ -154,17 +202,16 @@ TEST(PhysicsContext, player_move)
     player_cmp.shape = collision::capsule_t{.radius = radius, .height = cylinder_height};
     player_cmp.shape_transform = transform_t{.translation = {0.f, .5f * cylinder_height + radius, 0.f}};
     player_cmp.mass = 80.f;
-    player_cmp.character = true;
+    player_cmp.character = vierkant::character_t{};
     player->add_component(player_cmp);
-    player->add_component(vierkant::player_component_t{});
     scene->add_object(player);
 
     constexpr float dt = 1.f / 60.f;
-    auto &input = player->get_component<vierkant::player_component_t>();
+    auto &input = *player->get_component<vierkant::physics_component_t>().character;
 
     // let the capsule settle on the ground
     for(uint32_t i = 0; i < 60; ++i) { scene->update(dt); }
-    ASSERT_EQ(context.ground_state(player->id()), PhysicsContext::GroundState::OnGround);
+    ASSERT_EQ(input.ground_state, vierkant::GroundState::OnGround);
     const glm::vec3 rest_position = player->transform->translation;
 
     // no input -> the tracker holds the position

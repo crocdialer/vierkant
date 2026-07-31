@@ -3,7 +3,6 @@
 #include <crocore/ThreadPool.hpp>
 #include <vierkant/Visitor.hpp>
 #include <vierkant/physics_context.hpp>
-#include <vierkant/player_component.hpp>
 
 // The Jolt headers don't include Jolt.h. Always include Jolt.h before including any other Jolt header.
 // You can use Jolt.h in your precompiled header to speed up compilation.
@@ -620,6 +619,7 @@ public:
         settings->mLayer = Layers::MOVING;
         settings->mMass = mass;
         settings->mFriction = cmp.friction;
+        settings->mMaxSlopeAngle = cmp.character->max_slope_angle;
 
         // only contacts on the shape's lower hemisphere may support the character.
         // the default plane accepts any contact, which would let a character 'stand' by touching a ceiling.
@@ -1079,19 +1079,20 @@ void PhysicsContext::remove_object(uint32_t objectId, const vierkant::physics_co
 
 bool PhysicsContext::contains(uint32_t objectId) const { return m_engine->jolt.body_id_map.contains(objectId); }
 
-std::optional<PhysicsContext::GroundState> PhysicsContext::ground_state(uint32_t objectId) const
+void PhysicsContext::read_character_state(uint32_t objectId, vierkant::character_t &character) const
 {
     auto it = m_engine->jolt.characters.find(objectId);
-    if(it == m_engine->jolt.characters.end()) { return {}; }
+    if(it == m_engine->jolt.characters.end()) { return; }
 
     switch(it->second->GetGroundState())
     {
-        case JPH::CharacterBase::EGroundState::OnGround: return GroundState::OnGround;
-        case JPH::CharacterBase::EGroundState::OnSteepGround: return GroundState::OnSteepGround;
-        case JPH::CharacterBase::EGroundState::NotSupported: return GroundState::NotSupported;
-        case JPH::CharacterBase::EGroundState::InAir: return GroundState::InAir;
+        case JPH::CharacterBase::EGroundState::OnGround: character.ground_state = GroundState::OnGround; break;
+        case JPH::CharacterBase::EGroundState::OnSteepGround:
+            character.ground_state = GroundState::OnSteepGround;
+            break;
+        case JPH::CharacterBase::EGroundState::NotSupported: character.ground_state = GroundState::NotSupported; break;
+        case JPH::CharacterBase::EGroundState::InAir: character.ground_state = GroundState::InAir; break;
     }
-    return {};
 }
 
 vierkant::PhysicsContext::BodyInterface &PhysicsContext::body_interface() { return *m_engine->jolt.body_system; }
@@ -1668,27 +1669,26 @@ void PhysicsScene::update(double time_delta)
         }
     }
 
-    // player-input -> forces. must run before the step, jolt clears accumulated forces after each step
+    // character-input -> forces. must run before the step, jolt clears accumulated forces after each step
     for(auto *obj: visitor.objects)
     {
-        auto *player_cmp = obj->get_component_ptr<vierkant::player_component_t>();
         auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>();
-        if(!player_cmp || !phys_cmp || phys_cmp->mode != physics_component_t::ACTIVE) { continue; }
+        if(!phys_cmp || !phys_cmp->character || phys_cmp->mode != physics_component_t::ACTIVE) { continue; }
+        auto &character = *phys_cmp->character;
 
         // yaw-only basis, engine is -z forward. pitch must not tilt the movement
-        const glm::vec3 forward(-std::sin(player_cmp->yaw), 0.f, -std::cos(player_cmp->yaw));
-        const glm::vec3 right(std::cos(player_cmp->yaw), 0.f, -std::sin(player_cmp->yaw));
+        const glm::vec3 forward(-std::sin(character.yaw), 0.f, -std::cos(character.yaw));
+        const glm::vec3 right(std::cos(character.yaw), 0.f, -std::sin(character.yaw));
 
         // clamp, not normalize: preserves analog fine-control
-        glm::vec2 move = player_cmp->move;
+        glm::vec2 move = character.move;
         float move_length = glm::length(move);
         if(move_length > 1.f) { move /= move_length; }
-        glm::vec3 v_des = (right * move.x + forward * move.y) * player_cmp->max_speed;
+        glm::vec3 v_des = (right * move.x + forward * move.y) * character.max_speed;
 
-        // ground-state is only available for characters, anything else uses the air-tuning
-        bool on_ground = m_context.ground_state(obj->id()) == PhysicsContext::GroundState::OnGround;
-        float t_accel = on_ground ? player_cmp->t_accel_ground : player_cmp->t_accel_air;
-        float max_accel = on_ground ? player_cmp->max_accel_ground : player_cmp->max_accel_air;
+        bool on_ground = character.ground_state == GroundState::OnGround;
+        float t_accel = on_ground ? character.t_accel_ground : character.t_accel_air;
+        float max_accel = on_ground ? character.max_accel_ground : character.max_accel_air;
 
         // critically-damped velocity-tracker. vertical velocity is excluded, otherwise we'd fight gravity
         glm::vec3 velocity = m_context.body_interface().velocity(obj->id());
@@ -1705,6 +1705,9 @@ void PhysicsScene::update(double time_delta)
     {
         if(auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>())
         {
+            // simulation -> character
+            if(phys_cmp->character) { m_context.read_character_state(obj->id(), *phys_cmp->character); }
+
             // manually update non-moving/kinematic objects
             if(!is_movable(*phys_cmp))
             {
