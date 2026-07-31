@@ -329,7 +329,7 @@ struct physics_component_t
     bool kinematic = false;
     bool sensor = false;
 
-    //! presence selects the character back-end: a dynamic body with locked rotation, ground-detection and locomotion.
+    //! character: a dynamic body with locked rotation, ground-detection and locomotion.
     std::optional<vierkant::character_t> character = {};
 };
 

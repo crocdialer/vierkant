@@ -122,7 +122,6 @@ private:
 DEFINE_CLASS_PTR(PlayerControl)
 
 //! gathers input for a vierkant::character_t and provides the matching eye-orientation.
-//! a pure producer: it never touches physics, so an ai-driven producer can fill the same component.
 class PlayerControl : public CameraControl
 {
 public:

@@ -1056,8 +1056,8 @@ void PhysicsContext::remove_object(uint32_t objectId, const vierkant::physics_co
         auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
 
         // characters own their body, its destruction is handled by JPH::Character's destructor
-        auto character_it = m_engine->jolt.characters.find(objectId);
-        if(character_it != m_engine->jolt.characters.end())
+        if(auto character_it = m_engine->jolt.characters.find(objectId);
+           character_it != m_engine->jolt.characters.end())
         {
             character_it->second->RemoveFromPhysicsSystem();
             m_engine->jolt.characters.erase(character_it);
@@ -1090,7 +1090,7 @@ bool PhysicsContext::contains(uint32_t objectId) const { return m_engine->jolt.b
 
 void PhysicsContext::read_character_state(uint32_t objectId, vierkant::character_t &character) const
 {
-    auto it = m_engine->jolt.characters.find(objectId);
+    const auto it = m_engine->jolt.characters.find(objectId);
     if(it == m_engine->jolt.characters.end()) { return; }
 
     character.ground_normal = type_cast(it->second->GetGroundNormal());
@@ -1693,8 +1693,7 @@ void PhysicsScene::update(double time_delta)
 
         // clamp, not normalize: preserves analog fine-control
         glm::vec2 move = character.move;
-        float move_length = glm::length(move);
-        if(move_length > 1.f) { move /= move_length; }
+        if(float move_length = glm::length(move); move_length > 1.f) { move /= move_length; }
         glm::vec3 v_des = (right * move.x + forward * move.y) * character.max_speed;
 
         bool on_ground = character.ground_state == GroundState::OnGround;
@@ -1709,8 +1708,7 @@ void PhysicsScene::update(double time_delta)
         {
             // critically-damped velocity-tracker. vertical velocity is excluded, otherwise we'd fight gravity
             glm::vec3 accel = (v_des - glm::vec3(velocity.x, 0.f, velocity.z)) / t_accel;
-            float accel_length = glm::length(accel);
-            if(accel_length > max_accel) { accel *= max_accel / accel_length; }
+            if(float accel_length = glm::length(accel); accel_length > max_accel) { accel *= max_accel / accel_length; }
 
             // the body has no friction, so nothing holds the character on a walkable slope.
             // cancelling the gravity-component along the ground-plane does, and is a no-op on the flat.
@@ -1729,8 +1727,8 @@ void PhysicsScene::update(double time_delta)
         character.time_since_grounded =
                 on_ground ? 0.f : character.time_since_grounded + static_cast<float>(time_delta);
 
-        float gravity = -m_context.gravity().y;
-        if(jump && gravity > 0.f && character.time_since_grounded <= character.coyote_time)
+        if(float gravity = -m_context.gravity().y;
+           jump && gravity > 0.f && character.time_since_grounded <= character.coyote_time)
         {
             // a descending platform must not eat the jump
             if(velocity.y < 0.f) { m_context.body_interface().set_velocity(obj->id(), {velocity.x, 0.f, velocity.z}); }
@@ -1773,9 +1771,7 @@ std::shared_ptr<PhysicsScene> PhysicsScene::create(const std::shared_ptr<vierkan
 
 PhysicsScene::~PhysicsScene()
 {
-    // the job-system posts untracked tasks holding a raw JPH::Job*. members are destroyed in reverse
-    // declaration-order, i.e. the context and its job-system before the pool, so a queued task could
-    // still be picked up afterwards and execute a freed job. drain the pool while both are alive.
+    // the job-system posts untracked tasks holding a raw JPH::Job* -> sync here
     m_thread_pool.join_all();
 }
 

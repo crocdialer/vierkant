@@ -128,8 +128,6 @@ Object3D::Object3D(entt::registry *registry, std::string name_) : name(std::move
 
 Object3D::~Object3D() noexcept
 {
-    // a child can outlive its parent, when something else holds a reference to it. m_parent is a
-    // raw pointer and would dangle. set_parent() is not an option here, it needs shared_from_this().
     for(const auto &child: children)
     {
         if(child) { child->m_parent = nullptr; }
