@@ -1741,6 +1741,7 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
                     ImGui::InputFloat("max_accel_ground", &character.max_accel_ground);
                     ImGui::InputFloat("max_accel_air", &character.max_accel_air);
                     ImGui::InputFloat("jump_height", &character.jump_height);
+                    ImGui::InputFloat("coyote_time", &character.coyote_time);
                     ImGui::InputFloat("eye_height", &character.eye_height);
                     ImGui::TreePop();
                 }

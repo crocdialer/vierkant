@@ -24,6 +24,37 @@ CollisionShapeId create_collision_shape(PhysicsContext &context, const vierkant:
     return shape_id;
 }
 
+//! static box, its top-surface at y == 0
+void create_ground(const std::shared_ptr<vierkant::ObjectStore> &object_store,
+                   const std::shared_ptr<vierkant::PhysicsScene> &scene, const glm::vec3 &half_extents)
+{
+    auto ground = object_store->create_object();
+    ground->transform = transform_t{.translation = {0.f, -half_extents.y, 0.f}};
+    vierkant::physics_component_t cmp = {};
+    cmp.shape = collision::box_t{.half_extents = half_extents};
+    cmp.mass = 0.f;
+    ground->add_component(cmp);
+    scene->add_object(ground);
+}
+
+//! 1.8m character: 0.3 radius + 1.2 cylinder, shape_transform puts the origin at the feet
+vierkant::Object3DPtr create_character(const std::shared_ptr<vierkant::ObjectStore> &object_store,
+                                       const std::shared_ptr<vierkant::PhysicsScene> &scene,
+                                       const glm::vec3 &position)
+{
+    constexpr float radius = .3f, cylinder_height = 1.2f;
+    auto player = object_store->create_object();
+    player->transform = transform_t{.translation = position};
+    vierkant::physics_component_t cmp = {};
+    cmp.shape = collision::capsule_t{.radius = radius, .height = cylinder_height};
+    cmp.shape_transform = transform_t{.translation = {0.f, .5f * cylinder_height + radius, 0.f}};
+    cmp.mass = 80.f;
+    cmp.character = vierkant::character_t{};
+    player->add_component(cmp);
+    scene->add_object(player);
+    return player;
+}
+
 TEST(PhysicsContext, collision_shapes)
 {
     PhysicsContext context;
@@ -247,6 +278,80 @@ TEST(PhysicsContext, player_move)
     EXPECT_NEAR(glm::length(context.body_interface().velocity(player->id())), 0.f, .05f);
 
     // deliberately no remove_object here: the scene is destroyed with a live character
+}
+
+TEST(PhysicsContext, character_jump)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+    context.set_gravity({0.f, -9.81f, 0.f});
+    create_ground(object_store, scene, {50.f, .5f, 50.f});
+    auto player = create_character(object_store, scene, {0.f, .1f, 0.f});
+    auto &input = *player->get_component<vierkant::physics_component_t>().character;
+
+    constexpr float dt = 1.f / 60.f;
+    for(uint32_t i = 0; i < 60; ++i) { scene->update(dt); }
+    ASSERT_EQ(input.ground_state, vierkant::GroundState::OnGround);
+    const float rest_height = player->transform->translation.y;
+
+    // a jump from standing reaches jump_height and lands again
+    input.jump = true;
+    float apex = rest_height;
+    for(uint32_t i = 0; i < 120; ++i)
+    {
+        scene->update(dt);
+        apex = std::max(apex, player->transform->translation.y);
+    }
+    EXPECT_NEAR(apex - rest_height, input.jump_height, .1f);
+    EXPECT_NEAR(player->transform->translation.y, rest_height, .05f);
+    EXPECT_EQ(input.ground_state, vierkant::GroundState::OnGround);
+
+    // jump again, then press mid-air, well past the coyote-window
+    input.jump = true;
+    for(uint32_t i = 0; i < 20; ++i) { scene->update(dt); }
+    ASSERT_NE(input.ground_state, vierkant::GroundState::OnGround);
+    float velocity_y = context.body_interface().velocity(player->id()).y;
+
+    // ... which is ignored: gravity keeps pulling, there is no second impulse
+    input.jump = true;
+    scene->update(dt);
+    EXPECT_LT(context.body_interface().velocity(player->id()).y, velocity_y);
+}
+
+TEST(PhysicsContext, character_coyote_time)
+{
+    constexpr float dt = 1.f / 60.f;
+
+    // walk off a narrow platform, wait, then jump. returns the vertical velocity right afterwards
+    auto jump_after_leaving_ground = [](float wait) {
+        std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+        auto scene = vierkant::PhysicsScene::create(object_store);
+        scene->physics_context().set_gravity({0.f, -9.81f, 0.f});
+        create_ground(object_store, scene, {2.f, .5f, 2.f});
+        auto player = create_character(object_store, scene, {0.f, .1f, 0.f});
+        auto &input = *player->get_component<vierkant::physics_component_t>().character;
+
+        for(uint32_t i = 0; i < 60; ++i) { scene->update(dt); }
+        EXPECT_EQ(input.ground_state, vierkant::GroundState::OnGround);
+
+        // forward until the platform-edge is passed
+        input.move = {0.f, 1.f};
+        uint32_t steps = 0;
+        while(input.ground_state == vierkant::GroundState::OnGround && steps++ < 600) { scene->update(dt); }
+        EXPECT_LT(steps, 600);
+
+        for(float t = 0.f; t < wait; t += dt) { scene->update(dt); }
+        input.jump = true;
+        scene->update(dt);
+        return scene->physics_context().body_interface().velocity(player->id()).y;
+    };
+
+    // just after leaving the ground the jump is still accepted: sqrt(2 * g * jump_height), minus one step of gravity
+    EXPECT_NEAR(jump_after_leaving_ground(0.f), std::sqrt(2.f * 9.81f * 1.1f) - 9.81f * dt, .1f);
+
+    // ... and is gone once the window has passed
+    EXPECT_LT(jump_after_leaving_ground(.2f), 0.f);
 }
 
 TEST(PhysicsContext, simulation)

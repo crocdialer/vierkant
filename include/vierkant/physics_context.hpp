@@ -376,6 +376,11 @@ public:
 
         //! 'offset' is a world-space position, applying a force there does generate torque
         virtual void add_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) = 0;
+
+        //! apply an impulse at the body's center-of-mass, generating no torque
+        virtual void add_impulse(uint32_t objectId, const glm::vec3 &impulse) = 0;
+
+        //! 'offset' is a world-space position, applying an impulse there does generate torque
         virtual void add_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) = 0;
         [[nodiscard]] virtual glm::vec3 velocity(uint32_t objectId) const = 0;
         virtual void set_velocity(uint32_t objectId, const glm::vec3 &velocity) = 0;

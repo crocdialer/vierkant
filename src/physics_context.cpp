@@ -460,6 +460,11 @@ public:
         }
     }
 
+    void add_impulse(uint32_t objectId, const glm::vec3 &impulse) override
+    {
+        if(auto body_id = get_body_id(objectId)) { m_jolt_body_interface.AddImpulse(*body_id, type_cast(impulse)); }
+    }
+
     void add_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) override
     {
         if(auto body_id = get_body_id(objectId))
@@ -1696,6 +1701,25 @@ void PhysicsScene::update(double time_delta)
         float accel_length = glm::length(accel);
         if(accel_length > max_accel) { accel *= max_accel / accel_length; }
         m_context.body_interface().add_force(obj->id(), phys_cmp->mass * accel);
+
+        // jump is an edge and is consumed here, whether or not it can be acted on
+        bool jump = character.jump;
+        character.jump = false;
+        character.time_since_grounded =
+                on_ground ? 0.f : character.time_since_grounded + static_cast<float>(time_delta);
+
+        float gravity = -m_context.gravity().y;
+        if(jump && gravity > 0.f && character.time_since_grounded <= character.coyote_time)
+        {
+            // a descending platform must not eat the jump
+            if(velocity.y < 0.f) { m_context.body_interface().set_velocity(obj->id(), {velocity.x, 0.f, velocity.z}); }
+
+            float v_jump = std::sqrt(2.f * gravity * character.jump_height);
+            m_context.body_interface().add_impulse(obj->id(), phys_cmp->mass * v_jump * glm::vec3(0.f, 1.f, 0.f));
+
+            // close the coyote-window, the ground-state lags a step behind and would re-open it
+            character.time_since_grounded = character.coyote_time + 1.f;
+        }
     }
 
     // advance simulation
