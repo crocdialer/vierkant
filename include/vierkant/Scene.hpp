@@ -44,6 +44,9 @@ public:
     //! scaling factor for animation-playback. 0 pauses animations, everything else keeps running
     double animation_speed = 1.0;
 
+    //! factor multiplied with environment-light
+    float environment_factor = 1.f;
+
     [[nodiscard]] uint64_t current_frame() const { return m_current_frame; }
 
     /**

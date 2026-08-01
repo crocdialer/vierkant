@@ -237,7 +237,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     };
     ret.indices_by_id_fn =
             [scene, &scene_asset = frame_context.scene_ray_acceleration](uint32_t object_id) -> std::vector<uint32_t> {
-        if(auto it = scene_asset.object_id_to_entry_indices.find(object_id);
+        if(const auto it = scene_asset.object_id_to_entry_indices.find(object_id);
            it != scene_asset.object_id_to_entry_indices.end())
         {
             return it->second;
@@ -584,7 +584,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.trace_params.mis_mode = frame_context.settings.mis_mode;
     trace_data.trace_params.suppress_refractive_caustics = frame_context.settings.suppress_refractive_caustics;
     trace_data.trace_params.draw_skybox = frame_context.settings.draw_skybox;
-    trace_data.trace_params.environment = frame_context.settings.environment_factor;
+    trace_data.trace_params.environment = scene->environment_factor;
     trace_data.trace_params.random_seed = m_random_engine();
 
     trace_data.camera_params = camera_params;

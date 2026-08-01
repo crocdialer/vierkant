@@ -578,7 +578,7 @@ void DrawContext::draw_boundingbox(vierkant::Rasterizer &renderer, const vierkan
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void DrawContext::draw_skybox(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &environment,
-                              const vierkant::Object3DPtr &cam)
+                              const vierkant::Object3DPtr &cam, float environment_factor)
 {
     vierkant::transform_t t = {};
     t.rotation = camera::view_transform(cam.get()).rotation;
@@ -589,7 +589,8 @@ void DrawContext::draw_skybox(vierkant::Rasterizer &renderer, const vierkant::Im
     drawable.matrices.projection = camera::projection_matrix(cam.get());
     drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES].images = {environment};
     drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_CUBE);
-
+    drawable.material.color = glm::vec4(glm::vec3(environment_factor), 1.f);
+    drawable.share_material = false;
     renderer.stage_drawable(drawable);
 }
 

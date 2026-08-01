@@ -63,9 +63,6 @@ public:
         //! apply anti-aliasing using TAA
         bool use_taa = true;
 
-        //! factor multiplied with environment-light
-        float environment_factor = 1.f;
-
         //! use ambient occlusion
         bool ambient_occlusion = false;
 

@@ -55,9 +55,7 @@ struct scoped_child_window_t
 //! asset-names are optional and not unique -> disambiguate with a short id-prefix
 template<typename Id>
 std::string asset_label(const std::string &name, const Id &id)
-{
-    return (name.empty() ? "<unnamed>" : name) + " [" + id.str().substr(0, 8) + "]";
-}
+{ return (name.empty() ? "<unnamed>" : name) + " [" + id.str().substr(0, 8) + "]"; }
 
 /**
  * @brief   'draw_id_combo' provides a filterable combo to pick an asset-id from an asset-map,
@@ -354,7 +352,6 @@ void draw_scene_renderer_settings_ui_intern(const PBRDeferredPtr &pbr_renderer)
     ImGui::Checkbox("wireframe", &pbr_renderer->settings.wireframe);
     ImGui::Checkbox("taa", &pbr_renderer->settings.use_taa);
     ImGui::Checkbox("fxaa", &pbr_renderer->settings.use_fxaa);
-    ImGui::SliderFloat("environment", &pbr_renderer->settings.environment_factor, 0.f, 5.f);
     ImGui::Checkbox("ambient occlusion", &pbr_renderer->settings.ambient_occlusion);
     ImGui::Checkbox("use ray queries", &pbr_renderer->settings.use_ray_queries);
     ImGui::SliderFloat("max_ao_distance", &pbr_renderer->settings.max_ao_distance, 0.01f, 1.f);
@@ -530,7 +527,6 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     ImGui::Checkbox("denoiser", &path_tracer->settings.denoising);
     ImGui::Checkbox("tonemap", &path_tracer->settings.tonemap);
     ImGui::Checkbox("bloom", &path_tracer->settings.bloom);
-    ImGui::SliderFloat("environment_factor", &path_tracer->settings.environment_factor, 0.f, 5.f);
 
     // exposure
     ImGui::SliderFloat("exposure", &path_tracer->settings.exposure, 0.f, 10.f);
@@ -715,6 +711,9 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
 
 void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant::Object3DPtr> *selection)
 {
+    // multiplier for environment light
+    ImGui::SliderFloat("environment", &scene->environment_factor, 0.f, 5.f);
+
     ImGui::BeginTabBar("scene_tabs");
     if(ImGui::BeginTabItem("scenegraph"))
     {
@@ -754,7 +753,7 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
             ImGui::EndMenu();
         }
         ImGui::Spacing();
-        
+
         // draw a scrollable tree for all scene-objects
         ImGui::BeginChild("scrolling", ImVec2(0, 400), ImGuiChildFlags_ResizeY);
         auto clicked_obj = draw_scenegraph_ui_helper(scene->root(), selection, ImGuiTreeNodeFlags_DefaultOpen);
@@ -1720,7 +1719,10 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
             {
                 change = true;
                 if(is_character) { phys_cmp.character = vierkant::character_t{}; }
-                else { phys_cmp.character = {}; }
+                else
+                {
+                    phys_cmp.character = {};
+                }
             }
 
             if(phys_cmp.character)

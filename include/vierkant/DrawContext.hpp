@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "vierkant/Camera.hpp"
 #include "vierkant/Font.hpp"
 #include "vierkant/Rasterizer.hpp"
 #include "vierkant/Scene.hpp"
@@ -115,6 +114,8 @@ public:
      * @param   transform   a modelview transform
      * @param   projection  the projection matrix to use for drawing.
      * @param   shader_type the desired vierkant::ShaderType.
+     * @param   depth_test  use depth testing
+     * @param   depth_write use depth writing
      */
     void draw_mesh(vierkant::Rasterizer &renderer, const vierkant::MeshPtr &mesh,
                    const vierkant::transform_t &transform, const glm::mat4 &projection,
@@ -138,12 +139,13 @@ public:
     /**
      * @brief   Render a skybox.
      *
-     * @param   renderer    a provided vierkant::Renderer.
-     * @param   environment a provided vierkant::Image, assumed to contain a samplerCube.
-     * @param   cam         a vierkant::Camera
+     * @param   renderer            a provided vierkant::Renderer.
+     * @param   environment         a provided vierkant::Image, assumed to contain a samplerCube.
+     * @param   cam                 a vierkant::Camera
+     * @param   environment_factor  multiplier for sampled environment
      */
     void draw_skybox(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &environment,
-                     const vierkant::Object3DPtr &cam);
+                     const vierkant::Object3DPtr &cam, float environment_factor = 1.f);
 
 private:
     vierkant::DevicePtr m_device;

@@ -85,8 +85,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         frame_context.lights_ubo =
-                vierkant::Buffer::create(device, nullptr, sizeof(vierkant::light_t),
-                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+                vierkant::Buffer::create(device, nullptr, sizeof(vierkant::light_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         vierkant::Buffer::create_info_t composition_buffer_info = {};
         composition_buffer_info.device = m_device;
@@ -973,7 +973,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     ubo.camera_transform = mat4_cast(cull_result.camera->global_transform());
     ubo.inverse_projection = glm::inverse(camera::projection_matrix(cull_result.camera.get()));
     ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) + 1);
-    ubo.environment_factor = frame_context.settings.environment_factor;
+    ubo.environment_factor = cull_result.scene->environment_factor;
     ubo.num_lights = frame_context.cull_result.lights.size();
     frame_context.lighting_param_ubo->set_data(&ubo, sizeof(ubo));
     frame_context.lights_ubo->set_data(frame_context.cull_result.lights);
@@ -1069,7 +1069,8 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         {
             if(cull_result.scene->environment())
             {
-                m_draw_context.draw_skybox(m_renderer_lighting, cull_result.scene->environment(), cull_result.camera);
+                m_draw_context.draw_skybox(m_renderer_lighting, cull_result.scene->environment(), cull_result.camera,
+                                           cull_result.scene->environment_factor);
 
                 begin_rendering_info.clear_color_attachment = false;
                 begin_rendering_info.use_depth_attachment = true;
@@ -1553,7 +1554,6 @@ bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_
     if(lhs.draw_skybox != rhs.draw_skybox) { return false; }
     if(lhs.use_fxaa != rhs.use_fxaa) { return false; }
     if(lhs.use_taa != rhs.use_taa) { return false; }
-    if(lhs.environment_factor != rhs.environment_factor) { return false; }
     if(lhs.ambient_occlusion != rhs.ambient_occlusion) { return false; }
     if(lhs.max_ao_distance != rhs.max_ao_distance) { return false; }
     if(lhs.tonemap != rhs.tonemap) { return false; }

@@ -34,7 +34,6 @@
 #include <Jolt/Physics/Constraints/SwingTwistConstraint.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
-#include <Jolt/Physics/SoftBody/SoftBodyShape.h>
 #include <Jolt/RegisterTypes.h>
 
 // STL includes
@@ -268,7 +267,7 @@ private:
 class JoltJobSystem final : public JPH::JobSystemWithBarrier
 {
 public:
-    JoltJobSystem(uint32_t max_jobs, uint32_t max_barriers, crocore::ThreadPool &pool)
+    JoltJobSystem(const uint32_t max_jobs, const uint32_t max_barriers, crocore::ThreadPool &pool)
         : JobSystemWithBarrier(max_barriers), m_threadpool(pool), m_jobs(max_jobs, max_jobs),
           m_max_concurrency(pool.num_threads() - 1)
     {}
@@ -279,7 +278,10 @@ public:
         {
             // a pool without worker-threads only runs its tasks when polled
             if(m_threadpool.num_threads()) { m_num_queued.wait(num_queued); }
-            else { m_threadpool.poll(); }
+            else
+            {
+                m_threadpool.poll();
+            }
         }
     }
 
@@ -307,12 +309,10 @@ public:
         return handle;
     }
 
-    void SetMaxConcurrency(int num_tasks)
-    { m_max_concurrency = std::min<size_t>(num_tasks, m_threadpool.num_threads()); }
-
+protected:
     // See JPH::JobSystem
     void QueueJob(Job *inJob) override { queue(inJob); }
-    void QueueJobs(Job **inJobs, uint32_t inNumJobs) override
+    void QueueJobs(Job **inJobs, const uint32_t inNumJobs) override
     {
         for(auto j = inJobs, end = inJobs + inNumJobs; j < end; ++j) { queue(*j); }
     }
@@ -435,7 +435,7 @@ public:
         : m_jolt_body_interface(jolt_body_interface), m_body_id_map(body_id_map)
     {}
 
-    virtual ~BodyInterfaceImpl() = default;
+    ~BodyInterfaceImpl() override = default;
 
     [[nodiscard]] bool get_transform(uint32_t objectId, vierkant::transform_t &t) const override
     {
@@ -652,8 +652,8 @@ public:
         float radius = .25f * (bounds.GetSize().GetX() + bounds.GetSize().GetZ());
         settings->mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -(bottom + radius));
 
-        auto character = new JPH::Character(settings, type_cast(transform.translation),
-                                            type_cast(transform.rotation), objectId, &physics_system);
+        auto character = new JPH::Character(settings, type_cast(transform.translation), type_cast(transform.rotation),
+                                            objectId, &physics_system);
         character->AddToPhysicsSystem(JPH::EActivation::Activate);
         characters[objectId] = character;
 
@@ -1043,9 +1043,9 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
             {
                 std::unique_lock lock(m_engine->jolt.mutex);
                 JPH::BodyID jolt_bodyId =
-                        cmp.character ? m_engine->jolt.create_character(objectId, transform, cmp, mass,
-                                                                        shape_result.Get())
-                                      : body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
+                        cmp.character
+                                ? m_engine->jolt.create_character(objectId, transform, cmp, mass, shape_result.Get())
+                                : body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
                 body_interface.SetUserData(jolt_bodyId, objectId);
                 m_engine->jolt.body_id_map[objectId] = {cmp.body_id, jolt_bodyId};
                 m_engine->jolt.body_id_rev_map[cmp.body_id] = objectId;

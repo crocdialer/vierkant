@@ -83,9 +83,6 @@ public:
         //! bloom
         bool bloom = true;
 
-        //! factor multiplied with environment-light
-        float environment_factor = 1.f;
-
         //! gamma correction of output
         float gamma = 1.0;
 
