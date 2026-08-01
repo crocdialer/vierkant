@@ -1633,9 +1633,12 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
                         phys_cmp.shape = collision::cylinder_t({glm::compMax(aabb.half_extents().xz()), aabb.height()});
                         break;
                     case 5:
-                        phys_cmp.shape =
-                                collision::capsule_t({glm::compMax(aabb.half_extents().xz()), aabb.half_extents().y});
+                    {
+                        // capsule_t::height denotes the cylinder-section only, caps add another 2 * radius
+                        float radius = glm::compMax(aabb.half_extents().xz());
+                        phys_cmp.shape = collision::capsule_t({radius, std::max(0.f, aabb.height() - 2.f * radius)});
                         break;
+                    }
                     case 6:
                         phys_cmp.shape = collision::mesh_t();
                         need_shape_transform = false;
