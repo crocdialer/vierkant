@@ -161,6 +161,47 @@ TEST(Object3D, global_transform_cache_invalidation)
     EXPECT_EQ(glm::vec3(grand_child->global_transform().translation), glm::vec3(0.f, 0.1f, 0.f));
 }
 
+//! set_global_transform(t) followed by global_transform() has to reproduce t, whatever the parent is
+TEST(Object3D, set_global_transform_roundtrip)
+{
+    auto object_store = vierkant::create_object_store();
+
+    const transform_t targets[] = {
+            {.translation = {1.f, 2.f, 3.f}},
+            {.translation = {-4.f, 0.5f, 9.f},
+             .rotation = glm::angleAxis(glm::radians(73.f), glm::normalize(glm::vec3(1, -2, 4))),
+             .scale = glm::vec3(2.f)},
+            {.translation = {0.3f, -1.f, 0.f},
+             .rotation = glm::angleAxis(glm::radians(31.f), glm::normalize(glm::vec3(0, 1, 1))),
+             .scale = {0.4f, 1.7f, 2.2f}},
+    };
+
+    const transform_t parents[] = {
+            {},
+            {.translation = {5.f, 0.f, -2.f}},
+            {.translation = {5.f, 0.f, -2.f},
+             .rotation = glm::angleAxis(glm::radians(30.f), glm::vec3(0, 1, 0)),
+             .scale = glm::vec3(3.f)},
+            // non-uniform scale + rotation, i.e. a sheared parent-chain
+            {.translation = {1.f, 2.f, 3.f},
+             .rotation = glm::angleAxis(glm::radians(30.f), glm::vec3(0, 1, 0)),
+             .scale = {1.f, 3.f, 1.f}},
+    };
+
+    for(const auto &parent_transform: parents)
+    {
+        for(const auto &target: targets)
+        {
+            Object3DPtr parent(object_store->create_object()), child(object_store->create_object());
+            parent->set_transform(parent_transform);
+            parent->add_child(child);
+
+            child->set_global_transform(target);
+            EXPECT_TRUE(epsilon_equal(child->global_transform(), target, 1.e-5f));
+        }
+    }
+}
+
 TEST(Object3D, global_transform_cache_clone)
 {
     auto object_store = vierkant::create_object_store();

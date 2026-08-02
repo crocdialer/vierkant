@@ -194,7 +194,9 @@ vierkant::transform_t Object3D::global_transform() const
 
 void Object3D::set_global_transform(const vierkant::transform_t &t)
 {
-    set_transform(parent() ? transform_cast(glm::inverse(get_global_mat4(parent())) * mat4_cast(t)) : t);
+    // the parent's global is cached, and transform_t::inverse has a uniform-scale fast-path,
+    // so this avoids a mat4-inverse + glm::decompose unless the parent-chain scales non-uniformly
+    set_transform(parent() ? vierkant::inverse(parent()->global_transform()) * t : t);
 
     if(auto *flag_cmp_ptr = get_component_ptr<flag_component_t>())
     {
