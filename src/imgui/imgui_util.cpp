@@ -1519,25 +1519,35 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
         bool change = ImGui::InputFloat("width", &w);
         change |= ImGui::InputFloat("height", &h);
         change |= ImGui::InputFloat("depth", &d);
-        if(change && object->transform)
+        if(change && object->transform())
         {
-            object->transform->scale *= glm::vec3(w / aabb.width(), h / aabb.height(), d / aabb.depth());
+            auto local = *object->transform();
+            local.scale *= glm::vec3(w / aabb.width(), h / aabb.height(), d / aabb.depth());
+            object->set_transform(local);
         }
         ImGui::TreePop();
     }
 
     // transform
-    if(object->transform && draw_transform(*object->transform))
+    if(object->transform())
     {
-        if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>())
-        {
-            flag_cmp_ptr->flags |= flag_component_t::DIRTY_TRANSFORM;
-        }
-        else
-        {
+        // draw_transform edits in place, so operate on a copy and write it back through the setter
+        auto local = *object->transform();
 
-            auto &flag_cmp = object->add_component<flag_component_t>();
-            flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
+        if(draw_transform(local))
+        {
+            object->set_transform(local);
+
+            if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>())
+            {
+                flag_cmp_ptr->flags |= flag_component_t::DIRTY_TRANSFORM;
+            }
+            else
+            {
+
+                auto &flag_cmp = object->add_component<flag_component_t>();
+                flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
+            }
         }
     }
 

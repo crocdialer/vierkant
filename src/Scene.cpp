@@ -20,7 +20,7 @@ vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_com
     auto object = create_object();
 
     // add a transform
-    object->transform.emplace();
+    object->set_transform({});
 
     object->add_component(mesh_component);
     if(!mesh_component.mesh->node_animations.empty()) { object->add_component<vierkant::animation_component_t>(); }
