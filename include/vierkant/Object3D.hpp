@@ -93,24 +93,44 @@ constexpr inline uint32_t msb(uint32_t v)
 }
 
 /**
- * @brief   transform_component_t groups an object's local transformation with a cached global one.
+ * @brief   transform_component_t groups an object's transformation with a cached global one.
  *
  * presence of this component means "this object has a transformation", absence means identity.
- * 'global' is a memoized 'local' composed with all ancestors, valid only while 'dirty' is false.
+ * 'transform' is relative to the parent, except for the channels marked absolute in 'space'.
+ * 'global' is a memoized composition with all ancestors, valid only while 'dirty' is false.
  * it is deliberately a transform_t and not a glm::mat4, that is the GPU wire-format.
  */
 struct transform_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
 
-    //! local transformation, relative to the parent
-    vierkant::transform_t local = {};
+    /**
+     * @brief   space_flags_t marks individual channels of 'transform' as already being world-space.
+     *
+     * an absolute channel ignores the parent-chain entirely, a relative one composes with it.
+     * mirrors Unreal's bAbsoluteLocation/-Rotation/-Scale.
+     */
+    enum space_flags_t : uint8_t
+    {
+        RELATIVE = 0x00,
+        ABSOLUTE_TRANSLATION = 0x01,
+        ABSOLUTE_ROTATION = 0x02,
+        ABSOLUTE_SCALE = 0x04,
+        ABSOLUTE = ABSOLUTE_TRANSLATION | ABSOLUTE_ROTATION | ABSOLUTE_SCALE
+    };
+
+    //! transformation, relative to the parent except where 'space' says otherwise
+    vierkant::transform_t transform = {};
 
     //! cached global transformation, only valid while !dirty
     mutable vierkant::transform_t global = {};
 
     //! marks 'global' as stale. set for this object and all descendants on any change affecting them.
     mutable bool dirty = true;
+
+    //! bitmask of space_flags_t, marking which channels of 'transform' are world-space.
+    //! kept next to 'dirty' so it fits the existing tail-padding, sizeof stays 84.
+    uint8_t space = RELATIVE;
 };
 
 struct flag_component_t
@@ -148,13 +168,14 @@ public:
     void set_parent(const Object3DPtr &parent);
 
     /**
-     * @return  a pointer to this object's local transformation, nullptr if it has none.
+     * @return  a pointer to this object's stored transformation, nullptr if it has none.
+     *          relative to the parent, except for the channels marked absolute by transform_space().
      *          only valid until the next add/remove of a transform_component_t, do not store it.
      */
     const vierkant::transform_t *transform() const;
 
     /**
-     * @brief   set this object's local transformation.
+     * @brief   set this object's transformation. interpreted per transform_space().
      *          invalidates the cached global transformation of this object and all descendants.
      *
      * @param   t   a transformation
@@ -162,10 +183,31 @@ public:
     void set_transform(const vierkant::transform_t &t);
 
     /**
-     * @brief   remove this object's local transformation, it will inherit its parent's.
+     * @brief   remove this object's transformation, it will inherit its parent's.
      *          invalidates the cached global transformation of this object and all descendants.
      */
     void remove_transform();
+
+    /**
+     * @return  a bitmask of transform_component_t::space_flags_t, marking which channels of
+     *          transform() are already world-space. RELATIVE if this object has no transformation.
+     */
+    uint8_t transform_space() const;
+
+    /**
+     * @brief   mark individual channels of this object's transformation as world-space.
+     *          the stored values are re-interpreted, not converted, so the object generally moves.
+     *          invalidates the cached global transformation of this object and all descendants.
+     *
+     * @param   space   a bitmask of transform_component_t::space_flags_t
+     */
+    void set_transform_space(uint8_t space);
+
+    /**
+     * @return  this object's transformation, expressed relative to its parent regardless of
+     *          transform_space(). identical to transform() for a purely relative object.
+     */
+    vierkant::transform_t relative_transform() const;
 
     vierkant::transform_t global_transform() const;
 
@@ -311,6 +353,9 @@ private:
 
     //! mark this object's and all descendants' cached global transformation as stale
     void invalidate_global_transform();
+
+    //! compose a transformation with the parent-chain, honouring the absolute channels in 'space'
+    vierkant::transform_t combine_with_parent(const vierkant::transform_t &t, uint8_t space) const;
 
     Object3D *m_parent = nullptr;
 

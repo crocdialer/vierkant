@@ -1532,22 +1532,32 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
     if(object->transform())
     {
         // draw_transform edits in place, so operate on a copy and write it back through the setter
-        auto local = *object->transform();
+        auto transform = *object->transform();
+        if(draw_transform(transform)) { object->set_transform(transform); }
 
-        if(draw_transform(local))
+        // channels marked world-space ignore the parent, so the values above are not all relative
+        uint8_t space = object->transform_space();
+        const uint8_t prev_space = space;
+
+        auto space_checkbox = [&space](const char *label, uint8_t flag) {
+            bool absolute = space & flag;
+            if(ImGui::Checkbox(label, &absolute))
+            {
+                space = static_cast<uint8_t>(absolute ? (space | flag) : (space & ~flag));
+            }
+        };
+        space_checkbox("world T", vierkant::transform_component_t::ABSOLUTE_TRANSLATION);
+        ImGui::SameLine();
+        space_checkbox("world R", vierkant::transform_component_t::ABSOLUTE_ROTATION);
+        ImGui::SameLine();
+        space_checkbox("world S", vierkant::transform_component_t::ABSOLUTE_SCALE);
+
+        if(space != prev_space)
         {
-            object->set_transform(local);
-
-            if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>())
-            {
-                flag_cmp_ptr->flags |= flag_component_t::DIRTY_TRANSFORM;
-            }
-            else
-            {
-
-                auto &flag_cmp = object->add_component<flag_component_t>();
-                flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
-            }
+            // re-interpreting the stored channels would teleport the object, convert instead
+            const auto global = object->global_transform();
+            object->set_transform_space(space);
+            object->set_global_transform(global);
         }
     }
 

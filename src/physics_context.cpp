@@ -1616,6 +1616,21 @@ void PhysicsScene::update(double time_delta)
         return cmp.kinematic || cmp.mass == 0.f || cmp.sensor || (mesh_shape && !mesh_shape->convex_hull);
     };
 
+    // jolt owns a simulation-driven body's world translation+rotation, the scene-graph keeps its scale.
+    // marking those channels absolute lets the readback below write jolt's pose straight in.
+    auto set_simulation_driven = [](vierkant::Object3D *obj, bool simulation_driven) {
+        constexpr uint8_t mask = vierkant::transform_component_t::ABSOLUTE_TRANSLATION |
+                                 vierkant::transform_component_t::ABSOLUTE_ROTATION;
+        const uint8_t space = obj->transform_space();
+        const uint8_t next = simulation_driven ? (space | mask) : (space & ~mask);
+        if(next == space) { return; }
+
+        // re-interpreting the stored channels would teleport the object, convert instead
+        const auto global = obj->global_transform();
+        obj->set_transform_space(next);
+        obj->set_global_transform(global);
+    };
+
     vierkant::SelectVisitor<vierkant::Object3D> visitor({}, false);
     root()->accept(visitor);
 
@@ -1661,8 +1676,11 @@ void PhysicsScene::update(double time_delta)
         {
             m_context.remove_object(obj->id(), *phys_cmp);
             obj->remove_component<physics_component_t>();
+            set_simulation_driven(obj, false);
             continue;
         }
+
+        set_simulation_driven(obj, obj_enabled && !is_movable(*phys_cmp));
 
         // manually update non-moving/kinematic objects
         if(is_movable(*phys_cmp))
@@ -1768,10 +1786,11 @@ void PhysicsScene::update(double time_delta)
             // manually update non-moving/kinematic objects
             if(!is_movable(*phys_cmp))
             {
-                // physics -> object
-                vierkant::transform_t transform = obj->global_transform();
-                m_context.body_interface().get_transform(obj->id(), transform);
-                obj->set_global_transform(transform);
+                // physics -> object. translation/rotation are absolute channels for a simulation-driven
+                // body, so jolt's world-pose goes straight in. get_transform leaves the scale alone,
+                // seeding from the stored transform keeps the authored one.
+                vierkant::transform_t transform = obj->transform() ? *obj->transform() : vierkant::transform_t{};
+                if(m_context.body_interface().get_transform(obj->id(), transform)) { obj->set_transform(transform); }
             }
         }
     }
