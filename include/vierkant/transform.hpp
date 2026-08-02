@@ -66,6 +66,19 @@ inline constexpr bool is_scale_uniform(const transform_t_<T> &t)
 }
 
 /**
+ * @brief   is_identity can be used to check if a transform is the identity-transform.
+ *
+ * @param   t   a provided vierkant::transform_t
+ * @return  true if t is the identity-transform.
+ */
+template<typename T>
+inline constexpr bool is_identity(const transform_t_<T> &t)
+{
+    return t.translation == glm::vec<3, T>(0) && t.rotation == glm::qua<T>(1, 0, 0, 0) &&
+           t.scale == glm::vec<3, T>(1);
+}
+
+/**
  * @brief   operator to apply a vierkant::transform_t to a 3d-vector.
  *
  * @param   t   a provided vierkant::transform_t
@@ -91,6 +104,9 @@ inline constexpr transform_t_<T> operator*(const transform_t_<T> &lhs, const tra
     // fallback to matrix-multiplication to support non-uniform scaling + rotation (sheer)
     if(!is_scale_uniform(lhs) || !is_scale_uniform(rhs))
     {
+        // an identity-operand composes exactly, skip the matrix-roundtrip and its glm::decompose
+        if(is_identity(lhs)) { return rhs; }
+        if(is_identity(rhs)) { return lhs; }
         return transform_cast<T>(mat4_cast<T>(lhs) * mat4_cast<T>(rhs));
     }
     transform_t_<T> ret = lhs;

@@ -51,6 +51,29 @@ TEST(Object3D, hierarchy)
     EXPECT_TRUE(glm::vec3(b->global_transform().translation) == glm::vec3(1, 2, 3));
 }
 
+TEST(Object3D, identity_grouping_node)
+{
+    auto object_store = vierkant::create_object_store();
+    Object3DPtr root(object_store->create_object()), group(object_store->create_object()),
+            child(object_store->create_object());
+
+    root->add_child(group);
+    group->add_child(child);
+
+    child->transform =
+            transform_t{.translation = {0.1f, -0.03f, 7.25f},
+                        .rotation = glm::angleAxis(glm::radians(123.456f), glm::normalize(glm::vec3(4, -7, 6))),
+                        .scale = {0.37f, 1.23f, 2.91f}};
+
+    // a present identity-transform must not perturb the accumulated transform ...
+    group->transform = transform_t{};
+    EXPECT_TRUE(child->global_transform() == *child->transform);
+
+    // ... and needs to match the absent-transform case exactly
+    group->transform = {};
+    EXPECT_TRUE(child->global_transform() == *child->transform);
+}
+
 TEST(Object3D, outliving_parent)
 {
     auto object_store = vierkant::create_object_store();

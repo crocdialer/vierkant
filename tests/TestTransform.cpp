@@ -48,6 +48,20 @@ void check_transform(T epsilon)
     scale.scale = scale_val;
     EXPECT_TRUE(glm::all(glm::epsilonEqual(scale * p1, scale_val * p1, epsilon)));
 
+    // identity-check
+    EXPECT_TRUE(is_identity(identity));
+    EXPECT_TRUE(!is_identity(scale));
+
+    // composing with identity needs to be exact, also on the non-uniform matrix-fallback path.
+    // a decompose-roundtrip is not, it can even flip the quaternion's sign.
+    transform_t_<T> nonuniform = {};
+    nonuniform.translation = {0.1, -0.03, 7.25};
+    nonuniform.rotation = glm::angleAxis(glm::radians(T(123.456)), glm::normalize(glm::vec<3, T>(4, -7, 6)));
+    nonuniform.scale = {0.37, 1.23, 2.91};
+    EXPECT_TRUE(!is_scale_uniform(nonuniform));
+    EXPECT_TRUE(identity * nonuniform == nonuniform);
+    EXPECT_TRUE(nonuniform * identity == nonuniform);
+
     vierkant::transform_t_<T> combo = scale * translate * rotate;
     auto combo_mat = mat4_cast<T>(scale) * mat4_cast<T>(translate) * mat4_cast<T>(rotate);
 
