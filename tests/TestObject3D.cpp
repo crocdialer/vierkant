@@ -202,6 +202,222 @@ TEST(Object3D, set_global_transform_roundtrip)
     }
 }
 
+//! a fully absolute node's pose is its world-pose, its parent-chain is ignored entirely
+TEST(Object3D, transform_space_absolute)
+{
+    auto object_store = vierkant::create_object_store();
+    Object3DPtr parent(object_store->create_object()), other_parent(object_store->create_object()),
+            child(object_store->create_object());
+
+    parent->set_transform({.translation = {5.f, 0.f, -2.f},
+                           .rotation = glm::angleAxis(glm::radians(30.f), glm::vec3(0, 1, 0)),
+                           .scale = glm::vec3(3.f)});
+    other_parent->set_transform({.translation = {-100.f, 7.f, 42.f}, .scale = glm::vec3(0.25f)});
+
+    const transform_t world = {.translation = {1.f, 2.f, 3.f},
+                               .rotation = glm::angleAxis(glm::radians(73.f), glm::normalize(glm::vec3(1, -2, 4))),
+                               .scale = {0.4f, 1.7f, 2.2f}};
+    child->set_transform(world);
+    child->set_transform_space(transform_component_t::ABSOLUTE);
+
+    parent->add_child(child);
+    EXPECT_TRUE(child->global_transform() == world);
+
+    // re-parenting an absolute node must not move it
+    other_parent->add_child(child);
+    EXPECT_TRUE(child->global_transform() == world);
+
+    child->set_parent(Object3DPtr());
+    EXPECT_TRUE(child->global_transform() == world);
+}
+
+//! translation/rotation absolute + relative scale: the shape a simulation-driven rigid body uses
+TEST(Object3D, transform_space_per_channel)
+{
+    auto object_store = vierkant::create_object_store();
+    Object3DPtr parent(object_store->create_object()), body(object_store->create_object());
+
+    const transform_t parent_transform = {.translation = {5.f, 0.f, -2.f},
+                                          .rotation = glm::angleAxis(glm::radians(30.f), glm::vec3(0, 1, 0)),
+                                          .scale = glm::vec3(3.f)};
+    parent->set_transform(parent_transform);
+    parent->add_child(body);
+
+    const transform_t stored = {.translation = {1.f, 2.f, 3.f},
+                                .rotation = glm::angleAxis(glm::radians(73.f), glm::normalize(glm::vec3(1, -2, 4))),
+                                .scale = glm::vec3(2.f)};
+    body->set_transform(stored);
+    body->set_transform_space(transform_component_t::ABSOLUTE_TRANSLATION |
+                              transform_component_t::ABSOLUTE_ROTATION);
+
+    const auto global = body->global_transform();
+
+    // the absolute channels pass through untouched ...
+    EXPECT_EQ(glm::vec3(global.translation), glm::vec3(stored.translation));
+    EXPECT_TRUE(glm::all(glm::epsilonEqual(glm::vec4(global.rotation.x, global.rotation.y, global.rotation.z,
+                                                     global.rotation.w),
+                                           glm::vec4(stored.rotation.x, stored.rotation.y, stored.rotation.z,
+                                                     stored.rotation.w),
+                                           1.e-6f)));
+
+    // ... while the relative one still composes with the parent
+    EXPECT_TRUE(glm::all(
+            glm::epsilonEqual(global.scale, parent_transform.scale * stored.scale, 1.e-5f)));
+
+    // relative_transform() undoes the parent again, so aabb() and friends stay correct
+    EXPECT_TRUE(epsilon_equal(parent->global_transform() * body->relative_transform(), global, 1.e-5f));
+}
+
+//! invalidation prunes at fully-absolute nodes only, partially-absolute ones still depend on the parent
+TEST(Object3D, transform_space_invalidation)
+{
+    auto object_store = vierkant::create_object_store();
+    Object3DPtr parent(object_store->create_object()), absolute(object_store->create_object()),
+            partial(object_store->create_object()), grand_child(object_store->create_object());
+
+    parent->set_transform({.translation = {0.f, 10.f, 0.f}});
+    parent->add_child(absolute);
+    parent->add_child(partial);
+    absolute->add_child(grand_child);
+
+    absolute->set_transform({.translation = {0.f, 1.f, 0.f}});
+    absolute->set_transform_space(transform_component_t::ABSOLUTE);
+    partial->set_transform({.translation = {0.f, 1.f, 0.f}, .scale = glm::vec3(2.f)});
+    partial->set_transform_space(transform_component_t::ABSOLUTE_TRANSLATION);
+    grand_child->set_transform({.translation = {0.f, 0.5f, 0.f}});
+
+    EXPECT_EQ(glm::vec3(absolute->global_transform().translation), glm::vec3(0.f, 1.f, 0.f));
+    EXPECT_EQ(glm::vec3(partial->global_transform().translation), glm::vec3(0.f, 1.f, 0.f));
+    EXPECT_EQ(glm::vec3(grand_child->global_transform().translation), glm::vec3(0.f, 1.5f, 0.f));
+
+    // moving the parent leaves the absolute sub-tree exactly where it was ...
+    parent->set_transform({.translation = {0.f, 20.f, 0.f}});
+    EXPECT_EQ(glm::vec3(absolute->global_transform().translation), glm::vec3(0.f, 1.f, 0.f));
+    EXPECT_EQ(glm::vec3(grand_child->global_transform().translation), glm::vec3(0.f, 1.5f, 0.f));
+
+    // ... but the partially-absolute node's relative scale-channel must follow along
+    parent->set_transform({.translation = {0.f, 20.f, 0.f}, .scale = glm::vec3(4.f)});
+    EXPECT_EQ(glm::vec3(partial->global_transform().translation), glm::vec3(0.f, 1.f, 0.f));
+    EXPECT_TRUE(glm::all(glm::epsilonEqual(partial->global_transform().scale, glm::vec3(8.f), 1.e-5f)));
+}
+
+constexpr uint8_t g_all_spaces[] = {
+        transform_component_t::RELATIVE,
+        transform_component_t::ABSOLUTE_TRANSLATION,
+        transform_component_t::ABSOLUTE_ROTATION,
+        transform_component_t::ABSOLUTE_SCALE,
+        transform_component_t::ABSOLUTE_TRANSLATION | transform_component_t::ABSOLUTE_ROTATION,
+        transform_component_t::ABSOLUTE};
+
+transform_t roundtrip_target()
+{
+    return {.translation = {-4.f, 0.5f, 9.f},
+            .rotation = glm::angleAxis(glm::radians(73.f), glm::normalize(glm::vec3(1, -2, 4))),
+            .scale = {0.4f, 1.7f, 2.2f}};
+}
+
+//! set_global_transform(t) -> global_transform() has to reproduce t for mixed-space nodes too
+TEST(Object3D, set_global_transform_roundtrip_per_channel)
+{
+    auto object_store = vierkant::create_object_store();
+
+    const transform_t parents[] = {
+            {},
+            {.translation = {5.f, 0.f, -2.f}},
+            {.translation = {5.f, 0.f, -2.f},
+             .rotation = glm::angleAxis(glm::radians(30.f), glm::vec3(0, 1, 0)),
+             .scale = glm::vec3(3.f)},
+    };
+
+    const auto target = roundtrip_target();
+
+    for(const auto &parent_transform: parents)
+    {
+        for(uint8_t space: g_all_spaces)
+        {
+            Object3DPtr parent(object_store->create_object()), child(object_store->create_object());
+            parent->set_transform(parent_transform);
+            parent->add_child(child);
+
+            child->set_transform({});
+            child->set_transform_space(space);
+            child->set_global_transform(target);
+            EXPECT_TRUE(epsilon_equal(child->global_transform(), target, 1.e-5f));
+        }
+    }
+}
+
+/**
+ * a sheared parent-chain (non-uniform scale + rotation) is outside the engine's no-shear invariant,
+ * see transform.hpp. the pure-relative roundtrip still works there, because set_global_transform's
+ * decompose and operator*'s cancel exactly (a QR pre-image). overriding the rotation-channel breaks
+ * that cancellation: the pre-image's rotation is what the projected scale is derived from.
+ *
+ * measured: translation and rotation stay exact, the relative scale-channel drifts by ~0.79 on the
+ * case below. there is no closed-form fix - P * L is a lossy projection, so 'solve L for a given
+ * (P*L).scale' has no general solution. pinned here so nobody mistakes it for a regression.
+ */
+TEST(Object3D, set_global_transform_roundtrip_sheared_parent)
+{
+    auto object_store = vierkant::create_object_store();
+    const transform_t sheared_parent = {.translation = {1.f, 2.f, 3.f},
+                                        .rotation = glm::angleAxis(glm::radians(30.f), glm::vec3(0, 1, 0)),
+                                        .scale = {1.f, 3.f, 1.f}};
+    ASSERT_FALSE(is_scale_uniform(sheared_parent));
+    const auto target = roundtrip_target();
+
+    for(uint8_t space: g_all_spaces)
+    {
+        Object3DPtr parent(object_store->create_object()), child(object_store->create_object());
+        parent->set_transform(sheared_parent);
+        parent->add_child(child);
+
+        child->set_transform({});
+        child->set_transform_space(space);
+        child->set_global_transform(target);
+        const auto global = child->global_transform();
+
+        // the absolute channels are stored verbatim, so they always come back exactly
+        EXPECT_TRUE(glm::all(glm::epsilonEqual(global.translation, target.translation, 1.e-5f)));
+        EXPECT_TRUE(std::abs(glm::dot(global.rotation, target.rotation)) > 1.f - 1.e-5f);
+
+        // an absolute rotation is what breaks the QR cancellation, and it shows up in the scale
+        const bool scale_survives = !(space & transform_component_t::ABSOLUTE_ROTATION) ||
+                                    (space & transform_component_t::ABSOLUTE_SCALE);
+        EXPECT_EQ(scale_survives,
+                  glm::all(glm::epsilonEqual(global.scale, target.scale, 1.e-5f)));
+    }
+}
+
+//! a child with absolute channels contributes its converted, parent-relative extent
+TEST(Object3D, aabb_with_absolute_child)
+{
+    auto object_store = vierkant::create_object_store();
+    Object3DPtr parent(object_store->create_object()), child(object_store->create_object());
+
+    const AABB unit_box = {glm::vec3(-0.5f), glm::vec3(0.5f)};
+    child->add_component<aabb_component_t>({.aabb_fn = [unit_box](const Object3D &) { return unit_box; }});
+
+    parent->set_transform({.translation = {10.f, 0.f, 0.f}});
+    parent->add_child(child);
+
+    // the same world-pose, expressed relative and absolute, has to yield the same parent-space aabb
+    child->set_transform({.translation = {-9.f, 0.f, 0.f}});
+    const auto relative_aabb = parent->aabb();
+
+    child->set_transform_space(transform_component_t::ABSOLUTE);
+    child->set_transform({.translation = {1.f, 0.f, 0.f}});
+    const auto absolute_aabb = parent->aabb();
+
+    EXPECT_TRUE(glm::all(glm::epsilonEqual(relative_aabb.min, absolute_aabb.min, 1.e-5f)));
+    EXPECT_TRUE(glm::all(glm::epsilonEqual(relative_aabb.max, absolute_aabb.max, 1.e-5f)));
+
+    // and the world-space extent is the child's box around world-origin+1
+    const auto world_aabb = parent->aabb().transform(parent->global_transform());
+    EXPECT_TRUE(glm::all(glm::epsilonEqual(world_aabb.min, glm::vec3(0.5f, -0.5f, -0.5f), 1.e-5f)));
+    EXPECT_TRUE(glm::all(glm::epsilonEqual(world_aabb.max, glm::vec3(1.5f, 0.5f, 0.5f), 1.e-5f)));
+}
+
 TEST(Object3D, global_transform_cache_clone)
 {
     auto object_store = vierkant::create_object_store();
