@@ -37,9 +37,17 @@ public:
 
     void visit(vierkant::Object3D &object) override
     {
-        if(should_visit(object))
+        if(object.enabled && check_tags(m_tags, object.tags))
         {
+            // compose once, reused for the frustum-check, the drawables and the child-stack
             auto model_view = object.transform ? m_transform_stack.top() * *object.transform : m_transform_stack.top();
+
+            if(m_check_intersection)
+            {
+                // check intersection of aabb in eye-coords with view-frustum
+                auto aabb = object.aabb().transform(model_view);
+                if(!vierkant::intersect(m_frustum, aabb)) { return; }
+            }
 
             // keep track of meshes
             if(const auto *mesh_component = object.get_component_ptr<vierkant::mesh_component_t>())
@@ -80,27 +88,9 @@ public:
             //                m_cull_result.lights.push_back(vierkant::convert_light(lightsource));
             //            }
 
-            auto transform = object.transform ? m_transform_stack.top() * *object.transform : m_transform_stack.top();
-            scoped_stack_push scoped_stack_push(m_transform_stack, transform);
+            scoped_stack_push scoped_stack_push(m_transform_stack, model_view);
             for(Object3DPtr &child: object.children) { child->accept(*this); }
         }
-    }
-
-    bool should_visit(vierkant::Object3D &object) const override
-    {
-        if(object.enabled && check_tags(m_tags, object.tags))
-        {
-            if(m_check_intersection)
-            {
-                // check intersection of aabb in eye-coords with view-frustum
-                auto transform =
-                        object.transform ? m_transform_stack.top() * *object.transform : m_transform_stack.top();
-                auto aabb = object.aabb().transform(transform);
-                return vierkant::intersect(m_frustum, aabb);
-            }
-            return true;
-        }
-        return false;
     }
 
     std::set<std::string> m_tags;
