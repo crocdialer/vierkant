@@ -41,9 +41,8 @@ public:
             dst_obj->remove_component<Object3D *>();
             dst_obj->enabled = src_obj->enabled;
             dst_obj->tags = src_obj->tags;
-            dst_obj->transform = src_obj->transform;
 
-            // copy entt-components
+            // copy entt-components, this includes a potential transform_component_t
             for(auto [id, storage]: m_registry->storage())
             {
                 if(storage.contains(static_cast<entt::entity>(src_obj->id())))
@@ -53,6 +52,9 @@ public:
                 }
             }
             dst_obj->add_component(dst_obj.get());
+
+            // the copied cache belongs to the source's position in the hierarchy
+            dst_obj->invalidate_global_transform();
 
             // clone children iteratively
             for(const auto &child: src_obj->children)
@@ -104,18 +106,6 @@ bool has_inherited_flag(const vierkant::Object3D *object, uint32_t flag_bits)
     return false;
 }
 
-glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
-{
-    glm::mat4 ret = obj->transform ? mat4_cast(*obj->transform) : glm::mat4(1);
-    auto ancestor = obj->parent();
-    while(ancestor)
-    {
-        if(ancestor->transform) { ret = mat4_cast(*ancestor->transform) * ret; }
-        ancestor = ancestor->parent();
-    }
-    return ret;
-}
-
 Object3D::Object3D(entt::registry *registry, std::string name_) : name(std::move(name_)), m_registry(registry)
 {
     if(registry)
@@ -130,27 +120,72 @@ Object3D::~Object3D() noexcept
 {
     for(const auto &child: children)
     {
-        if(child) { child->m_parent = nullptr; }
+        if(child)
+        {
+            // orphaned children lose an ancestor, their cached globals are stale now
+            child->m_parent = nullptr;
+            child->invalidate_global_transform();
+        }
     }
 
     if(m_registry) { m_registry->destroy(m_entity); }
 }
 
+const vierkant::transform_t *Object3D::transform() const
+{
+    auto *transform_cmp = get_component_ptr<transform_component_t>();
+    return transform_cmp ? &transform_cmp->local : nullptr;
+}
+
+void Object3D::set_transform(const vierkant::transform_t &t)
+{
+    add_component<transform_component_t>({.local = t});
+    invalidate_global_transform();
+}
+
+void Object3D::remove_transform()
+{
+    remove_component<transform_component_t>();
+    invalidate_global_transform();
+}
+
+void Object3D::invalidate_global_transform()
+{
+    // a dirty object may still have clean descendants, so the whole sub-tree has to be visited
+    std::stack<Object3D *> stack;
+    stack.push(this);
+
+    while(!stack.empty())
+    {
+        auto *object = stack.top();
+        stack.pop();
+
+        if(auto *transform_cmp = object->get_component_ptr<transform_component_t>()) { transform_cmp->dirty = true; }
+        for(const auto &child: object->children) { stack.push(child.get()); }
+    }
+}
+
 vierkant::transform_t Object3D::global_transform() const
 {
-    vierkant::transform_t ret = transform ? *transform : vierkant::transform_t{};
-    const Object3D *ancestor = parent();
-    while(ancestor)
+    auto *transform_cmp = get_component_ptr<transform_component_t>();
+
+    // no transform of our own, we are wherever our parent is
+    if(!transform_cmp) { return parent() ? parent()->global_transform() : vierkant::transform_t{}; }
+
+    if(transform_cmp->dirty)
     {
-        if(ancestor->transform) { ret = *ancestor->transform * ret; }
-        ancestor = ancestor->parent();
+        transform_cmp->global = parent() ? parent()->global_transform() * transform_cmp->local : transform_cmp->local;
+        transform_cmp->dirty = false;
     }
-    return ret;
+    return transform_cmp->global;
 }
 
 void Object3D::set_global_transform(const vierkant::transform_t &t)
 {
-    transform = parent() ? transform_cast(glm::inverse(get_global_mat4(parent())) * mat4_cast(t)) : t;
+    // the parent's global is cached, and transform_t::inverse has a uniform-scale fast-path,
+    // so this avoids a mat4-inverse + glm::decompose unless the parent-chain scales non-uniformly
+    set_transform(parent() ? vierkant::inverse(parent()->global_transform()) * t : t);
+
     if(auto *flag_cmp_ptr = get_component_ptr<flag_component_t>())
     {
         flag_cmp_ptr->flags |= flag_component_t::DIRTY_TRANSFORM;
@@ -183,7 +218,11 @@ void Object3D::set_parent(const Object3DPtr &parent_object)
         parent_object->add_child(shared_from_this());
         m_registry = parent_object->m_registry;
     }
-    else { m_parent = nullptr; }
+    else
+    {
+        m_parent = nullptr;
+        invalidate_global_transform();
+    }
 }
 
 void Object3D::add_child(const Object3DPtr &child)
@@ -202,6 +241,9 @@ void Object3D::add_child(const Object3DPtr &child)
         child->set_parent(Object3DPtr());
         child->m_parent = this;
 
+        // the child gained an ancestor-chain
+        child->invalidate_global_transform();
+
         // prevent multiple insertions
         if(std::ranges::find(children, child) == children.end()) { children.push_back(child); }
     }
@@ -212,7 +254,13 @@ void Object3D::remove_child(const Object3DPtr &child, bool recursive)
     if(const auto it = std::ranges::find(children, child); it != children.end())
     {
         children.erase(it);
-        if(child) { child->set_parent(nullptr); }
+        if(child)
+        {
+            child->set_parent(nullptr);
+
+            // the child lost its ancestor-chain
+            child->invalidate_global_transform();
+        }
     }
     else if(recursive)
     {
@@ -232,7 +280,7 @@ AABB Object3D::aabb() const
     for(const auto &child: children)
     {
         auto child_aabb = child->aabb();
-        if(child->transform) { child_aabb = child_aabb.transform(*child->transform); }
+        if(const auto *child_transform = child->transform()) { child_aabb = child_aabb.transform(*child_transform); }
         ret += child_aabb;
     }
     return ret;

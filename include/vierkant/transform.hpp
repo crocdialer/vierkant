@@ -40,6 +40,12 @@ inline constexpr glm::mat<4, 4, T1> mat4_cast(const transform_t_<T2> &t)
 /**
  * @brief   transform_cast can be used to return a vierkant::transform_t for a provided mat4
  *
+ * NOTE: transform_t cannot represent shear (non-uniform scale + rotation), skew/perspective are
+ * discarded here. not a bug: the engine assumes no shear anywhere. two consequences:
+ * - the discarded part is a QR upper-triangle, so this and the composition in operator* cancel
+ *   exactly. a global -> local -> global roundtrip is lossless.
+ * - the projection is not associative, so composition order is observable on a sheared chain.
+ *
  * @param   t   a provided mat4
  * @return  a vierkant::transform_t.
  */
@@ -66,6 +72,19 @@ inline constexpr bool is_scale_uniform(const transform_t_<T> &t)
 }
 
 /**
+ * @brief   is_identity can be used to check if a transform is the identity-transform.
+ *
+ * @param   t   a provided vierkant::transform_t
+ * @return  true if t is the identity-transform.
+ */
+template<typename T>
+inline constexpr bool is_identity(const transform_t_<T> &t)
+{
+    return t.translation == glm::vec<3, T>(0) && t.rotation == glm::qua<T>(1, 0, 0, 0) &&
+           t.scale == glm::vec<3, T>(1);
+}
+
+/**
  * @brief   operator to apply a vierkant::transform_t to a 3d-vector.
  *
  * @param   t   a provided vierkant::transform_t
@@ -88,9 +107,13 @@ inline constexpr glm::vec<3, T2> operator*(const transform_t_<T1> &t, const glm:
 template<typename T>
 inline constexpr transform_t_<T> operator*(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
 {
-    // fallback to matrix-multiplication to support non-uniform scaling + rotation (sheer)
+    // fallback to matrix-multiplication to support non-uniform scaling + rotation (sheer).
+    // this projects shear away, see transform_cast.
     if(!is_scale_uniform(lhs) || !is_scale_uniform(rhs))
     {
+        // an identity-operand composes exactly, skip the matrix-roundtrip and its glm::decompose
+        if(is_identity(lhs)) { return rhs; }
+        if(is_identity(rhs)) { return lhs; }
         return transform_cast<T>(mat4_cast<T>(lhs) * mat4_cast<T>(rhs));
     }
     transform_t_<T> ret = lhs;

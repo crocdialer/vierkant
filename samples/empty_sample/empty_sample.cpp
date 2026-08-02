@@ -82,8 +82,7 @@ void HelloTriangleApplication::create_context_and_window()
     m_camera->add_component<vierkant::camera_component_t>({params});
     m_camera->name = "default";
 
-    m_camera->transform.emplace();
-    m_camera->transform->translation = {0.f, 0.f, 3.f};
+    m_camera->set_transform({.translation = {0.f, 0.f, 3.f}});
 }
 
 void HelloTriangleApplication::create_graphics_pipeline()

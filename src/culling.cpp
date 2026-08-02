@@ -11,16 +11,6 @@
 namespace vierkant
 {
 
-struct scoped_stack_push
-{
-    std::stack<vierkant::transform_t> &stack;
-
-    scoped_stack_push(std::stack<vierkant::transform_t> &stack_, const vierkant::transform_t &t) : stack(stack_)
-    { stack.push(t); }
-
-    ~scoped_stack_push() { stack.pop(); }
-};
-
 class CullVisitor : public vierkant::Visitor
 {
 public:
@@ -28,18 +18,22 @@ public:
         : m_frustum(camera::frustum(cam.get())), m_camera(std::move(cam)), m_scene(std::move(scene)),
           m_check_intersection(check_intersection)
     {
-        if(!world_space) { m_transform_stack.push(camera::view_transform(m_camera.get())); }
-        else
-        {
-            m_transform_stack.push({});
-        }
+        if(!world_space) { m_base_transform = camera::view_transform(m_camera.get()); }
     };
 
     void visit(vierkant::Object3D &object) override
     {
-        if(should_visit(object))
+        if(object.enabled && check_tags(m_tags, object.tags))
         {
-            auto model_view = object.transform ? m_transform_stack.top() * *object.transform : m_transform_stack.top();
+            // cached global, no accumulation during traversal required
+            auto model_view = m_base_transform * object.global_transform();
+
+            if(m_check_intersection)
+            {
+                // check intersection of aabb in eye-coords with view-frustum
+                auto aabb = object.aabb().transform(model_view);
+                if(!vierkant::intersect(m_frustum, aabb)) { return; }
+            }
 
             // keep track of meshes
             if(const auto *mesh_component = object.get_component_ptr<vierkant::mesh_component_t>())
@@ -80,27 +74,8 @@ public:
             //                m_cull_result.lights.push_back(vierkant::convert_light(lightsource));
             //            }
 
-            auto transform = object.transform ? m_transform_stack.top() * *object.transform : m_transform_stack.top();
-            scoped_stack_push scoped_stack_push(m_transform_stack, transform);
             for(Object3DPtr &child: object.children) { child->accept(*this); }
         }
-    }
-
-    bool should_visit(vierkant::Object3D &object) const override
-    {
-        if(object.enabled && check_tags(m_tags, object.tags))
-        {
-            if(m_check_intersection)
-            {
-                // check intersection of aabb in eye-coords with view-frustum
-                auto transform =
-                        object.transform ? m_transform_stack.top() * *object.transform : m_transform_stack.top();
-                auto aabb = object.aabb().transform(transform);
-                return vierkant::intersect(m_frustum, aabb);
-            }
-            return true;
-        }
-        return false;
     }
 
     std::set<std::string> m_tags;
@@ -113,7 +88,8 @@ public:
 
     bool m_check_intersection;
 
-    std::stack<vierkant::transform_t> m_transform_stack;
+    //! view-transform for eye-space culling, identity when culling in world-space
+    vierkant::transform_t m_base_transform = {};
 
     cull_result_t m_cull_result;
 };

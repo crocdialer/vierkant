@@ -92,6 +92,27 @@ constexpr inline uint32_t msb(uint32_t v)
     return ret;
 }
 
+/**
+ * @brief   transform_component_t groups an object's local transformation with a cached global one.
+ *
+ * presence of this component means "this object has a transformation", absence means identity.
+ * 'global' is a memoized 'local' composed with all ancestors, valid only while 'dirty' is false.
+ * it is deliberately a transform_t and not a glm::mat4, that is the GPU wire-format.
+ */
+struct transform_component_t
+{
+    VIERKANT_ENABLE_AS_COMPONENT();
+
+    //! local transformation, relative to the parent
+    vierkant::transform_t local = {};
+
+    //! cached global transformation, only valid while !dirty
+    mutable vierkant::transform_t global = {};
+
+    //! marks 'global' as stale. set for this object and all descendants on any change affecting them.
+    mutable bool dirty = true;
+};
+
 struct flag_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
@@ -125,6 +146,26 @@ public:
     void remove_child(const Object3DPtr &child, bool recursive = false);
 
     void set_parent(const Object3DPtr &parent);
+
+    /**
+     * @return  a pointer to this object's local transformation, nullptr if it has none.
+     *          only valid until the next add/remove of a transform_component_t, do not store it.
+     */
+    const vierkant::transform_t *transform() const;
+
+    /**
+     * @brief   set this object's local transformation.
+     *          invalidates the cached global transformation of this object and all descendants.
+     *
+     * @param   t   a transformation
+     */
+    void set_transform(const vierkant::transform_t &t);
+
+    /**
+     * @brief   remove this object's local transformation, it will inherit its parent's.
+     *          invalidates the cached global transformation of this object and all descendants.
+     */
+    void remove_transform();
 
     vierkant::transform_t global_transform() const;
 
@@ -256,9 +297,6 @@ public:
     //! enabled hint, can be used by Visitors
     bool enabled = true;
 
-    //! local transformation of this object
-    std::optional<vierkant::transform_t> transform = {};
-
     //! a list of child-objects
     std::vector<Object3DPtr> children;
 
@@ -268,7 +306,12 @@ protected:
     explicit Object3D(entt::registry *registry, std::string name = "");
 
 private:
+    friend class ObjectStoreImpl;
     friend class crocore::fixed_size_free_list<vierkant::Object3D>;
+
+    //! mark this object's and all descendants' cached global transformation as stale
+    void invalidate_global_transform();
+
     Object3D *m_parent = nullptr;
 
     entt::registry *m_registry = nullptr;
