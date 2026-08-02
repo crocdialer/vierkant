@@ -106,18 +106,6 @@ bool has_inherited_flag(const vierkant::Object3D *object, uint32_t flag_bits)
     return false;
 }
 
-glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
-{
-    glm::mat4 ret = obj->transform() ? mat4_cast(*obj->transform()) : glm::mat4(1);
-    auto ancestor = obj->parent();
-    while(ancestor)
-    {
-        if(ancestor->transform()) { ret = mat4_cast(*ancestor->transform()) * ret; }
-        ancestor = ancestor->parent();
-    }
-    return ret;
-}
-
 Object3D::Object3D(entt::registry *registry, std::string name_) : name(std::move(name_)), m_registry(registry)
 {
     if(registry)
