@@ -202,18 +202,32 @@ public:
         BUTTON_BUMPER_LEFT,
         BUTTON_BUMPER_RIGHT,
         BUTTON_STICK_LEFT,
-        BUTTON_STICK_RIGHT
+        BUTTON_STICK_RIGHT,
+        BUTTON_GUIDE
     };
 
     float dead_zone = 0.15f;
 
+    /**
+     * @brief   construct a joystick-state.
+     *
+     * @param   name                display-name.
+     * @param   buttons             button-states.
+     * @param   axis                axis-values.
+     * @param   previous_buttons    previous button-states, used for edge-detection.
+     * @param   is_gamepad          true if @p buttons / @p axis are already in canonical
+     *                              gamepad-order. false means raw, driver-dependent indices,
+     *                              which are translated using a best-effort fallback.
+     */
     Joystick(std::string name, std::vector<uint8_t> buttons, std::vector<float> axis,
-             const std::vector<uint8_t> &previous_buttons = {});
+             const std::vector<uint8_t> &previous_buttons = {}, bool is_gamepad = true);
 
     const std::string &name() const;
 
+    //! button-states in canonical gamepad-order
     const std::vector<uint8_t> &buttons() const;
 
+    //! axis-values in canonical gamepad-order
     const std::vector<float> &axis() const;
 
     glm::vec2 analog_left() const;

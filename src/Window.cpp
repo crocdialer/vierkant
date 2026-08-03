@@ -1,3 +1,4 @@
+#include <unordered_set>
 #include <vierkant/Window.hpp>
 
 #define GLFW_INCLUDE_NONE
@@ -92,6 +93,19 @@ void get_modifiers(GLFWwindow *window, uint32_t &buttonModifiers, uint32_t &keyM
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+//! warn once per device that we have no mapping for it and are guessing
+void warn_unmapped_joystick(int joy, const std::string &name)
+{
+    static std::unordered_set<std::string> s_warned_guids;
+    const char *guid = glfwGetJoystickGUID(joy);
+    if(!guid || !s_warned_guids.insert(guid).second) { return; }
+
+    spdlog::warn("no gamepad-mapping for '{}' (guid: {}) - falling back to a raw guess, buttons and axes are "
+                 "likely wrong. a mapping-string for this device can be added via "
+                 "https://github.com/mdqinc/SDL_GameControllerDB",
+                 name, guid);
+}
+
 std::vector<Joystick> get_joystick_states(const std::vector<Joystick> &previous_joysticks)
 {
     std::vector<Joystick> ret;
@@ -100,17 +114,35 @@ std::vector<Joystick> get_joystick_states(const std::vector<Joystick> &previous_
     {
         if(!glfwJoystickPresent(i)) { continue; }
 
-        const float *glfw_axis = glfwGetJoystickAxes(i, &count);
-        std::vector<float> axis(glfw_axis, glfw_axis + count);
+        std::vector<float> axis;
+        std::vector<uint8_t> buttons;
+        std::string name;
 
-        const uint8_t *glfw_buttons = glfwGetJoystickButtons(i, &count);
-        std::vector<uint8_t> buttons(glfw_buttons, glfw_buttons + count);
+        // glfw resolves any mapped device into a fixed layout, using its bundled SDL-mapping database
+        GLFWgamepadstate gamepad_state;
+        const bool is_gamepad = glfwJoystickIsGamepad(i) && glfwGetGamepadState(i, &gamepad_state);
 
-        std::string name(glfwGetJoystickName(i));
+        if(is_gamepad)
+        {
+            axis.assign(std::begin(gamepad_state.axes), std::end(gamepad_state.axes));
+            buttons.assign(std::begin(gamepad_state.buttons), std::end(gamepad_state.buttons));
+            name = glfwGetGamepadName(i);
+        }
+        else
+        {
+            const float *glfw_axis = glfwGetJoystickAxes(i, &count);
+            axis.assign(glfw_axis, glfw_axis + count);
+
+            const uint8_t *glfw_buttons = glfwGetJoystickButtons(i, &count);
+            buttons.assign(glfw_buttons, glfw_buttons + count);
+
+            name = glfwGetJoystickName(i);
+            warn_unmapped_joystick(i, name);
+        }
 
         std::vector<uint8_t> previous_buttons;
         if(static_cast<uint32_t>(i) < previous_joysticks.size()) { previous_buttons = previous_joysticks[i].buttons(); }
-        ret.emplace_back(std::move(name), std::move(buttons), std::move(axis), previous_buttons);
+        ret.emplace_back(std::move(name), std::move(buttons), std::move(axis), previous_buttons, is_gamepad);
     }
     return ret;
 }
