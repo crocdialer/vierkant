@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <array>
 #include <crocore/crocore.hpp>
 #include <stdexcept>
 #include <vierkant/Input.hpp>
