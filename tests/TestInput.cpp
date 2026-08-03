@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
+#include <initializer_list>
 #include <unordered_set>
+#include <vector>
 #include <vierkant/Input.hpp>
 
 using namespace vierkant;
