@@ -128,17 +128,19 @@ static void trace_impl(const char *inFMT, ...)
 namespace vierkant
 {
 
-static glm::vec3 type_cast(const JPH::Vec3 &v) { return {v.GetX(), v.GetY(), v.GetZ()}; }
-static JPH::Vec3 type_cast(const glm::vec3 &v) { return {v.x, v.y, v.z}; }
-static glm::vec4 type_cast(const JPH::Vec4 &v) { return {v.GetX(), v.GetY(), v.GetZ(), v.GetW()}; }
-static JPH::Vec4 type_cast(const glm::vec4 &v) { return {v.x, v.y, v.z, v.w}; }
-static glm::quat type_cast(const JPH::Quat &q) { return {q.GetW(), q.GetX(), q.GetY(), q.GetZ()}; }
-static JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
+//! anonymous namespace to force internal linkage
+namespace
+{
+glm::vec3 type_cast(const JPH::Vec3 &v) { return {v.GetX(), v.GetY(), v.GetZ()}; }
+JPH::Vec3 type_cast(const glm::vec3 &v) { return {v.x, v.y, v.z}; }
+glm::vec4 type_cast(const JPH::Vec4 &v) { return {v.GetX(), v.GetY(), v.GetZ(), v.GetW()}; }
+JPH::Vec4 type_cast(const glm::vec4 &v) { return {v.x, v.y, v.z, v.w}; }
+glm::quat type_cast(const JPH::Quat &q) { return {q.GetW(), q.GetX(), q.GetY(), q.GetZ()}; }
+JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
 
-static vierkant::AABB type_cast(const JPH::AABox &in_aabb)
-{ return {type_cast(in_aabb.mMin), type_cast(in_aabb.mMax)}; }
+vierkant::AABB type_cast(const JPH::AABox &in_aabb) { return {type_cast(in_aabb.mMin), type_cast(in_aabb.mMax)}; }
 
-static vierkant::transform_t type_cast(const JPH::Mat44 &mat)
+vierkant::transform_t type_cast(const JPH::Mat44 &mat)
 {
     glm::mat4 tmp(type_cast(mat.GetColumn4(0)), type_cast(mat.GetColumn4(1)), type_cast(mat.GetColumn4(2)),
                   type_cast(mat.GetColumn4(3)));
@@ -147,7 +149,7 @@ static vierkant::transform_t type_cast(const JPH::Mat44 &mat)
 }
 
 //! returns a local coordinate frame for a given normalized direction
-static glm::mat3 local_frame(const glm::vec3 &direction)
+glm::mat3 local_frame(const glm::vec3 &direction)
 {
     const float len2 = dot(direction.xy(), direction.xy());
     glm::vec3 tangentX = len2 > 0 ? glm::vec3(-direction.y, direction.x, 0) / sqrtf(len2) : glm::vec3(1, 0, 0);
@@ -163,8 +165,8 @@ struct body_id_struct_t
 };
 
 // Callback for asserts, connect this to your own assert handler if you have one
-[[maybe_unused]] static bool AssertFailedImpl(const char *inExpression, const char *inMessage, const char *inFile,
-                                              uint32_t inLine)
+[[maybe_unused]] bool AssertFailedImpl(const char *inExpression, const char *inMessage, const char *inFile,
+                                       uint32_t inLine)
 {
     spdlog::error("{} : {} : ({}) {}", inFile, inLine, inExpression, inMessage ? inMessage : "");
     return true;
@@ -344,9 +346,9 @@ private:
 // but only if you do collision testing).
 namespace Layers
 {
-static constexpr JPH::ObjectLayer NON_MOVING = 0;
-static constexpr JPH::ObjectLayer MOVING = 1;
-static constexpr JPH::ObjectLayer NUM_LAYERS = 2;
+constexpr JPH::ObjectLayer NON_MOVING = 0;
+constexpr JPH::ObjectLayer MOVING = 1;
+constexpr JPH::ObjectLayer NUM_LAYERS = 2;
 };// namespace Layers
 
 /// Class that determines if two object layers can collide
@@ -371,9 +373,9 @@ public:
 // your broadphase layers define JPH_TRACK_BROADPHASE_STATS and look at the stats reported on the TTY.
 namespace BroadPhaseLayers
 {
-static constexpr JPH::BroadPhaseLayer NON_MOVING(0);
-static constexpr JPH::BroadPhaseLayer MOVING(1);
-static constexpr uint32_t NUM_LAYERS(2);
+constexpr JPH::BroadPhaseLayer NON_MOVING(0);
+constexpr JPH::BroadPhaseLayer MOVING(1);
+constexpr uint32_t NUM_LAYERS(2);
 };// namespace BroadPhaseLayers
 
 // BroadPhaseLayerInterface implementation
@@ -816,6 +818,7 @@ private:
     // It is not directly used in this example but still required.
     std::unique_ptr<JPH::Factory> m_factory;
 };
+}// namespace
 
 struct PhysicsContext::engine
 {
