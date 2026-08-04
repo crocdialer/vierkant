@@ -41,48 +41,14 @@ std::string to_string(Joystick::Input input)
 
 //! canonical button-order, matching GLFW_GAMEPAD_BUTTON_*. total, so no index can alias.
 constexpr std::array<Joystick::Input, GLFW_GAMEPAD_BUTTON_LAST + 1> g_button_inputs = {
-        Joystick::Input::BUTTON_A,           Joystick::Input::BUTTON_B,
-        Joystick::Input::BUTTON_X,           Joystick::Input::BUTTON_Y,
-        Joystick::Input::BUTTON_BUMPER_LEFT, Joystick::Input::BUTTON_BUMPER_RIGHT,
-        Joystick::Input::BUTTON_BACK,        Joystick::Input::BUTTON_MENU,
-        Joystick::Input::BUTTON_GUIDE,       Joystick::Input::BUTTON_STICK_LEFT,
-        Joystick::Input::BUTTON_STICK_RIGHT, Joystick::Input::DPAD_UP,
-        Joystick::Input::DPAD_RIGHT,         Joystick::Input::DPAD_DOWN,
-        Joystick::Input::DPAD_LEFT};
-
-/**
- * @brief   best-effort translation of raw, driver-dependent indices into canonical gamepad-order.
- *
- * only used for devices glfw has no mapping for. this is the layout vierkant hardcoded before the
- * gamepad-api was used: kernel-xpad axes plus hid-generic dpad-indices. it is a guess, wrong for
- * many devices, and exists only so an unmapped pad keeps behaving as it did before.
- */
-void legacy_to_canonical(std::vector<uint8_t> &buttons, std::vector<float> &axis)
-{
-    constexpr std::array<uint32_t, g_button_inputs.size()> button_src = {0, 1, 2,  3,  4,  5,  6, 7,
-                                                                        8, 9, 10, 15, 16, 17, 18};
-    constexpr std::array<uint32_t, GLFW_GAMEPAD_AXIS_LAST + 1> axis_src = {0, 1, 3, 4, 2, 5};
-
-    std::vector<uint8_t> canonical_buttons(button_src.size(), 0);
-    for(uint32_t i = 0; i < button_src.size(); ++i)
-    {
-        if(button_src[i] < buttons.size()) { canonical_buttons[i] = buttons[button_src[i]]; }
-    }
-
-    // triggers rest at -1, sticks at 0
-    std::vector<float> canonical_axis(axis_src.size(), 0.f);
-    canonical_axis[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] = canonical_axis[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] = -1.f;
-    for(uint32_t i = 0; i < axis_src.size(); ++i)
-    {
-        if(axis_src[i] < axis.size()) { canonical_axis[i] = axis[axis_src[i]]; }
-    }
-
-    buttons = std::move(canonical_buttons);
-    axis = std::move(canonical_axis);
-}
+        Joystick::Input::BUTTON_A,          Joystick::Input::BUTTON_B,           Joystick::Input::BUTTON_X,
+        Joystick::Input::BUTTON_Y,          Joystick::Input::BUTTON_BUMPER_LEFT, Joystick::Input::BUTTON_BUMPER_RIGHT,
+        Joystick::Input::BUTTON_BACK,       Joystick::Input::BUTTON_MENU,        Joystick::Input::BUTTON_GUIDE,
+        Joystick::Input::BUTTON_STICK_LEFT, Joystick::Input::BUTTON_STICK_RIGHT, Joystick::Input::DPAD_UP,
+        Joystick::Input::DPAD_RIGHT,        Joystick::Input::DPAD_DOWN,          Joystick::Input::DPAD_LEFT};
 
 //! shared by analog_left/analog_right: radial sign, smoothstep dead-zone per axis
-glm::vec2 analog_value(const std::vector<float> &axis, uint32_t index_h, uint32_t index_v, float dead_zone)
+static glm::vec2 analog_value(const std::vector<float> &axis, uint32_t index_h, uint32_t index_v, float dead_zone)
 {
     if(index_h >= axis.size() || index_v >= axis.size()) { return {}; }
     auto sign_h = static_cast<float>(crocore::sgn(axis[index_h]));
@@ -96,7 +62,7 @@ Joystick::Joystick(std::string name, std::vector<uint8_t> buttons, std::vector<f
                    const std::vector<uint8_t> &previous_buttons, bool is_gamepad)
     : m_name(std::move(name)), m_buttons(std::move(buttons)), m_axis(std::move(axis))
 {
-    if(!is_gamepad) { legacy_to_canonical(m_buttons, m_axis); }
+    if(!is_gamepad) { spdlog::error("joystick '{}' was not detected as gamepad"); }
 
     if(m_buttons.size() == previous_buttons.size())
     {
@@ -119,14 +85,10 @@ const std::vector<uint8_t> &Joystick::buttons() const { return m_buttons; }
 const std::vector<float> &Joystick::axis() const { return m_axis; }
 
 glm::vec2 Joystick::analog_left() const
-{
-    return analog_value(m_axis, GLFW_GAMEPAD_AXIS_LEFT_X, GLFW_GAMEPAD_AXIS_LEFT_Y, dead_zone);
-}
+{ return analog_value(m_axis, GLFW_GAMEPAD_AXIS_LEFT_X, GLFW_GAMEPAD_AXIS_LEFT_Y, dead_zone); }
 
 glm::vec2 Joystick::analog_right() const
-{
-    return analog_value(m_axis, GLFW_GAMEPAD_AXIS_RIGHT_X, GLFW_GAMEPAD_AXIS_RIGHT_Y, dead_zone);
-}
+{ return analog_value(m_axis, GLFW_GAMEPAD_AXIS_RIGHT_X, GLFW_GAMEPAD_AXIS_RIGHT_Y, dead_zone); }
 
 glm::vec2 Joystick::trigger() const
 {

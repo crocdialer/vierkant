@@ -128,17 +128,17 @@ static void trace_impl(const char *inFMT, ...)
 namespace vierkant
 {
 
-inline glm::vec3 type_cast(const JPH::Vec3 &v) { return {v.GetX(), v.GetY(), v.GetZ()}; }
-inline JPH::Vec3 type_cast(const glm::vec3 &v) { return {v.x, v.y, v.z}; }
-inline glm::vec4 type_cast(const JPH::Vec4 &v) { return {v.GetX(), v.GetY(), v.GetZ(), v.GetW()}; }
-inline JPH::Vec4 type_cast(const glm::vec4 &v) { return {v.x, v.y, v.z, v.w}; }
-inline glm::quat type_cast(const JPH::Quat &q) { return {q.GetW(), q.GetX(), q.GetY(), q.GetZ()}; }
-inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
+static glm::vec3 type_cast(const JPH::Vec3 &v) { return {v.GetX(), v.GetY(), v.GetZ()}; }
+static JPH::Vec3 type_cast(const glm::vec3 &v) { return {v.x, v.y, v.z}; }
+static glm::vec4 type_cast(const JPH::Vec4 &v) { return {v.GetX(), v.GetY(), v.GetZ(), v.GetW()}; }
+static JPH::Vec4 type_cast(const glm::vec4 &v) { return {v.x, v.y, v.z, v.w}; }
+static glm::quat type_cast(const JPH::Quat &q) { return {q.GetW(), q.GetX(), q.GetY(), q.GetZ()}; }
+static JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
 
-inline vierkant::AABB type_cast(const JPH::AABox &in_aabb)
+static vierkant::AABB type_cast(const JPH::AABox &in_aabb)
 { return {type_cast(in_aabb.mMin), type_cast(in_aabb.mMax)}; }
 
-inline vierkant::transform_t type_cast(const JPH::Mat44 &mat)
+static vierkant::transform_t type_cast(const JPH::Mat44 &mat)
 {
     glm::mat4 tmp(type_cast(mat.GetColumn4(0)), type_cast(mat.GetColumn4(1)), type_cast(mat.GetColumn4(2)),
                   type_cast(mat.GetColumn4(3)));
@@ -147,9 +147,9 @@ inline vierkant::transform_t type_cast(const JPH::Mat44 &mat)
 }
 
 //! returns a local coordinate frame for a given normalized direction
-inline glm::mat3 local_frame(const glm::vec3 &direction)
+static glm::mat3 local_frame(const glm::vec3 &direction)
 {
-    float len2 = dot(direction.xy(), direction.xy());
+    const float len2 = dot(direction.xy(), direction.xy());
     glm::vec3 tangentX = len2 > 0 ? glm::vec3(-direction.y, direction.x, 0) / sqrtf(len2) : glm::vec3(1, 0, 0);
     glm::vec3 tangentY = cross(direction, tangentX);
     return {tangentX, tangentY, direction};
@@ -220,7 +220,7 @@ public:
     {
         if(!inGeometry->mLODs.empty())
         {
-            auto batch = (Batch *) (inGeometry->mLODs.front().mTriangleBatch.GetPtr());
+            auto *batch = (Batch *) (inGeometry->mLODs.front().mTriangleBatch.GetPtr());
 
             if(inDrawMode == JPH::DebugRenderer::EDrawMode::Solid)
             {
@@ -399,10 +399,10 @@ public:
 #if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
     [[nodiscard]] const char *GetBroadPhaseLayerName(JPH::BroadPhaseLayer inLayer) const override
     {
-        switch((JPH::BroadPhaseLayer::Type) inLayer)
+        switch(static_cast<JPH::BroadPhaseLayer::Type>(inLayer))
         {
-            case(JPH::BroadPhaseLayer::Type) BroadPhaseLayers::NON_MOVING: return "NON_MOVING";
-            case(JPH::BroadPhaseLayer::Type) BroadPhaseLayers::MOVING: return "MOVING";
+            case static_cast<JPH::BroadPhaseLayer::Type>(BroadPhaseLayers::NON_MOVING): return "NON_MOVING";
+            case static_cast<JPH::BroadPhaseLayer::Type>(BroadPhaseLayers::MOVING): return "MOVING";
             default: JPH_ASSERT(false); return "INVALID";
         }
     }
@@ -631,9 +631,9 @@ public:
 
     //! create a JPH::Character, owning its own dynamic body with locked rotation
     JPH::BodyID create_character(uint32_t objectId, const vierkant::transform_t &transform,
-                                 const vierkant::physics_component_t &cmp, float mass, JPH::Shape *shape)
+                                 const vierkant::physics_component_t &cmp, float mass, const JPH::Shape *shape)
     {
-        JPH::Ref<JPH::CharacterSettings> settings = new JPH::CharacterSettings;
+        const JPH::Ref<JPH::CharacterSettings> settings = new JPH::CharacterSettings;
         settings->mShape = shape;
         settings->mLayer = Layers::MOVING;
         settings->mMass = mass;
