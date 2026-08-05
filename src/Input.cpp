@@ -59,11 +59,9 @@ static glm::vec2 analog_value(const std::vector<float> &axis, uint32_t index_h, 
 }
 
 Joystick::Joystick(std::string name, std::vector<uint8_t> buttons, std::vector<float> axis,
-                   const std::vector<uint8_t> &previous_buttons, bool is_gamepad)
+                   const std::vector<uint8_t> &previous_buttons)
     : m_name(std::move(name)), m_buttons(std::move(buttons)), m_axis(std::move(axis))
 {
-    if(!is_gamepad) { spdlog::error("joystick '{}' was not detected as gamepad"); }
-
     if(m_buttons.size() == previous_buttons.size())
     {
         for(uint32_t i = 0; i < std::min(m_buttons.size(), g_button_inputs.size()); ++i)

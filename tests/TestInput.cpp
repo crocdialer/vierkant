@@ -83,31 +83,6 @@ TEST(Input, no_button_index_aliases_another_input)
     EXPECT_EQ(seen.size(), 15);
 }
 
-//! devices glfw has no mapping for keep the pre-gamepad-api behaviour: raw indices are translated
-//! from the layout vierkant used to hardcode (kernel-xpad axes, hid-generic dpad).
-TEST(Input, unmapped_joystick_falls_back_to_the_legacy_layout)
-{
-    // raw layout: axes [LX, LY, LT, RX, RY, RT], dpad on buttons 15..18
-    std::vector<float> raw_axis = {1.f, 0.f, 1.f, 0.f, -1.f, -1.f};
-    std::vector<uint8_t> raw_buttons(19, 0);
-    raw_buttons[2] = 1; // X
-    raw_buttons[16] = 1;// dpad right
-
-    Joystick js("raw pad", raw_buttons, raw_axis, {}, false);
-
-    EXPECT_FLOAT_EQ(js.analog_left().x, 1.f);
-    EXPECT_FLOAT_EQ(js.analog_right().y, -1.f);
-    EXPECT_FLOAT_EQ(js.trigger().x, 1.f);// raw axis 2 -> left trigger
-    EXPECT_FLOAT_EQ(js.trigger().y, 0.f);
-    EXPECT_EQ(js.dpad(), glm::vec2(1.f, 0.f));
-
-    // translated into canonical order, so downstream sees the same shape as a mapped device
-    ASSERT_EQ(js.buttons().size(), 15);
-    ASSERT_EQ(js.axis().size(), 6);
-    EXPECT_TRUE(js.buttons()[2]); // X stays at canonical 2
-    EXPECT_TRUE(js.buttons()[12]);// raw 16 -> canonical dpad-right
-}
-
 //! a device reporting fewer axes/buttons than the canonical layout must not read out of bounds
 TEST(Input, degenerate_devices_are_survivable)
 {
@@ -118,10 +93,10 @@ TEST(Input, degenerate_devices_are_survivable)
     EXPECT_EQ(empty.dpad(), glm::vec2(0.f));
     EXPECT_TRUE(empty.input_events().empty());
 
-    // two axes, no buttons, via the legacy path
-    Joystick partial("stick", {}, {1.f, 1.f}, {}, false);
+    // two axes, no buttons
+    Joystick partial("stick", {}, {1.f, 1.f});
     EXPECT_FLOAT_EQ(partial.analog_left().x, 1.f);
     EXPECT_EQ(partial.analog_right(), glm::vec2(0.f));
-    EXPECT_EQ(partial.trigger(), glm::vec2(0.f));// absent triggers rest at -1 -> 0
+    EXPECT_EQ(partial.trigger(), glm::vec2(0.f));
     EXPECT_EQ(partial.dpad(), glm::vec2(0.f));
 }

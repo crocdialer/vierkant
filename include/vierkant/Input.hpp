@@ -215,12 +215,12 @@ public:
      * @param   buttons             button-states.
      * @param   axis                axis-values.
      * @param   previous_buttons    previous button-states, used for edge-detection.
-     * @param   is_gamepad          true if @p buttons / @p axis are already in canonical
-     *                              gamepad-order. false means raw, driver-dependent indices,
-     *                              which are translated using a best-effort fallback.
+     *
+     * @note    @p buttons / @p axis are expected in canonical gamepad-order. devices glfw has no
+     *          mapping for are dropped before they get here.
      */
     Joystick(std::string name, std::vector<uint8_t> buttons, std::vector<float> axis,
-             const std::vector<uint8_t> &previous_buttons = {}, bool is_gamepad = true);
+             const std::vector<uint8_t> &previous_buttons = {});
 
     const std::string &name() const;
 
