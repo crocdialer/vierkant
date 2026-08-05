@@ -10,6 +10,12 @@ endif ()
 FILE(GLOB TEST_SOURCES "*.c*")
 FILE(GLOB TEST_HEADERS "*.h")
 
+# the evdev-backend is linux-only. an empty translation-unit here links against libucrt instead of
+# mimalloc on msvc and dies with LNK2005, so drop the file rather than guarding its contents.
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(REMOVE_ITEM TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/TestGamepadEvdev.cpp")
+endif ()
+
 include(GoogleTest)
 
 SOURCE_GROUP("Unit-Tests" FILES ${TEST_SOURCES} ${TEST_HEADERS})

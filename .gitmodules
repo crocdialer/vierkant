@@ -1,7 +1,6 @@
 [submodule "extern/glfw"]
 	path = extern/glfw
-	url = https://github.com/crocdialer/glfw.git
-	branch = correct_gamepad_mapping
+	url = https://github.com/glfw/glfw.git
 	shallow = true
 [submodule "extern/glm"]
 	path = extern/glm
