@@ -1,4 +1,7 @@
 include_directories(${vierkant_INCLUDE_DIRS})
+
+# internal headers, e.g. the platform gamepad-backends
+include_directories(${PROJECT_SOURCE_DIR}/src)
 set(LIBS ${vierkant_LIBRARIES} GTest::gtest_main)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # gcc requires additional linking against libatomic, msvc/clang do not provide it.

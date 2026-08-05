@@ -1,8 +1,9 @@
-#include <unordered_set>
 #include <vierkant/Window.hpp>
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+
+#include "gamepad.hpp"
 
 namespace vierkant
 {
@@ -93,40 +94,28 @@ static void get_modifiers(GLFWwindow *window, uint32_t &buttonModifiers, uint32_
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//! warn once per device that we have no mapping for it and are ignoring it
-static void warn_unmapped_joystick(int joy)
-{
-    static std::unordered_set<std::string> s_warned_guids;
-    const char *guid = glfwGetJoystickGUID(joy);
-    if(!guid || !s_warned_guids.insert(guid).second) { return; }
-    const char *name = glfwGetJoystickName(joy);
-
-    spdlog::warn("no gamepad-mapping for '{}' (guid: {}) - device is ignored", name ? name : "unknown", guid);
-}
-
 std::vector<Joystick> get_joystick_states(const std::vector<Joystick> &previous_joysticks)
 {
+    // gamepads are read directly from the platform (evdev/XInput), which reports named inputs
+    // in canonical order. no mapping-database is involved.
+    auto gamepad_states = gamepad::poll_states();
+
     std::vector<Joystick> ret;
-    for(int i = GLFW_JOYSTICK_1; i <= GLFW_JOYSTICK_LAST; i++)
+    ret.reserve(gamepad_states.size());
+
+    for(uint32_t i = 0; i < gamepad_states.size(); ++i)
     {
-        if(!glfwJoystickPresent(i)) { continue; }
-
-        // glfw resolves any mapped device into a fixed layout, using its bundled SDL-mapping database.
-        // devices it has no mapping for are dropped: raw indices are driver-dependent
-        GLFWgamepadstate gamepad_state;
-        if(!glfwJoystickIsGamepad(i) || !glfwGetGamepadState(i, &gamepad_state))
-        {
-            warn_unmapped_joystick(i);
-            continue;
-        }
-
-        std::vector<float> axis(std::begin(gamepad_state.axes), std::end(gamepad_state.axes));
-        std::vector<uint8_t> buttons(std::begin(gamepad_state.buttons), std::end(gamepad_state.buttons));
-        std::string name = glfwGetGamepadName(i);
+        auto &state = gamepad_states[i];
 
         std::vector<uint8_t> previous_buttons;
-        if(static_cast<uint32_t>(i) < previous_joysticks.size()) { previous_buttons = previous_joysticks[i].buttons(); }
-        ret.emplace_back(std::move(name), std::move(buttons), std::move(axis), previous_buttons);
+        if(i < previous_joysticks.size()) { previous_buttons = previous_joysticks[i].buttons(); }
+
+        const uint64_t device_id = state.id;
+        auto rumble_fn = [device_id](float strong, float weak, uint32_t duration_ms) {
+            return gamepad::rumble(device_id, strong, weak, duration_ms);
+        };
+        ret.emplace_back(std::move(state.name), std::move(state.buttons), std::move(state.axis), previous_buttons,
+                         std::move(rumble_fn));
     }
     return ret;
 }

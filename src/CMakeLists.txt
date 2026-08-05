@@ -29,3 +29,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_library(${LIB_NAME} ${LIB_TYPE} ${FOLDER_SOURCES} ${FOLDER_HEADERS} ${VENDORED_SOURCES})
 add_dependencies(${LIB_NAME} shaders slang_shaders)
 target_link_libraries(${LIB_NAME} ${LIBS})
+
+# native gamepad-backend (gamepad_xinput.cpp)
+if (WIN32)
+    target_link_libraries(${LIB_NAME} xinput)
+endif ()
