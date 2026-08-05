@@ -59,8 +59,9 @@ static glm::vec2 analog_value(const std::vector<float> &axis, uint32_t index_h, 
 }
 
 Joystick::Joystick(std::string name, std::vector<uint8_t> buttons, std::vector<float> axis,
-                   const std::vector<uint8_t> &previous_buttons)
-    : m_name(std::move(name)), m_buttons(std::move(buttons)), m_axis(std::move(axis))
+                   const std::vector<uint8_t> &previous_buttons, rumble_fn_t rumble_fn)
+    : m_name(std::move(name)), m_buttons(std::move(buttons)), m_axis(std::move(axis)),
+      m_rumble_fn(std::move(rumble_fn))
 {
     if(m_buttons.size() == previous_buttons.size())
     {
@@ -108,5 +109,10 @@ glm::vec2 Joystick::dpad() const
 }
 
 const std::unordered_map<Joystick::Input, Joystick::Event> &Joystick::input_events() const { return m_input_events; }
+
+bool Joystick::rumble(float strong, float weak, uint32_t duration_ms) const
+{
+    return m_rumble_fn && m_rumble_fn(strong, weak, duration_ms);
+}
 
 }// namespace vierkant

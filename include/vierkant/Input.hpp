@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vierkant/math.hpp>
@@ -206,6 +207,16 @@ public:
         BUTTON_GUIDE
     };
 
+    /**
+     * @brief   force-feedback hook, provided by the platform-backend.
+     *
+     * @param   strong          low-frequency motor magnitude in [0, 1]
+     * @param   weak            high-frequency motor magnitude in [0, 1]
+     * @param   duration_ms     playback-duration in milliseconds
+     * @return  false if the device is gone or has no force-feedback.
+     */
+    using rumble_fn_t = std::function<bool(float strong, float weak, uint32_t duration_ms)>;
+
     float dead_zone = 0.15f;
 
     /**
@@ -215,12 +226,12 @@ public:
      * @param   buttons             button-states.
      * @param   axis                axis-values.
      * @param   previous_buttons    previous button-states, used for edge-detection.
+     * @param   rumble_fn           optional force-feedback hook for this device.
      *
-     * @note    @p buttons / @p axis are expected in canonical gamepad-order. devices glfw has no
-     *          mapping for are dropped before they get here.
+     * @note    @p buttons / @p axis are expected in canonical gamepad-order.
      */
     Joystick(std::string name, std::vector<uint8_t> buttons, std::vector<float> axis,
-             const std::vector<uint8_t> &previous_buttons = {});
+             const std::vector<uint8_t> &previous_buttons = {}, rumble_fn_t rumble_fn = {});
 
     const std::string &name() const;
 
@@ -240,11 +251,19 @@ public:
 
     const std::unordered_map<Input, Event> &input_events() const;
 
+    /**
+     * @brief   play a rumble-effect on this device, replacing any effect still running.
+     *
+     * @return  false if the device is gone or has no force-feedback.
+     */
+    bool rumble(float strong, float weak, uint32_t duration_ms) const;
+
 private:
     std::string m_name;
     std::vector<uint8_t> m_buttons;
     std::vector<float> m_axis;
     std::unordered_map<Input, Event> m_input_events;
+    rumble_fn_t m_rumble_fn;
 };
 
 std::string to_string(Joystick::Input input);
