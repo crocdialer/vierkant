@@ -306,10 +306,11 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr &cam, frame_context_t &frame_context)
 {
-    uint64_t frame_thresh = scene->current_frame();
+    const uint64_t frame_thresh = scene->current_frame();
     bool need_culling = false;
     frame_context.cull_result.camera = cam;
     frame_context.recycle_commands = true;
+    frame_context.lights_dirty = false;
     frame_context.dirty_drawable_indices.clear();
 
     size_t scene_hash = 0;
@@ -322,11 +323,23 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr
     {
         vierkant::hash_combine(scene_hash, object);
 
-        auto *mesh_component = object->get_component_ptr<mesh_component_t>();
-        if(!mesh_component || !mesh_component->mesh) { continue; }
-
         flag_component_t flag_cmp = {};
-        if(auto *fc = object->get_component_ptr<flag_component_t>()) { flag_cmp = *fc; }
+        if(const auto *fc = object->get_component_ptr<flag_component_t>()) { flag_cmp = *fc; }
+
+        // a light-change only needs cull_result.lights refreshed, not a re-cull (see render_scene).
+        // this also runs for removed light-components, those need to drop out of the array.
+        const bool light_dirty =
+                flag_cmp.timestamp(flag_component_t::DIRTY_LIGHT) + m_frame_contexts.size() >= frame_thresh;
+        if(light_dirty || object->has_component<vierkant::lightsource_component_t>())
+        {
+            frame_context.lights_dirty = frame_context.lights_dirty || light_dirty ||
+                                         last_inherited_flag_update(object, flag_component_t::DIRTY_TRANSFORM) +
+                                                         m_frame_contexts.size() >=
+                                                 frame_thresh;
+        }
+
+        const auto *mesh_component = object->get_component_ptr<mesh_component_t>();
+        if(!mesh_component || !mesh_component->mesh) { continue; }
 
         vierkant::hash_combine(scene_hash, flag_cmp.timestamp(flag_component_t::DIRTY_MESH) + m_frame_contexts.size() >=
                                                    frame_thresh);
@@ -334,8 +347,8 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr
                 flag_cmp.timestamp(flag_component_t::DIRTY_MATERIAL) + m_frame_contexts.size() >= frame_thresh;
         if(material_update) { flag_cmp.flags |= flag_component_t::DIRTY_MATERIAL; }
 
-        auto mesh = mesh_component->mesh.get();
-        bool transform_update =
+        const auto *mesh = mesh_component->mesh.get();
+        const bool transform_update =
                 last_inherited_flag_update(object, flag_component_t::DIRTY_TRANSFORM) + m_frame_contexts.size() >=
                 frame_thresh;
         if(transform_update) { flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM; }
@@ -362,9 +375,8 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr
                 // entry disabled
                 if(mesh_component->entry_indices && !mesh_component->entry_indices->contains(i)) { continue; }
                 const auto &entry = mesh->entries[i];
-                id_entry_t key = {object->id(), i};
 
-                if(frame_context.cull_result.index_map.contains(key))
+                if(id_entry_t key = {.id = object->id(), .entry = i}; frame_context.cull_result.index_map.contains(key))
                 {
                     auto transform = object->global_transform();
 
@@ -441,6 +453,11 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
         cull_params.check_intersection = false;
         cull_params.world_space = true;
         frame_context.cull_result = vierkant::cull(cull_params);
+    }
+    else if(frame_context.lights_dirty)
+    {
+        // lights_ubo is re-uploaded every frame anyway, so only the array needs to be current here
+        frame_context.cull_result.lights = vierkant::gather_lights(scene, tags);
     }
 
     // timeline semaphore

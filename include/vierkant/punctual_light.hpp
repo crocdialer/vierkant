@@ -33,6 +33,12 @@ enum class LightType : uint32_t
     Disk
 };
 
+//! true for the punctual light-types every renderer can shade (Omni/Spot/Directional)
+static inline bool is_punctual(LightType type)
+{
+    return type == LightType::Omni || type == LightType::Spot || type == LightType::Directional;
+}
+
 //! lightsource-asset, owned by an AssetProvider and referenced by LightId
 struct lightsource_t
 {
