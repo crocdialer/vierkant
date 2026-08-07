@@ -10,6 +10,7 @@ static const uint LIGHT_TYPE_POINT = 0;
 static const uint LIGHT_TYPE_SPOT = 1;
 static const uint LIGHT_TYPE_DIRECTIONAL = 2;
 
+//! matches host-side vierkant::light_t (80 bytes), same layout as ray_common's light_t
 public struct lightsource_t
 {
     public float3 position;
@@ -20,6 +21,18 @@ public struct lightsource_t
     public float range;
     public float spot_angle_scale;
     public float spot_angle_offset;
+
+    //! >0 on directional lights indicates a sun-style disc-light (apex angle in radians)
+    public float angular_size;
+
+    //! area-light extent: half-height (Rect) / half-length (Tube)
+    public float size_y;
+
+    //! area-light in-plane x-axis (Rect)
+    public float3 tangent;
+
+    //! area-light extent: radius (Sphere/Disk/Tube) / half-width (Rect)
+    public float size_x;
 };
 
 float GeometrySchlickGGX(float NdotV, float roughness)

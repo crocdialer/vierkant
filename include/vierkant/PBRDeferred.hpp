@@ -269,6 +269,9 @@ private:
         size_t scene_hash = 0;
         bool recycle_commands = false;
 
+        //! lightsources changed, refresh cull_result.lights without a re-cull
+        bool lights_dirty = false;
+
         uint64_t current_semaphore_value = 0;
         SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
         Rasterizer::indirect_draw_bundle_t indirect_draw_params_main = {}, indirect_draw_params_post = {};

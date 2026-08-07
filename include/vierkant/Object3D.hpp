@@ -141,12 +141,13 @@ struct flag_component_t
         DIRTY_TRANSFORM = 0x01,
         DIRTY_MATERIAL = 0x02,
         DIRTY_MESH = 0x04,
+        DIRTY_LIGHT = 0x08,
         MAX_ENUM
     };
     uint32_t flags = 0;
     uint64_t timestamps[msb(MAX_ENUM) + 1] = {};
 
-    inline uint64_t timestamp(FlagEnum flag) const { return timestamps[msb(flag)]; }
+    [[nodiscard]] uint64_t timestamp(FlagEnum flag) const { return timestamps[msb(flag)]; }
 };
 
 uint64_t last_inherited_flag_update(const vierkant::Object3D *object, flag_component_t::FlagEnum flag);

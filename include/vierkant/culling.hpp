@@ -62,4 +62,17 @@ struct cull_params_t
  */
 cull_result_t cull(const cull_params_t &cull_params);
 
+/**
+ * @brief   Collects the punctual lightsources in a scene, in world-space.
+ *
+ * Split out of the culling-operation so renderers can refresh their lights without a full re-cull.
+ *
+ * @param   scene   a provided scene.
+ * @param   tags    optional tag-whitelist, empty accepts everything.
+ *
+ * @return  an array of light_t, ready for upload.
+ */
+std::vector<vierkant::light_t> gather_lights(const vierkant::SceneConstPtr &scene,
+                                             const std::set<std::string> &tags = {});
+
 }
