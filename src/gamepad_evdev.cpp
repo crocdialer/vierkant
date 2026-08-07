@@ -36,8 +36,8 @@ axis_layout_t detect_axis_layout(const unsigned long *abs_bits)
 float normalize_axis(const input_absinfo &abs, bool centered)
 {
     if(abs.maximum == abs.minimum) { return 0.f; }
-    const float value = std::clamp(static_cast<float>(abs.value), static_cast<float>(abs.minimum),
-                                   static_cast<float>(abs.maximum));
+    const float value =
+            std::clamp(static_cast<float>(abs.value), static_cast<float>(abs.minimum), static_cast<float>(abs.maximum));
     const float t = (value - static_cast<float>(abs.minimum)) /
                     (static_cast<float>(abs.maximum) - static_cast<float>(abs.minimum));
     return centered ? t * 2.f - 1.f : t;
@@ -50,8 +50,7 @@ namespace
 //! @note the kernel aliases BTN_X == BTN_NORTH and BTN_Y == BTN_WEST, which is geometrically odd for
 //!       an xbox-layout. verified against xbox-pads only, other drivers might come out swapped.
 constexpr std::array<int, GLFW_GAMEPAD_BUTTON_RIGHT_THUMB + 1> g_button_codes = {
-        BTN_A,      BTN_B,     BTN_X,    BTN_Y,      BTN_TL,     BTN_TR,
-        BTN_SELECT, BTN_START, BTN_MODE, BTN_THUMBL, BTN_THUMBR};
+        BTN_A, BTN_B, BTN_X, BTN_Y, BTN_TL, BTN_TR, BTN_SELECT, BTN_START, BTN_MODE, BTN_THUMBL, BTN_THUMBR};
 
 struct device_t
 {
@@ -137,27 +136,16 @@ void scan_devices()
     closedir(dir);
 
     // readdir-order is arbitrary, sorting keeps the exposed device-order stable across scans
-    std::sort(nodes.begin(), nodes.end());
+    std::ranges::sort(nodes);
 
     bool access_denied = false;
 
     for(const auto &node: nodes)
     {
         auto same_node = [&node](const device_t &d) { return d.node == node; };
-        if(std::any_of(g_devices.begin(), g_devices.end(), same_node)) { continue; }
+        if(std::ranges::any_of(g_devices, same_node)) { continue; }
         if(auto device = open_device(node, access_denied)) { g_devices.push_back(std::move(*device)); }
     }
-
-    // silence here is what made this expensive to debug in glfw. inaccessible nodes are only worth
-    // reporting when they are the plausible reason for finding nothing at all.
-    static bool s_warned = false;
-    if(g_devices.empty() && access_denied && !s_warned)
-    {
-        spdlog::warn("no gamepad found, but some event-nodes in /dev/input are not accessible. if a pad is "
-                     "connected, its node is missing an ACL because udev did not tag it with ID_INPUT_JOYSTICK");
-        s_warned = true;
-    }
-    s_warned = s_warned && g_devices.empty();
 }
 
 //! watch /dev/input for hotplug. IN_ATTRIB matters as much as IN_CREATE: udev applies the ACL after creation.
