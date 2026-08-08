@@ -17,6 +17,7 @@ import "utils/simplex";
 import "utils/sdf";
 import "utils/phase_function";
 import "utils/procedural_environment";
+import "utils/octahedral_map";
 
 static const uint MAX_MEDIA_STACK_SIZE = 4;
 
@@ -50,6 +51,9 @@ struct trace_result_t
     float depth;
     float3 position;
     uint entity_index;
+
+    //! primary-ray direction, reprojects the background where 'position' is meaningless
+    float3 direction;
 
     //! albedo as RGBA8
     uint albedo;
@@ -228,6 +232,7 @@ trace_result_t trace(uint2 coord, uint2 size)
                 result.entity_index = payload.entity_index;
                 result.normal = payload.packed_normal;
                 result.position = payload.position;
+                result.direction = seg_ray.direction;
                 result.albedo = payload.packed_albedo;
                 float4 depth_proj = mul(trace_data.camera.projection_view, float4(result.position, 1.0));
 
@@ -246,6 +251,95 @@ trace_result_t trace(uint2 coord, uint2 size)
     return result;
 }
 
+//! debug views for the reprojection. 0 = off.
+//! 1 = static-camera pass/fail: must be black everywhere, green = landed further than a pixel away,
+//!     red = history rejected. note the tolerance: the primary ray is jittered within the pixel, so a
+//!     correct reprojection returns the jittered sample-position, never exactly the pixel corner.
+//! 2 = horizontal reprojection direction, to check the sign of the temporal offset. turn the camera
+//!     right (scene slides left) -> the history of a pixel lies to its right -> must be RED.
+//!     blue = history to the left, black = no horizontal motion, green = history rejected.
+static const uint DEBUG_REPROJECTION = 0;
+
+//! where this pixel's content was in the previously traced frame: xy in continuous pixel-coords,
+//! z the ndc-depth it would have had there. surfaces reproject their world-position, the background
+//! its primary-direction as a point at infinity (w=0): exact under rotation, zero parallax under
+//! translation.
+float3 reprojected_coord(trace_result_t result, uint2 size)
+{
+    bool primary_miss = result.entity_index == utils::MAX_UINT16;
+    float4 point_prev = primary_miss ? float4(result.direction, 0.0) : float4(result.position, 1.0);
+    float4 clip_prev = mul(trace_data.camera.prev_projection_view, point_prev);
+
+    // w <= 0 is behind the previous camera. also catches an ortho-projection's w=0 for the
+    // background, where a point at infinity has no finite image
+    if(!(clip_prev.w > 0.0)) { return float3(-1.0); }
+
+    // exact inverse of camera_ray()'s coord -> ndc mapping, corner-based like the jittered forward one
+    return float3((clip_prev.xy / clip_prev.w * 0.5 + 0.5) * float2(size), clip_prev.z / clip_prev.w);
+}
+
+//! reject history that belongs to different geometry, which is what produces disocclusion-smear:
+//! a pixel revealed at a silhouette reprojects onto an *in-bounds* texel still holding the occluder.
+//! the projection is reverse-Z with an infinite far plane, so ndc-z is proportional to 1/view-depth
+//! and a relative comparison on it is a relative view-depth comparison.
+static const float HISTORY_DEPTH_TOLERANCE = 0.05;
+static const float HISTORY_NORMAL_TOLERANCE = 0.9;
+
+bool history_matches(ray::pixel_data_t tap, float depth_prev, float3 normal, uint entity_index)
+{
+    // strongest and cheapest signal, and it covers sky <-> geometry transitions for free
+    if(tap.object_id != entity_index) { return false; }
+
+    // background carries no usable depth or normal
+    if(entity_index == utils::MAX_UINT16) { return true; }
+
+    // depth_prev is the ndc-depth the *current* hit would have had last frame, so it compares
+    // directly against what that frame stored using the very same projection_view
+    if(abs(tap.depth - depth_prev) > HISTORY_DEPTH_TOLERANCE * max(depth_prev, 1e-6)) { return false; }
+
+    float3 normal_prev = utils::octahedral_mapping_to_normalized_vector(utils::unpack_snorm_2x16(tap.normal));
+    return dot(normal_prev, normal) > HISTORY_NORMAL_TOLERANCE;
+}
+
+//! bilinear history-fetch. point-sampling here is not good enough: the reprojected coord carries the
+//! primary ray's sub-pixel jitter, so a floor() would pick between two neighbours at random every
+//! frame, and that error feeds back through the accumulation-weight instead of averaging out.
+//! taps are validated individually and the weights renormalised over the survivors, so a partially
+//! off-screen footprint does not darken the result. returns false when nothing usable remains.
+bool sample_history(float3 coord_prev, trace_result_t result, uint2 size, out float4 history)
+{
+    // continuous coords are corner-based, texel centers sit half a pixel in
+    float2 base = coord_prev.xy - 0.5;
+    float2 subpixel = frac(base);
+    int2 base_idx = int2(floor(base));
+
+    float3 normal = utils::octahedral_mapping_to_normalized_vector(utils::unpack_snorm_2x16(result.normal));
+
+    float4 sum = float4(0);
+    float weight_sum = 0.0;
+
+    for(int i = 0; i < 4; ++i)
+    {
+        int2 offset = int2(i & 1, i >> 1);
+        int2 tap = base_idx + offset;
+        if(any(tap < 0) || any(tap >= int2(size))) { continue; }
+
+        float weight = (offset.x == 0 ? 1.0 - subpixel.x : subpixel.x) *
+                       (offset.y == 0 ? 1.0 - subpixel.y : subpixel.y);
+        if(weight <= 0.0) { continue; }
+
+        // single 32-byte fetch, shared by the validation and the blend
+        ray::pixel_data_t tap_data = trace_data.in_pixels[uint(tap.y) * size.x + uint(tap.x)];
+        if(!history_matches(tap_data, coord_prev.z, normal, result.entity_index)) { continue; }
+
+        sum += weight * float4(tap_data.radiance, tap_data.alpha);
+        weight_sum += weight;
+    }
+
+    history = weight_sum > 0.0 ? sum / weight_sum : float4(0);
+    return weight_sum > 0.0;
+}
+
 [shader("raygeneration")]
 void main()
 {
@@ -257,13 +351,36 @@ void main()
 
     float4 accumulated_radiance = float4(result.radiance, smoothstep(0.0, 1.0, result.coverage));
 
-    if(trace_data.params.batch_index != 0)
+    float3 reprojected = reprojected_coord(result, size);
+    float2 coord_prev = reprojected.xy;
+
+    // NaN-safe: any non-finite coord fails these comparisons and drops the history
+    bool history_valid = all(coord_prev >= 0.0) && all(coord_prev < float2(size));
+
+    if(DEBUG_REPROJECTION == 1)
     {
-        // TODO: reproject 'buffer_idx' through camera.prev_projection_view, sample with filtering
-        uint batch_size = trace_data.params.batch_index;
-        accumulated_radiance += batch_size * float4(trace_data.in_pixels[buffer_idx].radiance,
-                                                    trace_data.in_pixels[buffer_idx].alpha);
-        accumulated_radiance /= batch_size + 1;
+        bool within_pixel = all(abs(coord_prev - float2(coord)) < 1.0);
+        float3 debug_color = !history_valid ? float3(1, 0, 0) : (within_pixel ? float3(0) : float3(0, 1, 0));
+        accumulated_radiance = float4(debug_color, 1.0);
+    }
+    else if(DEBUG_REPROJECTION == 2)
+    {
+        float motion_x = coord_prev.x - float(coord.x);
+        float3 debug_color = float3(0, 1, 0);
+        if(history_valid)
+        {
+            debug_color = motion_x > 0.5 ? float3(1, 0, 0) : (motion_x < -0.5 ? float3(0, 0, 1) : float3(0));
+        }
+        accumulated_radiance = float4(debug_color, 1.0);
+    }
+    else if(trace_data.params.batch_index != 0 && history_valid)
+    {
+        float4 history;
+        if(sample_history(reprojected, result, size, history))
+        {
+            uint batch_size = trace_data.params.batch_index;
+            accumulated_radiance = (accumulated_radiance + batch_size * history) / (batch_size + 1);
+        }
     }
 
     trace_data.out_pixels[buffer_idx] =
