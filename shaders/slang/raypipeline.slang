@@ -259,9 +259,10 @@ void main()
 
     if(trace_data.params.batch_index != 0)
     {
+        // TODO: reproject 'buffer_idx' through camera.prev_projection_view, sample with filtering
         uint batch_size = trace_data.params.batch_index;
-        accumulated_radiance += batch_size * float4(trace_data.out_pixels[buffer_idx].radiance,
-                                                    trace_data.out_pixels[buffer_idx].alpha);
+        accumulated_radiance += batch_size * float4(trace_data.in_pixels[buffer_idx].radiance,
+                                                    trace_data.in_pixels[buffer_idx].alpha);
         accumulated_radiance /= batch_size + 1;
     }
 

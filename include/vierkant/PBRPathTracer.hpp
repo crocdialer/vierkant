@@ -289,6 +289,7 @@ private:
         glm::mat4 projection_view{};
         glm::mat4 projection_inverse{};
         glm::mat4 view_inverse{};
+        glm::mat4 prev_projection_view{};
         float fov = glm::quarter_pi<float>();
         float aperture = 0.f;
         float focal_distance = 1.f;
@@ -305,6 +306,9 @@ private:
         VkDeviceAddress index_buffers{};
         VkDeviceAddress entries{};
         VkDeviceAddress materials{};
+
+        //! accumulation ping-pong: previous frame's result (read-only history), current frame's target
+        VkDeviceAddress in_pixels{};
         VkDeviceAddress out_pixels{};
         VkDeviceAddress lights{};
         uint32_t num_lights = 0;
@@ -353,10 +357,17 @@ private:
 
     size_t m_batch_index = 0;
 
+    //! index of the pixel-buffer currently holding the accumulated result, flipped per traced frame
+    uint32_t m_pixel_buffer_index = 0;
+
+    //! projection_view of the previously traced frame, used to reproject accumulated history
+    glm::mat4 m_prev_projection_view{1};
+
     //! path-tracing storage buffers and images
     struct
     {
-        vierkant::BufferPtr pixel_buffer;
+        //! accumulation ping-pong: history is read from one buffer, the result written to the other
+        std::array<vierkant::BufferPtr, 2> pixel_buffers;
         vierkant::BufferPtr depth;
         vierkant::ImagePtr object_ids;
     } m_storage;

@@ -337,6 +337,7 @@ public struct camera_ubo_t
     public float4x4 projection_view;
     public float4x4 projection_inverse;
     public float4x4 view_inverse;
+    public float4x4 prev_projection_view;
     public float fov;
     public float aperture;
     public float focal_distance;
@@ -354,6 +355,9 @@ public struct trace_data_t
     public Ptr<uint32_t, Access.Read> *index_buffers;
     public Ptr<entry_t, Access.Read> entries;
     public Ptr<material_t, Access.Read> materials;
+
+    // accumulation ping-pong: previous frame's result (read-only history), current frame's target
+    public Ptr<pixel_data_t, Access.Read> in_pixels;
     public pixel_data_t *out_pixels;
     public Ptr<light_t, Access.Read> lights;
     public uint num_lights;

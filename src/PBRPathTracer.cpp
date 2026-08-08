@@ -311,16 +311,23 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
 void PBRPathTracer::path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene,
                                     const Object3DPtr &cam)
 {
+    // flip the accumulation ping-pong: the previous result becomes read-only history for this trace.
+    // afterwards m_pixel_buffer_index refers to the buffer holding the most recent result.
+    m_pixel_buffer_index ^= 1;
+
     update_trace_descriptors(frame_context, scene, cam);
 
     frame_context.cmd_trace.begin(0);
     vkCmdWriteTimestamp2(frame_context.cmd_trace.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                          frame_context.query_pool.get(), 2 * SemaphoreValue::RAYTRACING);
 
-    // barrier for top-lvl build
+    // barrier for top-lvl build. the pixel-buffers are shared by all frames-in-flight and only ordered
+    // by submission-order, so the raygen-stage is included here: it keeps this trace's history-reads
+    // (and its writes) from overlapping the previous frame's raygen writes.
     vierkant::stage_barrier(frame_context.cmd_trace.handle(),
                             VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
-                                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR |
+                                    VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
                             VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR);
 
     // run path-tracer
@@ -361,6 +368,12 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
                             VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
     const bool denoising = frame_context.settings.denoising;
+
+    // consume whichever ping-pong buffer the trace just accumulated into
+    for(auto &ping_pong: frame_context.denoise_ping_pong)
+    {
+        ping_pong.computable.descriptors[0].buffers = {m_storage.pixel_buffers[m_pixel_buffer_index]};
+    }
 
     for(uint32_t pass = 0; pass < atrous_steps.size(); ++pass)
     {
@@ -559,6 +572,8 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     camera_params.projection_view = camera::projection_matrix(cam.get()) * mat4_cast(camera::view_transform(cam.get()));
     camera_params.projection_inverse = glm::inverse(camera::projection_matrix(cam.get()));
     camera_params.view_inverse = vierkant::mat4_cast(cam->global_transform());
+
+    camera_params.prev_projection_view = m_prev_projection_view;
     camera_params.ortho = true;
 
     const auto &cam_cmp = cam->get_component<camera_component_t>();
@@ -645,11 +660,15 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.index_buffers = frame_context.scene_ray_acceleration.index_buffer_addresses->device_address();
     trace_data.entries = frame_context.scene_ray_acceleration.entry_buffer->device_address();
     trace_data.materials = frame_context.scene_ray_acceleration.material_buffer->device_address();
-    trace_data.out_pixels = m_storage.pixel_buffer->device_address();
+    trace_data.in_pixels = m_storage.pixel_buffers[m_pixel_buffer_index ^ 1]->device_address();
+    trace_data.out_pixels = m_storage.pixel_buffers[m_pixel_buffer_index]->device_address();
     trace_data.lights = frame_context.lights_buffer->device_address();
 
     // upload data
     frame_context.trace_data_ubo->set_data(&trace_data, sizeof(trace_data_t));
+
+    // keep for the next traced frame's reprojection
+    m_prev_projection_view = camera_params.projection_view;
 }
 
 void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_t &frame_context,
@@ -715,7 +734,9 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         pix_buf_info.usage = VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT_KHR;
         pix_buf_info.device = m_device;
         pix_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-        m_storage.pixel_buffer = vierkant::Buffer::create(pix_buf_info);
+        for(auto &pixel_buffer: m_storage.pixel_buffers) { pixel_buffer = vierkant::Buffer::create(pix_buf_info); }
+
+        // uninitialized content is never read: batch_index 0 skips the history-fetch
         m_batch_index = 0;
     }
 
@@ -750,7 +771,8 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         vierkant::descriptor_t &desc_pixel_in = denoise_computable.descriptors[0];
         desc_pixel_in.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_pixel_in.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-        desc_pixel_in.buffers = {m_storage.pixel_buffer};
+        // re-pointed at the current accumulation-target each frame, see denoise_pass
+        desc_pixel_in.buffers = {m_storage.pixel_buffers[m_pixel_buffer_index]};
 
         vierkant::descriptor_t &desc_denoise_output = denoise_computable.descriptors[1];
         desc_denoise_output.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
