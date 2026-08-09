@@ -25,6 +25,41 @@ struct alignas(16) pixel_buffer_t
 
 constexpr std::array<uint32_t, 5> atrous_steps = {1, 2, 4, 8, 16};
 
+float projection_drift(const glm::mat4 &prev_projection_view, const glm::mat4 &projection_inverse,
+                       const glm::mat4 &view_inverse, bool ortho, float aspect, float z_ref)
+{
+    // 3x3 grid of ndc-positions: corners, edge-midpoints, center
+    constexpr std::array<float, 3> ndc_steps = {-1.f, 0.f, 1.f};
+    float max_drift = 0.f;
+
+    for(float ndc_y: ndc_steps)
+    {
+        for(float ndc_x: ndc_steps)
+        {
+            // world-position this pixel looks at, placed at view-distance 'z_ref'.
+            // mirrors camera_ray() in raypipeline.slang, minus the lens-offset.
+            glm::vec4 near_point = projection_inverse * glm::vec4(ndc_x, ndc_y, 1.f, 1.f);
+            glm::vec3 pos_view;
+
+            if(ortho) { pos_view = {glm::vec2(near_point / near_point.w), -z_ref}; }
+            else
+            {
+                glm::vec3 dir = glm::normalize(glm::vec3(near_point));
+                pos_view = dir * z_ref / std::abs(dir.z);
+            }
+            glm::vec4 clip_prev = prev_projection_view * (view_inverse * glm::vec4(pos_view, 1.f));
+
+            // behind the previous camera: had no history anyway, surviving samples carry the verdict
+            if(clip_prev.w <= 0.f) { continue; }
+
+            // ndc spans [-1, 1] across the full extent, x being width-relative -> fraction of height
+            glm::vec2 delta = glm::vec2(clip_prev) / clip_prev.w - glm::vec2(ndc_x, ndc_y);
+            max_drift = std::max(max_drift, 0.5f * glm::length(glm::vec2(delta.x * aspect, delta.y)));
+        }
+    }
+    return max_drift;
+}
+
 PBRPathTracerPtr PBRPathTracer::create(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info)
 { return vierkant::PBRPathTracerPtr(new PBRPathTracer(device, create_info)); }
 
@@ -196,6 +231,13 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
 
     // copy settings for next frame
     frame_context.settings = settings;
+
+    // motion-adaptive accumulation: shrink the window instead of resetting it. needs to run before
+    // the suspend-check below, or a suspended accumulator could never notice the camera moving.
+    if(frame_context.settings.max_accumulation_drift > 0.f)
+    {
+        m_batch_index = std::min(m_batch_index, accumulation_limit(frame_context.settings, cam));
+    }
 
     // max num batches reached, bail out
     if(!frame_context.settings.max_num_batches || !frame_context.settings.suspend_trace_when_done ||
@@ -650,6 +692,10 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 
     // upload data
     frame_context.trace_data_ubo->set_data(&trace_data, sizeof(trace_data_t));
+
+    // only reached for frames that actually trace, so this stays the camera the accumulated
+    // radiance was gathered with, even across suspended frames
+    m_prev_projection_view = camera_params.projection_view;
 }
 
 void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_t &frame_context,
@@ -676,7 +722,42 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
 
 void PBRPathTracer::reset_accumulator()
 {
-    if(!settings.suppress_reset) { m_batch_index = 0; }
+    if(!settings.suppress_reset)
+    {
+        m_batch_index = 0;
+        m_prev_projection_view = {};
+    }
+}
+
+size_t PBRPathTracer::accumulation_limit(const settings_t &settings, const Object3DPtr &cam) const
+{
+    constexpr auto no_limit = std::numeric_limits<size_t>::max();
+    if(!m_prev_projection_view || !settings.resolution.y) { return no_limit; }
+
+    const auto &cam_cmp = cam->get_component<camera_component_t>();
+
+    // reference view-distance for translation-parallax: the plane the shot is composed on
+    bool ortho = true;
+    float z_ref = 1.f;
+
+    if(const auto *perspective_params = std::get_if<physical_camera_params_t>(&cam_cmp.params))
+    {
+        ortho = false;
+        z_ref = perspective_params->focal_distance;
+    }
+    else if(const auto *ortho_params = std::get_if<ortho_camera_params_t>(&cam_cmp.params))
+    {
+        z_ref = 0.5f * (ortho_params->near_ + ortho_params->far_);
+    }
+
+    float aspect = static_cast<float>(settings.resolution.x) / static_cast<float>(settings.resolution.y);
+    float drift = projection_drift(*m_prev_projection_view, glm::inverse(camera::projection_matrix(cam.get())),
+                                   vierkant::mat4_cast(cam->global_transform()), ortho, aspect, z_ref);
+    if(drift <= 0.f) { return no_limit; }
+
+    // the accumulator blends with weight (k / k + 1), i.e. an EMA carrying ~k frames of history.
+    // 'k' frames of history smeared by 'drift' per frame stays within budget for k = budget / drift.
+    return static_cast<size_t>(settings.max_accumulation_drift / drift);
 }
 
 size_t PBRPathTracer::current_batch() const { return m_batch_index; }
@@ -717,6 +798,7 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         pix_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
         m_storage.pixel_buffer = vierkant::Buffer::create(pix_buf_info);
         m_batch_index = 0;
+        m_prev_projection_view = {};
     }
 
     if(!frame_context.denoise_ping_pong[0].image || frame_context.denoise_ping_pong[0].image->extent() != size)

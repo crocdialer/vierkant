@@ -500,6 +500,10 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     {
         path_tracer->settings.max_num_batches = max_num_batches;
     }
+
+    // maximum accumulated smear, as a fraction of image-height. 0 -> off (reset on camera-motion)
+    ImGui::SliderFloat("max accumulation drift", &path_tracer->settings.max_accumulation_drift, 0.f, 0.25f, "%.4f",
+                       ImGuiSliderFlags_Logarithmic);
     if(ImGui::InputInt("spp (samples/pixel)", &num_samples) && num_samples >= 0)
     {
         path_tracer->settings.num_samples = num_samples;
@@ -1235,7 +1239,10 @@ bool draw_light_ui(vierkant::lightsource_t &light)
         changed |= ImGui::SliderAngle("inner_cone_angle", &light.inner_cone_angle, 0.f, 89.f);
         changed |= ImGui::SliderAngle("outer_cone_angle", &light.outer_cone_angle, 0.f, 89.f);
     }
-    else if(light.type == LightType::Rect) { changed |= ImGui::InputFloat2("half_extents", glm::value_ptr(light.size)); }
+    else if(light.type == LightType::Rect)
+    {
+        changed |= ImGui::InputFloat2("half_extents", glm::value_ptr(light.size));
+    }
     else if(light.type == LightType::Sphere || light.type == LightType::Disk)
     {
         changed |= ImGui::InputFloat("radius", &light.size.x);

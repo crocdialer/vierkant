@@ -32,12 +32,29 @@ struct sunlight_params_t
     float angular_size = 0.f;
 };
 
+/**
+ * @brief   projection_drift measures how far the content of a pixel moved on screen, between a
+ *          previous camera-transform and the current one.
+ *
+ * exact for camera-rotation, which is depth-independent. translation-parallax is evaluated at a
+ * single reference view-distance, 'z_ref'.
+ *
+ * @param   prev_projection_view    a previous frame's projection-view matrix
+ * @param   projection_inverse      inverse projection-matrix of the current camera
+ * @param   view_inverse            inverse view-matrix (global transform) of the current camera
+ * @param   ortho                   flag indicating an orthographic projection
+ * @param   aspect                  aspect-ratio (width / height)
+ * @param   z_ref                   reference view-distance, used to evaluate translation-parallax
+ * @return  maximum drift found, as a fraction of image-height
+ */
+float projection_drift(const glm::mat4 &prev_projection_view, const glm::mat4 &projection_inverse,
+                       const glm::mat4 &view_inverse, bool ortho, float aspect, float z_ref);
+
 DEFINE_CLASS_PTR(PBRPathTracer)
 
 class PBRPathTracer : public vierkant::SceneRenderer
 {
 public:
-
     //! group settings
     struct settings_t
     {
@@ -46,6 +63,12 @@ public:
 
         //! optional maximum number of batches to trace, default: 0 -> no limit
         uint32_t max_num_batches = 0;
+
+        //! maximum tolerable smear of accumulated content, as a fraction of image-height.
+        //! when > 0, camera-motion shrinks the accumulation-window instead of resetting it,
+        //! which keeps the smear roughly constant, independent of camera-speed.
+        //! requires 'max_num_batches' > 0. default: 0 -> off
+        float max_accumulation_drift = 0.f;
 
         //! spp - samples per pixel
         uint32_t num_samples = 1;
@@ -338,6 +361,9 @@ private:
 
     void resize_storage(frame_context_t &frame_context, const glm::uvec2 &resolution);
 
+    //! upper bound for the batch-index, derived from the camera-motion since the last traced frame
+    size_t accumulation_limit(const settings_t &settings, const Object3DPtr &cam) const;
+
     //! device
     vierkant::DevicePtr m_device;
 
@@ -352,6 +378,9 @@ private:
     vierkant::RayBuilder m_ray_builder;
 
     size_t m_batch_index = 0;
+
+    //! projection-view of the most recently traced frame. unset means: no drift measurable (yet)
+    std::optional<glm::mat4> m_prev_projection_view;
 
     //! path-tracing storage buffers and images
     struct
