@@ -37,7 +37,6 @@ DEFINE_CLASS_PTR(PBRPathTracer)
 class PBRPathTracer : public vierkant::SceneRenderer
 {
 public:
-
     //! group settings
     struct settings_t
     {
@@ -46,6 +45,12 @@ public:
 
         //! optional maximum number of batches to trace, default: 0 -> no limit
         uint32_t max_num_batches = 0;
+
+        //! maximum tolerable smear of accumulated content, as a fraction of image-height.
+        //! when > 0, camera-motion shrinks the accumulation-window instead of resetting it,
+        //! which keeps the smear roughly constant, independent of camera-speed.
+        //! requires 'max_num_batches' > 0. default: 0 -> off
+        float max_accumulation_drift = 0.f;
 
         //! spp - samples per pixel
         uint32_t num_samples = 1;
@@ -274,6 +279,9 @@ private:
 
         //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
         uint32_t suppress_refractive_caustics = 0;
+
+        //! maximum tolerable smear, as a fraction of image-height. 0 -> no per-pixel drift-limit
+        float max_accumulation_drift = 0.f;
     };
 
     struct denoise_params_t
@@ -289,6 +297,9 @@ private:
         glm::mat4 projection_view{};
         glm::mat4 projection_inverse{};
         glm::mat4 view_inverse{};
+
+        //! projection-view of the most recently traced frame, used to measure reprojection-drift
+        glm::mat4 prev_projection_view{};
         float fov = glm::quarter_pi<float>();
         float aperture = 0.f;
         float focal_distance = 1.f;
@@ -352,6 +363,9 @@ private:
     vierkant::RayBuilder m_ray_builder;
 
     size_t m_batch_index = 0;
+
+    //! projection-view of the most recently traced frame. unset means: no drift measurable (yet)
+    std::optional<glm::mat4> m_prev_projection_view;
 
     //! path-tracing storage buffers and images
     struct

@@ -25,6 +25,11 @@ struct alignas(16) pixel_buffer_t
 
 constexpr std::array<uint32_t, 5> atrous_steps = {1, 2, 4, 8, 16};
 
+glm::mat4 projection_view(const vierkant::Object3DPtr &cam)
+{
+    return camera::projection_matrix(cam.get()) * mat4_cast(camera::view_transform(cam.get()));
+}
+
 PBRPathTracerPtr PBRPathTracer::create(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info)
 { return vierkant::PBRPathTracerPtr(new PBRPathTracer(device, create_info)); }
 
@@ -197,9 +202,14 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     // copy settings for next frame
     frame_context.settings = settings;
 
+    // motion-adaptive accumulation: a moving camera is never 'done', its content keeps drifting.
+    // the per-pixel drift-limit in raygen does the actual weighting, this only keeps tracing alive.
+    bool camera_moved = frame_context.settings.max_accumulation_drift > 0.f && m_prev_projection_view &&
+                        *m_prev_projection_view != projection_view(cam);
+
     // max num batches reached, bail out
     if(!frame_context.settings.max_num_batches || !frame_context.settings.suspend_trace_when_done ||
-       m_batch_index < frame_context.settings.max_num_batches)
+       m_batch_index < frame_context.settings.max_num_batches || camera_moved)
     {
         // create/update/compact bottom-lvl acceleration-structures
         update_acceleration_structures(frame_context, scene, tags);
@@ -556,9 +566,12 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     }
 
     camera_params_t camera_params = {};
-    camera_params.projection_view = camera::projection_matrix(cam.get()) * mat4_cast(camera::view_transform(cam.get()));
+    camera_params.projection_view = projection_view(cam);
     camera_params.projection_inverse = glm::inverse(camera::projection_matrix(cam.get()));
     camera_params.view_inverse = vierkant::mat4_cast(cam->global_transform());
+
+    // no previous frame yet: reproject through the current matrix, i.e. zero drift everywhere
+    camera_params.prev_projection_view = m_prev_projection_view.value_or(camera_params.projection_view);
     camera_params.ortho = true;
 
     const auto &cam_cmp = cam->get_component<camera_component_t>();
@@ -583,6 +596,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.trace_params.disable_material = frame_context.settings.disable_material;
     trace_data.trace_params.mis_mode = frame_context.settings.mis_mode;
     trace_data.trace_params.suppress_refractive_caustics = frame_context.settings.suppress_refractive_caustics;
+    trace_data.trace_params.max_accumulation_drift = frame_context.settings.max_accumulation_drift;
     trace_data.trace_params.draw_skybox = frame_context.settings.draw_skybox;
     trace_data.trace_params.environment = scene->environment_factor;
     trace_data.trace_params.random_seed = m_random_engine();
@@ -650,6 +664,10 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 
     // upload data
     frame_context.trace_data_ubo->set_data(&trace_data, sizeof(trace_data_t));
+
+    // only reached for frames that actually trace, so this stays the camera the accumulated
+    // radiance was gathered with, even across suspended frames
+    m_prev_projection_view = camera_params.projection_view;
 }
 
 void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_t &frame_context,
@@ -676,7 +694,11 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
 
 void PBRPathTracer::reset_accumulator()
 {
-    if(!settings.suppress_reset) { m_batch_index = 0; }
+    if(!settings.suppress_reset)
+    {
+        m_batch_index = 0;
+        m_prev_projection_view = {};
+    }
 }
 
 size_t PBRPathTracer::current_batch() const { return m_batch_index; }
@@ -717,6 +739,7 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         pix_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
         m_storage.pixel_buffer = vierkant::Buffer::create(pix_buf_info);
         m_batch_index = 0;
+        m_prev_projection_view = {};
     }
 
     if(!frame_context.denoise_ping_pong[0].image || frame_context.denoise_ping_pong[0].image->extent() != size)

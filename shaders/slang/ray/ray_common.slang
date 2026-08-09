@@ -330,6 +330,9 @@ public struct trace_params_t
 
     //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
     public bool suppress_refractive_caustics;
+
+    //! maximum tolerable smear, as a fraction of image-height. 0 -> no per-pixel drift-limit
+    public float max_accumulation_drift;
 };
 
 public struct camera_ubo_t
@@ -337,6 +340,9 @@ public struct camera_ubo_t
     public float4x4 projection_view;
     public float4x4 projection_inverse;
     public float4x4 view_inverse;
+
+    //! projection-view of the most recently traced frame, used to measure reprojection-drift
+    public float4x4 prev_projection_view;
     public float fov;
     public float aperture;
     public float focal_distance;
