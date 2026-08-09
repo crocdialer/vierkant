@@ -32,24 +32,6 @@ struct sunlight_params_t
     float angular_size = 0.f;
 };
 
-/**
- * @brief   projection_drift measures how far the content of a pixel moved on screen, between a
- *          previous camera-transform and the current one.
- *
- * exact for camera-rotation, which is depth-independent. translation-parallax is evaluated at a
- * single reference view-distance, 'z_ref'.
- *
- * @param   prev_projection_view    a previous frame's projection-view matrix
- * @param   projection_inverse      inverse projection-matrix of the current camera
- * @param   view_inverse            inverse view-matrix (global transform) of the current camera
- * @param   ortho                   flag indicating an orthographic projection
- * @param   aspect                  aspect-ratio (width / height)
- * @param   z_ref                   reference view-distance, used to evaluate translation-parallax
- * @return  maximum drift found, as a fraction of image-height
- */
-float projection_drift(const glm::mat4 &prev_projection_view, const glm::mat4 &projection_inverse,
-                       const glm::mat4 &view_inverse, bool ortho, float aspect, float z_ref);
-
 DEFINE_CLASS_PTR(PBRPathTracer)
 
 class PBRPathTracer : public vierkant::SceneRenderer
@@ -366,9 +348,6 @@ private:
     void post_fx_pass(frame_context_t &frame_context);
 
     void resize_storage(frame_context_t &frame_context, const glm::uvec2 &resolution);
-
-    //! upper bound for the batch-index, derived from the camera-motion since the last traced frame
-    size_t accumulation_limit(const settings_t &settings, const Object3DPtr &cam) const;
 
     //! device
     vierkant::DevicePtr m_device;
