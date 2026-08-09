@@ -32,9 +32,10 @@ endfunction(GET_SHADERS_RECURSIVE)
 # recursive collection of `.slang` source files mirroring GET_SHADERS_RECURSIVE
 function(GET_SLANG_RECURSIVE RESULT SLANG_FOLDER)
 
-    # search subdirs
+    # search subdirs, plus the root itself: it holds the entry-points (raypipeline, denoise, ...),
+    # which would otherwise be missing from the recompile-rule's DEPENDS
     subdirlist(SUBDIRS ${SLANG_FOLDER})
-    # set(SUBDIRS "${SLANG_FOLDER}")
+    list(APPEND SUBDIRS "${SLANG_FOLDER}")
 
     foreach (SUBDIR ${SUBDIRS})
         file(GLOB SLANG_FOLDER_FILES "${SUBDIR}/*.slang")

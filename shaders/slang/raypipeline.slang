@@ -239,10 +239,13 @@ trace_result_t trace(uint2 coord, uint2 size)
         }
 
         result.radiance += payload.radiance;
-        result.coverage = max(result.coverage, ray_miss ? 0.0 : 1.0);
+        result.coverage += ray_miss ? 0.0 : 1.0;
     }
 
     result.radiance /= float(trace_data.params.num_samples);
+
+    // hit-fraction over the samples -> coverage ends up as alpha.
+    result.coverage /= float(trace_data.params.num_samples);
     return result;
 }
 
