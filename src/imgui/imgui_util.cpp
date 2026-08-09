@@ -501,9 +501,9 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
         path_tracer->settings.max_num_batches = max_num_batches;
     }
 
-    // maximum accumulated smear, as a fraction of image-height. 0 -> off (reset on camera-motion)
-    ImGui::SliderFloat("max accumulation drift", &path_tracer->settings.max_accumulation_drift, 0.f, 0.25f, "%.4f",
-                       ImGuiSliderFlags_Logarithmic);
+    // maximum accumulated smear, as a fraction of image-height. 0 -> off (reset on camera-motion),
+    // 1 -> a full image-height, i.e. the limit never binds
+    ImGui::DragFloat("max accumulation drift", &path_tracer->settings.max_accumulation_drift, 0.001f, 0.f, 1.f, "%.4f");
     if(ImGui::InputInt("spp (samples/pixel)", &num_samples) && num_samples >= 0)
     {
         path_tracer->settings.num_samples = num_samples;

@@ -256,24 +256,26 @@ trace_result_t trace(uint2 coord, uint2 size)
 /**
  * @brief   'drift_limit' returns how many frames of history this pixel may carry, before its
  *          accumulated smear exceeds 'max_accumulation_drift'.
- *
- * host-side counterpart: vierkant::projection_drift(), which measures the same quantity over a
- * coarse grid at a single reference-distance. this one has the real per-pixel depth.
  */
-uint drift_limit(uint2 coord, uint2 size, trace_result_t result)
+uint drift_limit(uint2 size, trace_result_t result)
 {
     // the background has no position: reproject its direction as a point at infinity, which is
     // exact under rotation and parallax-free under translation
     bool ray_miss = result.entity_index == utils::MAX_UINT16;
-    float4 clip_prev = mul(trace_data.camera.prev_projection_view,
-                           ray_miss ? float4(result.direction, 0.0) : float4(result.position, 1.0));
+    float4 world = ray_miss ? float4(result.direction, 0.0) : float4(result.position, 1.0);
 
-    // behind the previous camera: there is no history to carry
-    if(clip_prev.w <= 0.0) { return 0; }
+    // project the *same* world-point through both cameras, so what is measured is how the content
+    // moved and nothing else. measuring against the pixel-center instead would fold in every
+    // per-sample displacement - the sub-pixel jitter, the depth-of-field lens-offset, and the hit
+    // an alpha-cutout sample found behind the surface - none of which are camera-motion.
+    float4 clip_prev = mul(trace_data.camera.prev_projection_view, world);
+    float4 clip_cur = mul(trace_data.camera.projection_view, world);
+
+    // behind either camera: there is no usable history
+    if(clip_prev.w <= 0.0 || clip_cur.w <= 0.0) { return 0; }
 
     // ndc spans [-1, 1] across the full extent, x being width-relative -> fraction of height
-    float2 ndc = (float2(coord) + 0.5) / float2(size) * 2.0 - 1.0;
-    float2 delta = clip_prev.xy / clip_prev.w - ndc;
+    float2 delta = clip_prev.xy / clip_prev.w - clip_cur.xy / clip_cur.w;
     float aspect = float(size.x) / float(size.y);
     float drift = 0.5 * length(float2(delta.x * aspect, delta.y));
 
@@ -298,7 +300,7 @@ void main()
     // batch-index doubles as the ramp after a reset, so the history is never deeper than it says.
     if(trace_data.params.max_accumulation_drift > 0.0 && batch_size != 0)
     {
-        batch_size = min(batch_size, drift_limit(coord, size, result));
+        batch_size = min(batch_size, drift_limit(size, result));
     }
 
     if(batch_size != 0)
