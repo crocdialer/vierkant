@@ -601,6 +601,9 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     camera_params.projection_view = camera::projection_matrix(cam.get()) * mat4_cast(camera::view_transform(cam.get()));
     camera_params.projection_inverse = glm::inverse(camera::projection_matrix(cam.get()));
     camera_params.view_inverse = vierkant::mat4_cast(cam->global_transform());
+
+    // no previous frame yet: reproject through the current matrix, i.e. zero drift everywhere
+    camera_params.prev_projection_view = m_prev_projection_view.value_or(camera_params.projection_view);
     camera_params.ortho = true;
 
     const auto &cam_cmp = cam->get_component<camera_component_t>();
@@ -625,6 +628,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.trace_params.disable_material = frame_context.settings.disable_material;
     trace_data.trace_params.mis_mode = frame_context.settings.mis_mode;
     trace_data.trace_params.suppress_refractive_caustics = frame_context.settings.suppress_refractive_caustics;
+    trace_data.trace_params.max_accumulation_drift = frame_context.settings.max_accumulation_drift;
     trace_data.trace_params.draw_skybox = frame_context.settings.draw_skybox;
     trace_data.trace_params.environment = scene->environment_factor;
     trace_data.trace_params.random_seed = m_random_engine();

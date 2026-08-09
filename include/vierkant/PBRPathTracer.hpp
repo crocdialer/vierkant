@@ -297,6 +297,9 @@ private:
 
         //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
         uint32_t suppress_refractive_caustics = 0;
+
+        //! maximum tolerable smear, as a fraction of image-height. 0 -> no per-pixel drift-limit
+        float max_accumulation_drift = 0.f;
     };
 
     struct denoise_params_t
@@ -312,6 +315,9 @@ private:
         glm::mat4 projection_view{};
         glm::mat4 projection_inverse{};
         glm::mat4 view_inverse{};
+
+        //! projection-view of the most recently traced frame, used to measure reprojection-drift
+        glm::mat4 prev_projection_view{};
         float fov = glm::quarter_pi<float>();
         float aperture = 0.f;
         float focal_distance = 1.f;
