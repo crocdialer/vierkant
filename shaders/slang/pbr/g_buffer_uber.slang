@@ -119,9 +119,9 @@ FragOutput fragment_main(nointerpolation in renderer::index_bundle_t indices,
                            float2(0.5));
         normal.z = sqrt(1.0 - normal.x * normal.x - normal.y * normal.y);
 
-        float3 t = normalize(vertex_in.tangent);
+        float3 t = normalize(vertex_in.tangent.xyz);
         float3 n = normalize(vertex_in.normal);
-        float3 b = normalize(cross(n, t));
+        float3 b = normalize(cross(n, t)) * vertex_in.tangent.w;
         // mul(v, M) with row-major M(t,b,n) is equivalent to GLSL mat3(t,b,n) * v (column-major)
         normal = mul(normal, float3x3(t, b, n));
         result.normal = float4(normalize(normal), 1);

@@ -17,17 +17,20 @@ struct vertex_t
     glm::vec3 position;
     glm::vec2 tex_coord;
     glm::vec3 normal;
-    glm::vec3 tangent;
+    glm::vec4 tangent;
 };
 
 //! layout for a quantized and packed vertex
 struct packed_vertex_t
 {
     float pos_x, pos_y, pos_z;
-    uint32_t normal;
-    uint32_t tangent;
+
+    //! octahedral normal, tangent-angle and bitangent-handedness, see vierkant::pack_tangent_frame
+    uint32_t tangent_frame;
+
     uint16_t texcoord_x, texcoord_y;
 };
+static_assert(sizeof(packed_vertex_t) == 20, "unexpected packed_vertex_t size");
 
 //! layout for a quantized and packed bone-vertex
 struct bone_vertex_data_t

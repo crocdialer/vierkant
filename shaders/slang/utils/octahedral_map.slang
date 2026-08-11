@@ -54,4 +54,93 @@ public uint pack_snorm_2x16(float2 v)
     return packed;
 }
 
+// Unpack two 12-bit snorm values from the low 24 bits of a dword.
+//  - packed: Two 12-bit snorm in bits [11:0] and [23:12].
+//  - returns: Two float values in [-1,1].
+public float2 unpack_snorm_2x12(uint packed)
+{
+    int2 bits = int2(packed << 20, packed << 8) >> 20;
+    return max(float2(bits) / 2047.0, -1.0);
+}
+
+// Pack two floats into 12-bit snorm values in the low 24 bits of a dword.
+//  - returns: Two 12-bit snorm in bits [11:0] and [23:12].
+public uint pack_snorm_2x12(float2 v)
+{
+    v = any(isnan(v)) ? float2(0, 0) : clamp(v, -1.0, 1.0);
+    int2 iv = int2(round(v * 2047.0));
+    return (iv.x & 0xfff) | ((iv.y & 0xfff) << 12);
+}
+
+// Construct a deterministic orthonormal basis for a direction.
+// Duff et al., "Building an Orthonormal Basis, Revisited" (JCGT 2017).
+//
+// ATTENTION: must stay bit-identical to the host-side implementation in octahedral_map.hpp,
+// otherwise packed tangent-angles decode against a different reference frame. The basis flips
+// discontinuously across n.z == 0 - safe because both sides evaluate 'n' from the same quantized
+// bits and 1 - |p.x| - |p.y| contains no multiply (no fma-contraction can change the sign).
+public void reference_basis(float3 n, out float3 b1, out float3 b2)
+{
+    float s = n.z >= 0.0 ? 1.0 : -1.0;
+    float a = -1.0 / (s + n.z);
+    float b = n.x * n.y * a;
+    b1 = float3(1.0 + s * n.x * n.x * a, s * b, -s * n.x);
+    b2 = float3(b, s + n.y * n.y * a, -n.y);
+}
+
+// bit-layout of a packed tangent-frame: octahedral normal | tangent-angle | handedness
+public static const uint tangent_frame_oct_bits = 24;
+public static const uint tangent_frame_angle_bits = 7;
+public static const uint tangent_frame_angle_steps = 1u << tangent_frame_angle_bits;
+public static const uint tangent_frame_angle_mask = tangent_frame_angle_steps - 1;
+public static const uint tangent_frame_sign_bit = 1u << 31;
+
+static const float TWO_PI = 6.28318530717958647692;
+
+// Pack an orthonormal tangent-frame into a single dword.
+// The normal is stored as a 12:12 octahedral mapping, the tangent as its rotation around that
+// normal relative to reference_basis(), plus one bit of bitangent-handedness. The angle is measured
+// against the *quantized* normal, so the two quantization-errors do not compound.
+//  - n: normalized normal.
+//  - t: tangent, not required to be orthogonal to n (the projection is implicit).
+//  - w: bitangent handedness, glTF convention: bitangent = cross(n, t) * w.
+public uint pack_tangent_frame(float3 n, float3 t, float w)
+{
+    uint oct = pack_snorm_2x12(normalized_vector_to_octahedral_mapping(n));
+
+    // re-derive the basis from the quantized normal, exactly as the unpack-side will
+    float3 quantized_normal = octahedral_mapping_to_normalized_vector(unpack_snorm_2x12(oct));
+    float3 b1, b2;
+    reference_basis(quantized_normal, b1, b2);
+
+    // a tangent parallel to n projects to (0,0) -> atan2(0,0) == 0, an arbitrary but valid frame
+    float angle = atan2(dot(t, b2), dot(t, b1));
+    int steps = int(round(angle * (float(tangent_frame_angle_steps) / TWO_PI)));
+    return oct | ((uint(steps) & tangent_frame_angle_mask) << tangent_frame_oct_bits) |
+           (w < 0.0 ? tangent_frame_sign_bit : 0u);
+}
+
+// Unpack a tangent-frame packed by pack_tangent_frame.
+//  - n: output normal.
+//  - t: output tangent, orthogonal to n.
+//  - w: output bitangent handedness, bitangent = cross(n, t) * w.
+public void unpack_tangent_frame(uint packed, out float3 n, out float3 t, out float w)
+{
+    n = octahedral_mapping_to_normalized_vector(unpack_snorm_2x12(packed));
+    float3 b1, b2;
+    reference_basis(n, b1, b2);
+
+    float angle = float((packed >> tangent_frame_oct_bits) & tangent_frame_angle_mask) *
+                  (TWO_PI / float(tangent_frame_angle_steps));
+    t = cos(angle) * b1 + sin(angle) * b2;
+    w = (packed & tangent_frame_sign_bit) != 0u ? -1.0 : 1.0;
+}
+
+// Unpack only the normal of a packed tangent-frame - skips the basis-construction and sincos.
+// Prefer this in paths that never sample a normal-map (shadow-rays, alpha-test any-hit).
+public float3 unpack_tangent_frame_normal(uint packed)
+{
+    return octahedral_mapping_to_normalized_vector(unpack_snorm_2x12(packed));
+}
+
 }

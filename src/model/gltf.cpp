@@ -305,7 +305,7 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, cons
     // last resort is to fill with zeros here
     geometry->tex_coords.resize(geometry->positions.size(), glm::vec2(0.f));
     geometry->normals.resize(geometry->positions.size(), glm::vec3(0.f));
-    geometry->tangents.resize(geometry->positions.size(), glm::vec3(0.f));
+    geometry->tangents.resize(geometry->positions.size(), glm::vec4(0.f, 0.f, 0.f, 1.f));
 
     return geometry;
 }

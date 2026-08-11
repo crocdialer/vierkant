@@ -118,7 +118,8 @@ void mesh_main(uint ti: SV_GroupThreadID, uint wg_id: SV_GroupID, in payload ren
         out_vertices[i].g_buffer_data.last_position = last_pos;
         out_vertices[i].g_buffer_data.tex_coord = mul(m.texture, float4(v.tex_coord, 0, 1)).xy;
         out_vertices[i].g_buffer_data.normal = utils::apply_rotation(m.transform, v.normal);
-        out_vertices[i].g_buffer_data.tangent = utils::apply_rotation(m.transform, v.tangent);
+        out_vertices[i].g_buffer_data.tangent =
+                float4(utils::apply_rotation(m.transform, v.tangent.xyz), v.tangent.w);
 
 #if CULLING
         vertex_clip[i] = float3((jittered_position.xy / jittered_position.w * 0.5 + float2(0.5)) * context.size,

@@ -52,7 +52,7 @@ renderer::g_buffer_vertex_data_t vertex_main(uint vertex_id: SV_VertexID, uint b
 
     vertex_out.tex_coord = mul(m.texture, float4(v.tex_coord, 0, 1)).xy;
     vertex_out.normal = utils::apply_rotation(m.transform, v.normal);
-    vertex_out.tangent = utils::apply_rotation(m.transform, v.tangent);
+    vertex_out.tangent = float4(utils::apply_rotation(m.transform, v.tangent.xyz), v.tangent.w);
 
     return vertex_out;
 }

@@ -65,7 +65,9 @@ public struct g_buffer_vertex_data_t
 {
     public float2 tex_coord;
     public float3 normal;
-    public float3 tangent;
+
+    //! tangent-direction in xyz, bitangent-handedness in w
+    public float4 tangent;
     public float4 current_position;
     public float4 last_position;
 };
