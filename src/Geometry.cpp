@@ -203,7 +203,7 @@ void Geometry::compute_tangents()
     if(tangents.size() != positions.size())
     {
         tangents.clear();
-        tangents.resize(positions.size(), glm::vec3(0));
+        tangents.resize(positions.size(), glm::vec4(0));
     }
     tangents_tmp.resize(positions.size(), glm::vec3(0));
     bitangents_tmp.resize(positions.size(), glm::vec3(0));
@@ -246,10 +246,14 @@ void Geometry::compute_tangents()
         const glm::vec3 &b = bitangents_tmp[a];
 
         // Gram-Schmidt orthogonalize
-        tangents[a] = glm::normalize(t - n * glm::dot(n, t));
+        glm::vec3 tangent = glm::normalize(t - n * glm::dot(n, t));
 
         // correct handedness
-        tangents[a] *= (glm::dot(glm::cross(n, t), b) < 0.f) ? 1.f : -1.f;
+        tangent *= (glm::dot(glm::cross(n, t), b) < 0.f) ? 1.f : -1.f;
+
+        // NOTE: handedness is baked into the tangent-direction here rather than carried in w.
+        // w == 1 keeps 'bitangent = cross(n, t) * w' identical to the previous reconstruction.
+        tangents[a] = glm::vec4(tangent, 1.f);
     }
 }
 

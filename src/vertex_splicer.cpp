@@ -76,7 +76,7 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
             {
                 const glm::vec3 &pos = geom->positions[i];
                 const glm::vec3 &normal = geom->normals[i];
-                const glm::vec3 &tangent = geom->tangents[i];
+                const glm::vec4 &tangent = geom->tangents[i];
                 const glm::vec2 &texcoord = geom->tex_coords[i];
 
                 packed_vertex_t *v = (packed_vertex_t *) ret.data() + offset_bundle.base_vertex + i;
@@ -84,9 +84,8 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
                 v->pos_y = meshopt_quantizeFloat(pos.y, num_mantissa_bits);
                 v->pos_z = meshopt_quantizeFloat(pos.z, num_mantissa_bits);
 
-                // store directions in packed octahedral mapping
-                v->normal = vierkant::pack_snorm_2x16(vierkant::normalized_vector_to_octahedral_mapping(normal));
-                v->tangent = vierkant::pack_snorm_2x16(vierkant::normalized_vector_to_octahedral_mapping(tangent));
+                // store the orthonormal tangent-frame in a single dword
+                v->tangent_frame = vierkant::pack_tangent_frame(normal, glm::vec3(tangent), tangent.w);
 
                 v->texcoord_x = meshopt_quantizeHalf(texcoord.x);
                 v->texcoord_y = meshopt_quantizeHalf(texcoord.y);
@@ -122,20 +121,16 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
         pos_attrib.offset = offsetof(packed_vertex_t, pos_x);
         pos_attrib.stride = sizeof(packed_vertex_t);
 
+        // normal and tangent share a single packed dword, exposed at the normal-location
         auto &normal_attrib = ret[Mesh::AttribLocation::ATTRIB_NORMAL];
-        normal_attrib.format = VK_FORMAT_R8G8B8A8_UINT;
-        normal_attrib.offset = offsetof(packed_vertex_t, normal);
+        normal_attrib.format = VK_FORMAT_R32_UINT;
+        normal_attrib.offset = offsetof(packed_vertex_t, tangent_frame);
         normal_attrib.stride = sizeof(packed_vertex_t);
 
         auto &texcoord_attrib = ret[Mesh::AttribLocation::ATTRIB_TEX_COORD];
         texcoord_attrib.format = VK_FORMAT_R16G16_SFLOAT;
         texcoord_attrib.offset = offsetof(packed_vertex_t, texcoord_x);
         texcoord_attrib.stride = sizeof(packed_vertex_t);
-
-        auto &tangent_attrib = ret[Mesh::AttribLocation::ATTRIB_TANGENT];
-        tangent_attrib.format = VK_FORMAT_R8G8B8A8_UINT;
-        tangent_attrib.offset = offsetof(packed_vertex_t, tangent);
-        tangent_attrib.stride = sizeof(packed_vertex_t);
     }
     return ret;
 }

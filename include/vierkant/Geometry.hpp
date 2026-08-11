@@ -74,7 +74,9 @@ public:
     std::vector<glm::vec4> colors;
     std::vector<glm::vec2> tex_coords;
     std::vector<glm::vec3> normals;
-    std::vector<glm::vec3> tangents;
+
+    //! glTF convention: tangent-direction in xyz, bitangent-handedness in w (bitangent = cross(n, t.xyz) * t.w)
+    std::vector<glm::vec4> tangents;
 
     //! each vertex can reference up to 4 bones
     std::vector<glm::vec<4, uint16_t>> bone_indices;

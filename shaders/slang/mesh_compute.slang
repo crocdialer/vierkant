@@ -44,12 +44,14 @@ void skin_compute(uint3 dispatchThreadID: SV_DispatchThreadID,
     {
         new_pos += utils::apply_transform(params.bones_in[bone_ids[i]], v.position) * bone_weights[i];
         new_normal += utils::apply_rotation(params.bones_in[bone_ids[i]], v.normal) * bone_weights[i];
-        new_tangent += utils::apply_rotation(params.bones_in[bone_ids[i]], v.tangent) * bone_weights[i];
+        new_tangent += utils::apply_rotation(params.bones_in[bone_ids[i]], v.tangent.xyz) * bone_weights[i];
     }
 
     v.position = new_pos;
     v.normal = normalize(new_normal);
-    v.tangent = normalize(new_tangent);
+
+    // handedness is invariant under the bone-rotations -> passthrough
+    v.tangent.xyz = normalize(new_tangent);
 
     // write transformed+packed vertex
     params.vertex_out[gid] = utils::pack(v);
@@ -76,10 +78,12 @@ void morph_compute(uint3 dispatchThreadID: SV_DispatchThreadID,
 
         v.position += morph_vertex.position * params.weights[i];
         new_normal += utils::slerp(v.normal, v.normal + morph_vertex.normal, params.weights[i]);
-        new_tangent += utils::slerp(v.tangent, v.tangent + morph_vertex.tangent, params.weights[i]);
+        new_tangent += utils::slerp(v.tangent.xyz, v.tangent.xyz + morph_vertex.tangent.xyz, params.weights[i]);
     }
     v.normal = normalize(new_normal);
-    v.tangent = normalize(new_tangent);
+
+    // handedness is not affected by morph-targets -> passthrough
+    v.tangent.xyz = normalize(new_tangent);
 
     // write transformed+packed vertex
     params.vertex_out[gid] = utils::pack(v);

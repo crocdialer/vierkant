@@ -388,8 +388,10 @@ utils::Vertex interpolate_vertex(Ptr<ray::entry_t, Access::Read> entry, ray::Tri
             t.v0.tex_coord * barycentric.x + t.v1.tex_coord * barycentric.y + t.v2.tex_coord * barycentric.z;
     out_vert.normal =
             normalize(t.v0.normal * barycentric.x + t.v1.normal * barycentric.y + t.v2.normal * barycentric.z);
-    out_vert.tangent =
-            normalize(t.v0.tangent * barycentric.x + t.v1.tangent * barycentric.y + t.v2.tangent * barycentric.z);
+    // all three vertices of a triangle share the same handedness -> interpolate the direction only
+    out_vert.tangent = float4(normalize(t.v0.tangent.xyz * barycentric.x + t.v1.tangent.xyz * barycentric.y +
+                                        t.v2.tangent.xyz * barycentric.z),
+                              t.v0.tangent.w);
 
     out_vert.position = utils::apply_transform(entry->transform, position);
     out_vert.tex_coord = mul(entry->texture_matrix, float4(out_vert.tex_coord, 0.0, 1.0)).xy;
@@ -398,7 +400,7 @@ utils::Vertex interpolate_vertex(Ptr<ray::entry_t, Access::Read> entry, ray::Tri
                          entry->transform.rotation_w);
     out_vert.normal = utils::rotate_quat(quat, out_vert.normal);
     out_vert.normal = (HitKind() == HIT_KIND_BACK_FACE) ? -out_vert.normal : out_vert.normal;
-    out_vert.tangent = utils::rotate_quat(quat, out_vert.tangent);
+    out_vert.tangent.xyz = utils::rotate_quat(quat, out_vert.tangent.xyz);
     return out_vert;
 }
 
@@ -590,8 +592,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
             // v.normal potentially flipped for backfaces, but v.tangent is not.
             // -> adjust bitangent handedness for backfaces
-            float3 b = normalize(cross(v.normal, v.tangent));
-            normal = normalize(mul(normal, float3x3(v.tangent, backface ? -b : b, v.normal)));
+            float3 b = normalize(cross(v.normal, v.tangent.xyz)) * v.tangent.w;
+            normal = normalize(mul(normal, float3x3(v.tangent.xyz, backface ? -b : b, v.normal)));
 
             // hemisphere clamp
             shading_normal = normalize(normal + max(0, -dot(normal, v.normal) + 1e-3) * v.normal);
