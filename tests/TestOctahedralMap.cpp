@@ -52,28 +52,52 @@ glm::vec3 tangent_for(const glm::vec3 &n, float angle)
 
 }// namespace
 
-TEST(OctahedralMap, snorm_2x12_roundtrip)
+TEST(OctahedralMap, snorm_2x11_roundtrip)
 {
-    // 12-bit snorm: 1/2047 quantum, so worst-case error is half of that
-    constexpr float max_error = 0.5f / 2047.f + 1e-6f;
+    // 11-bit snorm: 1/1023 quantum, so worst-case error is half of that
+    constexpr float max_error = 0.5f / 1023.f + 1e-6f;
 
-    for(int i = -2047; i <= 2047; ++i)
+    for(int i = -1023; i <= 1023; ++i)
     {
-        glm::vec2 v(static_cast<float>(i) / 2047.f, static_cast<float>(-i) / 2047.f);
-        glm::vec2 rt = unpack_snorm_2x12(pack_snorm_2x12(v));
+        glm::vec2 v(static_cast<float>(i) / 1023.f, static_cast<float>(-i) / 1023.f);
+        glm::vec2 rt = unpack_snorm_2x11(pack_snorm_2x11(v));
         EXPECT_NEAR(v.x, rt.x, max_error);
         EXPECT_NEAR(v.y, rt.y, max_error);
     }
 
     // the two components must not bleed into each other
-    EXPECT_EQ(pack_snorm_2x12({1.f, 0.f}) >> 12, 0u);
-    EXPECT_EQ(pack_snorm_2x12({0.f, 1.f}) & 0xfff, 0u);
+    EXPECT_EQ(pack_snorm_2x11({1.f, 0.f}) >> 11, 0u);
+    EXPECT_EQ(pack_snorm_2x11({0.f, 1.f}) & 0x7ff, 0u);
 
-    // nothing may escape the low 24 bits
+    // nothing may escape the low 22 bits - neither packer
     for(const auto &d: random_directions(4096))
     {
-        EXPECT_EQ(pack_snorm_2x12(normalized_vector_to_octahedral_mapping(d)) & 0xff000000u, 0u);
+        EXPECT_EQ(pack_snorm_2x11(normalized_vector_to_octahedral_mapping(d)) & 0xffc00000u, 0u);
+        EXPECT_EQ(pack_octahedral_2x11(d) & 0xffc00000u, 0u);
     }
+}
+
+TEST(OctahedralMap, octahedral_2x11_optimal_rounding)
+{
+    // searching all four floor/ceil combinations may never lose against rounding to nearest
+    float worst_optimal = 0.f, worst_nearest = 0.f;
+
+    for(const auto &n: random_directions(65536))
+    {
+        auto decode = [](uint32_t p) { return octahedral_mapping_to_normalized_vector(unpack_snorm_2x11(p)); };
+
+        float optimal = angle_between(n, decode(pack_octahedral_2x11(n)));
+        float nearest = angle_between(n, decode(pack_snorm_2x11(normalized_vector_to_octahedral_mapping(n))));
+
+        EXPECT_LE(optimal, nearest + 1e-4f);
+        worst_optimal = std::max(worst_optimal, optimal);
+        worst_nearest = std::max(worst_nearest, nearest);
+    }
+
+    // measured: 0.082 vs 0.117 degrees
+    EXPECT_LT(worst_optimal, 0.09f);
+    spdlog::info("octahedral 11:11 worst-case error: optimal {:.4f} deg, nearest {:.4f} deg", worst_optimal,
+                 worst_nearest);
 }
 
 TEST(OctahedralMap, reference_basis_orthonormal)
@@ -102,11 +126,11 @@ TEST(OctahedralMap, reference_basis_orthonormal)
 
 TEST(OctahedralMap, tangent_frame_roundtrip)
 {
-    // 12:12 octahedral - measured worst case is ~0.056 degrees (at the octahedral cell-corners)
+    // 11:11 octahedral with optimal rounding - measured worst case ~0.082 degrees
     constexpr float max_normal_error = 0.1f;
 
-    // 7-bit angle -> 360/128 == 2.8125 degree steps, worst case half a step
-    constexpr float max_tangent_error = 0.5f * 360.f / 128.f + 0.05f;
+    // 9-bit angle -> 360/512 == 0.703 degree steps, worst case half a step
+    constexpr float max_tangent_error = 0.5f * 360.f / 512.f + 0.05f;
 
     std::mt19937 rng(0xc0ffee);
     std::uniform_real_distribution<float> angle_dist(-glm::pi<float>(), glm::pi<float>());
@@ -159,7 +183,7 @@ TEST(OctahedralMap, tangent_frame_non_orthogonal_input)
     unpack_tangent_frame(pack_tangent_frame(n, skewed, 1.f), out_n, out_t, out_w);
 
     EXPECT_NEAR(glm::dot(out_n, out_t), 0.f, 1e-5f);
-    EXPECT_LT(angle_between(out_t, glm::vec3(1, 0, 0)), 1.5f);
+    EXPECT_LT(angle_between(out_t, glm::vec3(1, 0, 0)), 0.5f);
 
     // a tangent parallel to the normal is degenerate but must stay finite
     unpack_tangent_frame(pack_tangent_frame(n, n, 1.f), out_n, out_t, out_w);
@@ -178,9 +202,9 @@ TEST(OctahedralMap, tangent_frame_bitangent_handedness)
 
     unpack_tangent_frame(pack_tangent_frame(n, t, 1.f), out_n, out_t, out_w);
     glm::vec3 bitangent = glm::cross(out_n, out_t) * out_w;
-    EXPECT_LT(angle_between(bitangent, glm::vec3(0, 1, 0)), 1.5f);
+    EXPECT_LT(angle_between(bitangent, glm::vec3(0, 1, 0)), 0.5f);
 
     unpack_tangent_frame(pack_tangent_frame(n, t, -1.f), out_n, out_t, out_w);
     bitangent = glm::cross(out_n, out_t) * out_w;
-    EXPECT_LT(angle_between(bitangent, glm::vec3(0, -1, 0)), 1.5f);
+    EXPECT_LT(angle_between(bitangent, glm::vec3(0, -1, 0)), 0.5f);
 }
