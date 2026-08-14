@@ -293,12 +293,12 @@ public float light_pdf(light_t l, float3 P, float3 dir)
 }
 
 //! next-event estimation at a surface: uniformly pick one light, sample it, trace a visibility ray.
-//! requires trace_data.num_lights > 0
+//! requires trace_data.params.num_lights > 0
 public float3 nee_surface(material_t material, trace_data_t trace_data, RaytracingAccelerationStructure as,
                           Sampler2D textures[], float3 pos, float3 N, float3 V, float eta, inout uint rng_state)
 {
     // uniform 1/N light-pick (single light: keep rng-stream untouched)
-    uint num_lights = trace_data.num_lights;
+    uint num_lights = trace_data.params.num_lights;
     uint index = num_lights > 1 ? min(uint(utils::rnd(rng_state) * num_lights), num_lights - 1) : 0;
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
     light_sample_t ls = sample_light(trace_data.lights[index], pos, Xi);
@@ -337,7 +337,7 @@ public float3 nee_volume(Ray ray, trace_data_t trace_data, RaytracingAcceleratio
                          float phase_g, inout uint rng_state)
 {
     // uniform 1/N light-pick (single light: keep rng-stream untouched)
-    uint num_lights = trace_data.num_lights;
+    uint num_lights = trace_data.params.num_lights;
     uint index = num_lights > 1 ? min(uint(utils::rnd(rng_state) * num_lights), num_lights - 1) : 0;
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
     light_sample_t ls = sample_light(trace_data.lights[index], ray.origin, Xi);

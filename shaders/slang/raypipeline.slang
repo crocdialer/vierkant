@@ -207,7 +207,7 @@ trace_result_t trace(uint2 coord, uint2 size)
                 bool seg_miss = payload.entity_index == utils::MAX_UINT16;
                 float t_end = seg_miss ? seg_ray.tmax : length(payload.ray.origin - seg_ray.origin);
 
-                for(uint li = 0; li < trace_data.num_lights; ++li)
+                for(uint li = 0; li < trace_data.params.num_lights; ++li)
                 {
                     ray::light_t l = trace_data.lights[li];
 
@@ -218,7 +218,7 @@ trace_result_t trace(uint2 coord, uint2 size)
                     // drop the light-body hit-add on refractive-caustic paths (see miss shaders)
                     if(trace_data.params.suppress_refractive_caustics && seg_caustic) { continue; }
 
-                    float p_nee = ray::light_pdf(l, seg_ray.origin, seg_ray.direction) / trace_data.num_lights;
+                    float p_nee = ray::light_pdf(l, seg_ray.origin, seg_ray.direction) / trace_data.params.num_lights;
                     float w = ray::mis_weight_hit(trace_data.params.mis_mode, seg_prev_pdf, p_nee);
                     payload.radiance += seg_beta * w * l.color * l.intensity;
                 }
@@ -430,7 +430,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     float3 sigma_t = payload.media.sigma_s + payload.media.sigma_a;
 
     // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
-    bool use_direct_lighting = trace_data.num_lights > 0;
+    bool use_direct_lighting = trace_data.params.num_lights > 0;
 
     if(any(sigma_t > float3(0)))
     {
@@ -775,7 +775,7 @@ void any_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes
 float3 eval_distant_lights(float3 dir, float prev_bsdf_pdf)
 {
     float3 radiance = float3(0);
-    for(uint i = 0; i < trace_data.num_lights; ++i)
+    for(uint i = 0; i < trace_data.params.num_lights; ++i)
     {
         ray::light_t l = trace_data.lights[i];
         if(l.type != ray::LightType::Directional) { continue; }
@@ -784,7 +784,7 @@ float3 eval_distant_lights(float3 dir, float prev_bsdf_pdf)
         float pdf = ray::light_pdf(l, float3(0), dir);
         if(pdf <= 0.0) { continue; }
 
-        float w = ray::mis_weight_hit(trace_data.params.mis_mode, prev_bsdf_pdf, pdf / trace_data.num_lights);
+        float w = ray::mis_weight_hit(trace_data.params.mis_mode, prev_bsdf_pdf, pdf / trace_data.params.num_lights);
         radiance += w * l.color * l.intensity;
     }
     return radiance;

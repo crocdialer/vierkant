@@ -652,7 +652,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
         }
     }
     if(!lights.empty()) { frame_context.lights_buffer->set_data(lights); }
-    trace_data.num_lights = lights.size();
+    trace_data.trace_params.num_lights = lights.size();
 
     // assign buffer-addresses
     trace_data.vertex_buffers = frame_context.scene_ray_acceleration.vertex_buffer_addresses->device_address();

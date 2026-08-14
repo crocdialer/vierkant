@@ -333,6 +333,12 @@ public struct trace_params_t
 
     //! maximum tolerable smear, as a fraction of image-height. 0 -> no per-pixel drift-limit
     public float max_accumulation_drift;
+
+    //! number of direct lights
+    public uint num_lights;
+
+    //! explicit padding to align to 16B
+    private uint pad0, pad1;
 };
 
 public struct camera_ubo_t
@@ -362,7 +368,6 @@ public struct trace_data_t
     public Ptr<material_t, Access.Read> materials;
     public pixel_data_t *out_pixels;
     public Ptr<light_t, Access.Read> lights;
-    public uint num_lights;
 };
 
 }// namespace ray

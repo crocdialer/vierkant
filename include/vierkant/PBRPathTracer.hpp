@@ -282,6 +282,9 @@ private:
 
         //! maximum tolerable smear, as a fraction of image-height. 0 -> no per-pixel drift-limit
         float max_accumulation_drift = 0.f;
+
+        //! number of direct lights
+        uint32_t num_lights = 0;
     };
 
     struct denoise_params_t
@@ -318,7 +321,6 @@ private:
         VkDeviceAddress materials{};
         VkDeviceAddress out_pixels{};
         VkDeviceAddress lights{};
-        uint32_t num_lights = 0;
     };
 
     struct alignas(16) composition_ubo_t
