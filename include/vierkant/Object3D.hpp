@@ -8,7 +8,6 @@
 #include <crocore/fixed_size_free_list.h>
 #include <entt/entity/registry.hpp>
 #include <optional>
-#include <set>
 #include <vierkant/intersection.hpp>
 #include <vierkant/object_component.hpp>
 #include <vierkant/transform.hpp>
@@ -152,6 +151,23 @@ struct flag_component_t
 
 uint64_t last_inherited_flag_update(const vierkant::Object3D *object, flag_component_t::FlagEnum flag);
 bool has_inherited_flag(const vierkant::Object3D *object, uint32_t flag_bits);
+
+/**
+ * @brief   layer_t groups objects for the consumers that walk the scene-graph.
+ *
+ * every graph-walking operation (culling, light-gathering, physics, serialization, ui) carries a
+ * layer-mask and skips objects it does not match. unscoped, so masks compose with plain bit-ops.
+ */
+enum layer_t : uint32_t
+{
+    //! ordinary scene-content
+    LAYER_DEFAULT = 0x01,
+
+    //! editor-only: viewport-camera, gizmos, widgets. not rendered, simulated or serialized as content.
+    LAYER_EDITOR = 0x02,
+
+    LAYER_ALL = 0xffffffff
+};
 
 class alignas(8) Object3D : public std::enable_shared_from_this<Object3D>
 {
@@ -331,14 +347,14 @@ public:
         throw std::runtime_error("component does not exist");
     }
 
-    //! set of tags
-    std::set<std::string> tags;
-
     //! user definable name
     std::string name;
 
     //! enabled hint, can be used by Visitors
     bool enabled = true;
+
+    //! bitmask of layer_t, filters the consumers walking the scene-graph
+    uint32_t layers = LAYER_DEFAULT;
 
     //! a list of child-objects
     std::vector<Object3DPtr> children;

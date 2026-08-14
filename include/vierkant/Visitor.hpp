@@ -13,7 +13,6 @@
 
 #pragma once
 
-#include <set>
 #include <stack>
 
 #include "vierkant/Camera.hpp"
@@ -21,22 +20,6 @@
 
 namespace vierkant
 {
-
-/**
- * @brief   Utility to check if one set of tags contains at least one item from another set.
- *
- * @param   whitelist the tags that shall pass the check.
- * @param   obj_tags    the tags to check against the whitelist
- * @return
- */
-inline static bool check_tags(const std::set<std::string> &whitelist, const std::set<std::string> &obj_tags)
-{
-    for(const auto &t: obj_tags)
-    {
-        if(whitelist.count(t)) { return true; }
-    }
-    return whitelist.empty();
-}
 
 class Visitor
 {
@@ -58,8 +41,8 @@ template<typename T>
 class SelectVisitor : public Visitor
 {
 public:
-    explicit SelectVisitor(std::set<std::string> tags_ = {}, bool select_only_enabled_ = true)
-        : tags(std::move(tags_)), select_only_enabled(select_only_enabled_)
+    explicit SelectVisitor(uint32_t layer_mask_ = LAYER_ALL, bool select_only_enabled_ = true)
+        : layer_mask(layer_mask_), select_only_enabled(select_only_enabled_)
     {}
     void visit(T &object) override
     {
@@ -71,11 +54,11 @@ public:
     };
 
     bool should_visit(vierkant::Object3D &object) const override
-    { return (object.enabled || !select_only_enabled) && check_tags(tags, object.tags); }
+    { return (object.enabled || !select_only_enabled) && (object.layers & layer_mask); }
 
     std::vector<T *> objects = {};
 
-    std::set<std::string> tags = {};
+    uint32_t layer_mask = LAYER_ALL;
 
     bool select_only_enabled = true;
 };

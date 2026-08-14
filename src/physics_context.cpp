@@ -1634,7 +1634,7 @@ void PhysicsScene::update(double time_delta)
         obj->set_global_transform(global);
     };
 
-    vierkant::SelectVisitor<vierkant::Object3D> visitor({}, false);
+    vierkant::SelectVisitor<vierkant::Object3D> visitor(vierkant::LAYER_ALL, false);
     root()->accept(visitor);
 
     for(auto *obj: visitor.objects)

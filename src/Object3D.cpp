@@ -40,7 +40,7 @@ public:
             dst_obj->name = src_obj->name;
             dst_obj->remove_component<Object3D *>();
             dst_obj->enabled = src_obj->enabled;
-            dst_obj->tags = src_obj->tags;
+            dst_obj->layers = src_obj->layers;
 
             // copy entt-components, this includes a potential transform_component_t
             for(auto [id, storage]: m_registry->storage())

@@ -14,16 +14,17 @@ namespace vierkant
 class CullVisitor : public vierkant::Visitor
 {
 public:
-    CullVisitor(vierkant::SceneConstPtr scene, vierkant::Object3DPtr cam, bool check_intersection, bool world_space)
-        : m_frustum(camera::frustum(cam.get())), m_camera(std::move(cam)), m_scene(std::move(scene)),
-          m_check_intersection(check_intersection)
+    CullVisitor(vierkant::SceneConstPtr scene, vierkant::Object3DPtr cam, bool check_intersection, bool world_space,
+                uint32_t layer_mask)
+        : m_layer_mask(layer_mask), m_frustum(camera::frustum(cam.get())), m_camera(std::move(cam)),
+          m_scene(std::move(scene)), m_check_intersection(check_intersection)
     {
         if(!world_space) { m_base_transform = camera::view_transform(m_camera.get()); }
     };
 
     void visit(vierkant::Object3D &object) override
     {
-        if(object.enabled && check_tags(m_tags, object.tags))
+        if(object.enabled && (object.layers & m_layer_mask))
         {
             // cached global, no accumulation during traversal required
             const auto model_view = m_base_transform * object.global_transform();
@@ -73,7 +74,7 @@ public:
         }
     }
 
-    std::set<std::string> m_tags;
+    uint32_t m_layer_mask = LAYER_ALL;
 
     vierkant::Frustum m_frustum;
 
@@ -92,21 +93,21 @@ public:
 cull_result_t cull(const cull_params_t &cull_params)
 {
     CullVisitor cull_visitor(cull_params.scene, cull_params.camera, cull_params.check_intersection,
-                             cull_params.world_space);
+                             cull_params.world_space, cull_params.layer_mask);
     cull_params.scene->root()->accept(cull_visitor);
     cull_visitor.m_cull_result.scene = cull_params.scene;
     cull_visitor.m_cull_result.camera = cull_params.camera;
-    cull_visitor.m_cull_result.lights = gather_lights(cull_params.scene, cull_params.tags);
+    cull_visitor.m_cull_result.lights = gather_lights(cull_params.scene, cull_params.layer_mask);
     return std::move(cull_visitor.m_cull_result);
 }
 
-std::vector<vierkant::light_t> gather_lights(const vierkant::SceneConstPtr &scene, const std::set<std::string> &tags)
+std::vector<vierkant::light_t> gather_lights(const vierkant::SceneConstPtr &scene, uint32_t layer_mask)
 {
     std::vector<vierkant::light_t> ret;
 
     vierkant::LambdaVisitor visitor;
-    visitor.traverse(*scene->root(), [&ret, &scene, &tags](const Object3D &object) -> bool {
-        if(!object.enabled || !check_tags(tags, object.tags)) { return false; }
+    visitor.traverse(*scene->root(), [&ret, &scene, layer_mask](const Object3D &object) -> bool {
+        if(!object.enabled || !(object.layers & layer_mask)) { return false; }
 
         if(const auto *light_cmp = object.get_component_ptr<vierkant::lightsource_component_t>())
         {

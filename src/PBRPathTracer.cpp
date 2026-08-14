@@ -187,7 +187,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 }
 
 SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer, const SceneConstPtr &scene,
-                                                           const Object3DPtr &cam, const std::set<std::string> &tags)
+                                                           const Object3DPtr &cam, uint32_t layer_mask)
 {
     auto &frame_context = m_frame_contexts[renderer.current_index()];
     frame_context.statistics.timestamp = std::chrono::steady_clock::now();
@@ -212,7 +212,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
        m_batch_index < frame_context.settings.max_num_batches || camera_moved)
     {
         // create/update/compact bottom-lvl acceleration-structures
-        update_acceleration_structures(frame_context, scene, tags);
+        update_acceleration_structures(frame_context, scene, layer_mask);
 
         // pathtracing pass
         path_trace_pass(frame_context, scene, cam);
@@ -671,7 +671,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 }
 
 void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_t &frame_context,
-                                                   const SceneConstPtr &scene, const std::set<std::string> & /*tags*/)
+                                                   const SceneConstPtr &scene, uint32_t /*layer_mask*/)
 {
     size_t last_index = (m_ray_tracer.current_index() + m_ray_tracer.num_concurrent_frames() - 1) %
                         m_ray_tracer.num_concurrent_frames();

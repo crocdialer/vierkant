@@ -432,7 +432,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr
 }
 
 SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, const SceneConstPtr &scene,
-                                                         const Object3DPtr &cam, const std::set<std::string> &tags)
+                                                         const Object3DPtr &cam, uint32_t layer_mask)
 {
     // reference to current frame-assets
     auto &frame_context = m_frame_contexts[m_g_renderer_main.current_index()];
@@ -449,7 +449,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
         vierkant::cull_params_t cull_params = {};
         cull_params.scene = scene;
         cull_params.camera = cam;
-        cull_params.tags = tags;
+        cull_params.layer_mask = layer_mask;
         cull_params.check_intersection = false;
         cull_params.world_space = true;
         frame_context.cull_result = vierkant::cull(cull_params);
@@ -457,7 +457,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
     else if(frame_context.lights_dirty)
     {
         // lights_ubo is re-uploaded every frame anyway, so only the array needs to be current here
-        frame_context.cull_result.lights = vierkant::gather_lights(scene, tags);
+        frame_context.cull_result.lights = vierkant::gather_lights(scene, layer_mask);
     }
 
     // timeline semaphore

@@ -160,11 +160,11 @@ public:
      * @param   renderer    a provided vierkant::Renderer.
      * @param   scene       the scene to render.
      * @param   cam         the camera to use.
-     * @param   tags        if not empty, only objects with at least one of the provided tags are rendered.
+     * @param   layer_mask  bitmask of vierkant::layer_t, only matching objects are rendered.
      * @return  a render_result_t object.
      */
     render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
-                                 const Object3DPtr &cam, const std::set<std::string> &tags) override;
+                                 const Object3DPtr &cam, uint32_t layer_mask) override;
 
     std::vector<uint16_t> pick(const glm::vec2 &normalized_coord, const glm::vec2 &normalized_size) override;
 
@@ -338,7 +338,7 @@ private:
     void pre_render(frame_context_t &frame_context);
 
     void update_acceleration_structures(frame_context_t &frame_context, const SceneConstPtr &scene,
-                                        const std::set<std::string> &tags);
+                                        uint32_t layer_mask);
 
     void update_trace_descriptors(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene,
                                   const Object3DPtr &cam);

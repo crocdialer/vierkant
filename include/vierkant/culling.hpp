@@ -49,7 +49,9 @@ struct cull_params_t
     Object3DPtr camera;
     bool check_intersection = true;
     bool world_space = false;
-    std::set<std::string> tags;
+
+    //! bitmask of vierkant::layer_t, only matching objects are culled/drawn
+    uint32_t layer_mask = LAYER_ALL;
 };
 
 /**
@@ -67,12 +69,11 @@ cull_result_t cull(const cull_params_t &cull_params);
  *
  * Split out of the culling-operation so renderers can refresh their lights without a full re-cull.
  *
- * @param   scene   a provided scene.
- * @param   tags    optional tag-whitelist, empty accepts everything.
+ * @param   scene       a provided scene.
+ * @param   layer_mask  bitmask of vierkant::layer_t, only matching objects contribute.
  *
  * @return  an array of light_t, ready for upload.
  */
-std::vector<vierkant::light_t> gather_lights(const vierkant::SceneConstPtr &scene,
-                                             const std::set<std::string> &tags = {});
+std::vector<vierkant::light_t> gather_lights(const vierkant::SceneConstPtr &scene, uint32_t layer_mask = LAYER_ALL);
 
 }

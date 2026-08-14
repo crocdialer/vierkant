@@ -11,12 +11,12 @@ namespace vierkant
 SceneRenderer::render_result_t UnlitForward::render_scene(vierkant::Rasterizer &renderer,
                                                           const vierkant::SceneConstPtr &scene,
                                                           const vierkant::Object3DPtr &cam,
-                                                          const std::set<std::string> &tags)
+                                                          uint32_t layer_mask)
 {
     vierkant::cull_params_t cull_params = {};
     cull_params.scene = scene;
     cull_params.camera = cam;
-    cull_params.tags = tags;
+    cull_params.layer_mask = layer_mask;
     cull_params.check_intersection = true;
 
     auto cull_result = vierkant::cull(cull_params);
