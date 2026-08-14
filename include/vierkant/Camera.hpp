@@ -17,7 +17,21 @@ glm::vec2 clipping_distances(const glm::mat4 &projection);
 struct camera_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
-    vierkant::camera_params_variant_t params;
+
+    enum projection_t : uint32_t
+    {
+        PERSPECTIVE = 0,
+        ORTHO = 1
+    };
+
+    //! selects which of the parameter-sets below is used to build the projection
+    projection_t projection = PERSPECTIVE;
+
+    //! lens-properties. also defines the perspective frustum, via fovx()
+    vierkant::physical_camera_params_t physical;
+
+    //! frustum-extents used when 'projection' is ORTHO. kept alongside the lens, so toggling loses nothing
+    vierkant::ortho_camera_params_t ortho;
 };
 
 namespace camera

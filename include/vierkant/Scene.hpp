@@ -5,6 +5,7 @@
 #include <crocore/ThreadPool.hpp>
 
 #include <vierkant/AssetProvider.hpp>
+#include <vierkant/Camera.hpp>
 #include <vierkant/Image.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Object3D.hpp>
@@ -93,7 +94,7 @@ public:
     [[nodiscard]] vierkant::Object3DPtr create_object() const;
 
     [[nodiscard]] vierkant::Object3DPtr
-    create_camera(const vierkant::camera_params_variant_t &params = vierkant::physical_camera_params_t{}) const;
+    create_camera(const vierkant::camera_component_t &params = {}) const;
 
     /**
      * @brief   'create_lightsource' registers a lightsource-asset with the asset-provider

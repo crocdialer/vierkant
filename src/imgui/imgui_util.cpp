@@ -988,7 +988,7 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
 
             if(ImGui::TreeNode((void *) (uint64_t) obj.id(), "%s", obj.name.c_str()))
             {
-                vierkant::gui::draw_camera_param_ui(obj.get_component<camera_component_t>().params);
+                vierkant::gui::draw_camera_param_ui(obj.get_component<camera_component_t>());
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::TreePop();
@@ -2113,27 +2113,27 @@ bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Obj
         auto *cam_cmp = camera->get_component_ptr<vierkant::camera_component_t>();
         assert(cam_cmp);
 
-        auto *ortho_params = std::get_if<ortho_camera_params_t>(&cam_cmp->params);
-        auto *perspective_params = std::get_if<physical_camera_params_t>(&cam_cmp->params);
-
-        ImGuizmo::SetOrthographic(ortho_params);
+        const bool is_ortho = cam_cmp->projection == vierkant::camera_component_t::ORTHO;
+        ImGuizmo::SetOrthographic(is_ortho);
 
         const ImGuizmo::MODE mode = space == GuizmoSpace::WORLD ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
         auto sz = ImGui::GetIO().DisplaySize;
         auto view = vierkant::mat4_cast(camera::view_transform(camera.get()));
 
-        if(ortho_params)
+        if(is_ortho)
         {
-            auto proj = glm::orthoRH(ortho_params->left, ortho_params->right, ortho_params->bottom, ortho_params->top,
-                                     ortho_params->near_, ortho_params->far_);
+            const auto &ortho_params = cam_cmp->ortho;
+            auto proj = glm::orthoRH(ortho_params.left, ortho_params.right, ortho_params.bottom, ortho_params.top,
+                                     ortho_params.near_, ortho_params.far_);
             changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
                                            ImGuizmo::OPERATION(current_gizmo), mode, glm::value_ptr(m));
         }
-        else if(perspective_params)
+        else
         {
-            auto proj = glm::perspectiveRH(perspective_params->fovy(), sz.x / sz.y,
-                                           perspective_params->clipping_distances.x,
-                                           perspective_params->clipping_distances.y);
+            const auto &perspective_params = cam_cmp->physical;
+            auto proj = glm::perspectiveRH(perspective_params.fovy(), sz.x / sz.y,
+                                           perspective_params.clipping_distances.x,
+                                           perspective_params.clipping_distances.y);
             changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
                                            ImGuizmo::OPERATION(current_gizmo), mode, glm::value_ptr(m));
         }
@@ -2181,19 +2181,20 @@ void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, co
     else if(!object_set.empty()) { draw_transform_guizmo(*object_set.begin(), camera, type, space); }
 }
 
-void draw_camera_param_ui(vierkant::camera_params_variant_t &camera_params)
+void draw_camera_param_ui(vierkant::camera_component_t &camera_params)
 {
-    bool is_ortho = std::holds_alternative<ortho_camera_params_t>(camera_params);
+    const bool is_ortho = camera_params.projection == vierkant::camera_component_t::ORTHO;
 
-    if(ImGui::RadioButton("perspective", !is_ortho) && is_ortho) { camera_params = physical_camera_params_t(); }
-    ImGui::SameLine();
-    if(ImGui::RadioButton("ortho", is_ortho) && !is_ortho)
+    if(ImGui::RadioButton("perspective", !is_ortho))
     {
-        camera_params = ortho_camera_params_t();
+        camera_params.projection = vierkant::camera_component_t::PERSPECTIVE;
     }
+    ImGui::SameLine();
+    if(ImGui::RadioButton("ortho", is_ortho)) { camera_params.projection = vierkant::camera_component_t::ORTHO; }
 
-    if(auto *phys_cam_params = std::get_if<physical_camera_params_t>(&camera_params))
+    if(!is_ortho)
     {
+        auto *phys_cam_params = &camera_params.physical;
         // focal-length in mm
         float focal_length_mm = 1000.f * phys_cam_params->focal_length;
         if(ImGui::SliderFloat("focal-length (mm)", &focal_length_mm, 0.1f, 500.f))
@@ -2227,8 +2228,10 @@ void draw_camera_param_ui(vierkant::camera_params_variant_t &camera_params)
         ImGui::SliderFloat("f-stop", &phys_cam_params->fstop, f_stop_min, f_stop_max, "%.2f",
                            ImGuiSliderFlags_Logarithmic);
     }
-    else if(auto *ortho_cam_params = std::get_if<ortho_camera_params_t>(&camera_params))
+    else
     {
+        auto *ortho_cam_params = &camera_params.ortho;
+
         // frustum extents
         ImGui::InputFloat("left", &ortho_cam_params->left);
         ImGui::InputFloat("right", &ortho_cam_params->right);

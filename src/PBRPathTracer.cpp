@@ -572,17 +572,16 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 
     // no previous frame yet: reproject through the current matrix, i.e. zero drift everywhere
     camera_params.prev_projection_view = m_prev_projection_view.value_or(camera_params.projection_view);
-    camera_params.ortho = true;
-
     const auto &cam_cmp = cam->get_component<camera_component_t>();
+    camera_params.ortho = cam_cmp.projection == vierkant::camera_component_t::ORTHO;
 
-    if(const auto *perspective_params = std::get_if<physical_camera_params_t>(&cam_cmp.params))
+    if(!camera_params.ortho)
     {
-        camera_params.ortho = false;
-        camera_params.fov = perspective_params->fovy();
+        const auto &perspective_params = cam_cmp.physical;
+        camera_params.fov = perspective_params.fovy();
         camera_params.aperture =
-                frame_context.settings.depth_of_field ? static_cast<float>(perspective_params->aperture_size()) : 0.f;
-        camera_params.focal_distance = perspective_params->focal_distance;
+                frame_context.settings.depth_of_field ? static_cast<float>(perspective_params.aperture_size()) : 0.f;
+        camera_params.focal_distance = perspective_params.focal_distance;
     }
 
     trace_data_t trace_data = {};
