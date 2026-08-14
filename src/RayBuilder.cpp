@@ -415,7 +415,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
     std::unordered_map<MaterialId, size_t> material_indices;
 
-    vierkant::SelectVisitor<Object3D> visitor;
+    vierkant::SelectVisitor<Object3D> visitor(params.layer_mask);
     params.scene->root()->accept(visitor);
 
     //  cache-lookup / non-blocking build of acceleration structures
@@ -822,7 +822,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
         }
     }
 
-    vierkant::SelectVisitor<Object3D> visitor;
+    vierkant::SelectVisitor<Object3D> visitor(params.layer_mask);
     params.scene->root()->accept(visitor);
 
     std::unordered_map<uint32_t, vierkant::animated_mesh_t> mesh_compute_entities;

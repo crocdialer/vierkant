@@ -304,7 +304,8 @@ PBRDeferred::~PBRDeferred()
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
 { return vierkant::PBRDeferredPtr(new PBRDeferred(device, create_info)); }
 
-void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr &cam, frame_context_t &frame_context)
+void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr &cam, frame_context_t &frame_context,
+                                   uint32_t layer_mask)
 {
     const uint64_t frame_thresh = scene->current_frame();
     bool need_culling = false;
@@ -315,7 +316,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr
 
     size_t scene_hash = 0;
 
-    SelectVisitor<Object3D> visitor;
+    SelectVisitor<Object3D> visitor(layer_mask);
     visitor.select_only_enabled = true;
     scene->root()->accept(visitor);
 
@@ -442,7 +443,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
     update_timing(frame_context);
 
     // determine if we can re-use commandbuffers, buffers, etc.
-    update_recycling(scene, cam, frame_context);
+    update_recycling(scene, cam, frame_context, layer_mask);
 
     if(!frame_context.recycle_commands)
     {
@@ -535,7 +536,7 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
 {
     frame_context.mesh_compute_result.vertex_buffer_offsets.clear();
 
-    SelectVisitor<Object3D> visitor;
+    SelectVisitor<Object3D> visitor(frame_context.cull_result.layer_mask);
     frame_context.cull_result.scene->root()->accept(visitor);
 
     if(frame_context.mesh_compute_context)
@@ -1026,6 +1027,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
                 build_scene_params.scene = cull_result.scene;
                 build_scene_params.use_compaction = false;
                 build_scene_params.use_scene_assets = false;
+                build_scene_params.layer_mask = cull_result.layer_mask;
                 build_scene_params.previous_context = last_frame_context.scene_acceleration_context.get();
                 frame_context.scene_ray_acceleration = m_ray_builder.build_scene_acceleration(
                         frame_context.scene_acceleration_context, build_scene_params);

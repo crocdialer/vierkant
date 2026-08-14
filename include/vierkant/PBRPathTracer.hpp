@@ -341,9 +341,10 @@ private:
                                         uint32_t layer_mask);
 
     void update_trace_descriptors(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene,
-                                  const Object3DPtr &cam);
+                                  const Object3DPtr &cam, uint32_t layer_mask);
 
-    void path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene, const Object3DPtr &cam);
+    void path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene, const Object3DPtr &cam,
+                         uint32_t layer_mask);
 
     void denoise_pass(frame_context_t &frame_context);
 

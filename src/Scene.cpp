@@ -94,8 +94,19 @@ void Scene::remove_object(const Object3DPtr &object) { m_root->remove_child(obje
 
 void Scene::clear()
 {
+    auto old_root = std::move(m_root);
     m_root = m_object_store->create_object();
     m_root->name = s_scene_root_name;
+
+    // editor-layer objects belong to the tool, not the content, and outlive a scene-swap.
+    // only top-level ones: a widget parented to scene-content dies with what it annotates.
+    if(old_root)
+    {
+        for(const auto children = old_root->children; const auto &child: children)
+        {
+            if(child->layers & LAYER_EDITOR) { m_root->add_child(child); }
+        }
+    }
 }
 
 void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_live_materials,

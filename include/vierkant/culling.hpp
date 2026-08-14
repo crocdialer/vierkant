@@ -41,6 +41,9 @@ struct cull_result_t
     Object3DPtr camera;
 
     vierkant::SceneConstPtr scene;
+
+    //! the layer-mask this result was culled with, for follow-up traversals of the same scene
+    uint32_t layer_mask = LAYER_ALL;
 };
 
 struct cull_params_t

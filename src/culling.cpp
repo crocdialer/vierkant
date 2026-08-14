@@ -97,6 +97,7 @@ cull_result_t cull(const cull_params_t &cull_params)
     cull_params.scene->root()->accept(cull_visitor);
     cull_visitor.m_cull_result.scene = cull_params.scene;
     cull_visitor.m_cull_result.camera = cull_params.camera;
+    cull_visitor.m_cull_result.layer_mask = cull_params.layer_mask;
     cull_visitor.m_cull_result.lights = gather_lights(cull_params.scene, cull_params.layer_mask);
     return std::move(cull_visitor.m_cull_result);
 }

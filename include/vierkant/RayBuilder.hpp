@@ -232,6 +232,9 @@ public:
 
         //! optionally provide a handle to a previous context, in order to re-use existing acceleration-assets.
         const scene_acceleration_context_t *previous_context = nullptr;
+
+        //! bitmask of vierkant::layer_t, only matching objects enter the acceleration-structures
+        uint32_t layer_mask = LAYER_ALL;
     };
 
     /**

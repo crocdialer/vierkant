@@ -349,7 +349,8 @@ private:
 
     void update_timing(frame_context_t &frame_context);
 
-    void update_recycling(const SceneConstPtr &scene, const Object3DPtr &cam, frame_context_t &frame_context);
+    void update_recycling(const SceneConstPtr &scene, const Object3DPtr &cam, frame_context_t &frame_context,
+                          uint32_t layer_mask);
 
     void update_animation_transforms(frame_context_t &frame_context);
 

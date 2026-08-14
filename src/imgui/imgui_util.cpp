@@ -673,6 +673,10 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
                                                 ImGuiTreeNodeFlags flags = 0)
 {
     vierkant::Object3DPtr ret;
+
+    // editor-layer objects (viewport-camera, gizmos) are tool-state, not scene-content
+    if(obj->layers & vierkant::LAYER_EDITOR) { return ret; }
+
     ImGuiTreeNodeFlags node_flags = flags | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
     node_flags |= selection && selection->contains(obj) ? ImGuiTreeNodeFlags_Selected : 0;
 
@@ -969,14 +973,14 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
             scene->add_object(cam);
         }
 
+        // includes the editor-layer, so the viewport-camera is listed alongside the scene-cameras
+        // and switching back to it is the same gesture as switching away
         auto visit_fn = [&camera](Object3D &obj) {
             if(!obj.has_component<camera_component_t>()) { return true; }
 
-            bool enabled = &obj == camera.get();
-
             // push object id
             ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D *>()(&obj)));
-            if(ImGui::Checkbox("", &enabled) && enabled) { camera = obj.shared_from_this(); }
+            if(ImGui::RadioButton("", &obj == camera.get())) { camera = obj.shared_from_this(); }
             ImGui::PopID();
             ImGui::SameLine();
 

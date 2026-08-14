@@ -215,7 +215,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
         update_acceleration_structures(frame_context, scene, layer_mask);
 
         // pathtracing pass
-        path_trace_pass(frame_context, scene, cam);
+        path_trace_pass(frame_context, scene, cam, layer_mask);
 
         // increase batch index
         m_batch_index = std::min<size_t>(m_batch_index + 1, frame_context.settings.max_num_batches);
@@ -319,9 +319,9 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
 }
 
 void PBRPathTracer::path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene,
-                                    const Object3DPtr &cam)
+                                    const Object3DPtr &cam, uint32_t layer_mask)
 {
-    update_trace_descriptors(frame_context, scene, cam);
+    update_trace_descriptors(frame_context, scene, cam, layer_mask);
 
     frame_context.cmd_trace.begin(0);
     vkCmdWriteTimestamp2(frame_context.cmd_trace.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
@@ -537,7 +537,7 @@ static std::optional<vierkant::medium_params_t> detect_camera_medium(const std::
 }
 
 void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene,
-                                             const Object3DPtr &cam)
+                                             const Object3DPtr &cam, uint32_t layer_mask)
 {
     frame_context.tracable.descriptors.clear();
 
@@ -604,7 +604,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.camera_params = camera_params;
 
     // single scene-traversal, shared by camera-media detection and light-gather
-    vierkant::SelectVisitor<Object3D> scene_visitor;
+    vierkant::SelectVisitor<Object3D> scene_visitor(layer_mask);
     scene->root()->accept(scene_visitor);
 
     // default media: air. submerge the camera in a medium if one is set: an explicit global medium
@@ -671,7 +671,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 }
 
 void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_t &frame_context,
-                                                   const SceneConstPtr &scene, uint32_t /*layer_mask*/)
+                                                   const SceneConstPtr &scene, uint32_t layer_mask)
 {
     size_t last_index = (m_ray_tracer.current_index() + m_ray_tracer.num_concurrent_frames() - 1) %
                         m_ray_tracer.num_concurrent_frames();
@@ -683,6 +683,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
     frame_context.tracable.pipeline_info.shader_stages = use_environment ? m_shader_stages_env : m_shader_stages;
 
     RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
+    build_scene_params.layer_mask = layer_mask;
     build_scene_params.scene = scene;
     build_scene_params.use_compaction = frame_context.settings.compaction;
     build_scene_params.use_scene_assets = true;
