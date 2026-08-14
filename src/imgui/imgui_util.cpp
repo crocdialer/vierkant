@@ -969,8 +969,10 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
     {
         if(ImGui::Button("add camera"))
         {
-            auto cam = scene->create_camera();
-            scene->add_object(cam);
+            auto new_cam = scene->create_camera();
+            new_cam->name = "camera_" + std::to_string(new_cam->id());
+            new_cam->set_global_transform(camera->global_transform());
+            scene->add_object(new_cam);
         }
 
         // includes the editor-layer, so the viewport-camera is listed alongside the scene-cameras
@@ -2181,6 +2183,15 @@ void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, co
 
 void draw_camera_param_ui(vierkant::camera_params_variant_t &camera_params)
 {
+    bool is_ortho = std::holds_alternative<ortho_camera_params_t>(camera_params);
+
+    if(ImGui::RadioButton("perspective", !is_ortho) && is_ortho) { camera_params = physical_camera_params_t(); }
+    ImGui::SameLine();
+    if(ImGui::RadioButton("ortho", is_ortho) && !is_ortho)
+    {
+        camera_params = ortho_camera_params_t();
+    }
+
     if(auto *phys_cam_params = std::get_if<physical_camera_params_t>(&camera_params))
     {
         // focal-length in mm
@@ -2215,6 +2226,23 @@ void draw_camera_param_ui(vierkant::camera_params_variant_t &camera_params)
         ImGui::BulletText("aperture: %.1f mm", phys_cam_params->aperture_size() * 1000);
         ImGui::SliderFloat("f-stop", &phys_cam_params->fstop, f_stop_min, f_stop_max, "%.2f",
                            ImGuiSliderFlags_Logarithmic);
+    }
+    else if(auto *ortho_cam_params = std::get_if<ortho_camera_params_t>(&camera_params))
+    {
+        // frustum extents
+        ImGui::InputFloat("left", &ortho_cam_params->left);
+        ImGui::InputFloat("right", &ortho_cam_params->right);
+        ImGui::InputFloat("bottom", &ortho_cam_params->bottom);
+        ImGui::InputFloat("top", &ortho_cam_params->top);
+
+        ImGui::BulletText("width: %.2f", ortho_cam_params->right - ortho_cam_params->left);
+        ImGui::BulletText("height: %.2f", ortho_cam_params->top - ortho_cam_params->bottom);
+
+        ImGui::Separator();
+
+        // clipping planes
+        ImGui::InputFloat("near", &ortho_cam_params->near_);
+        ImGui::InputFloat("far", &ortho_cam_params->far_);
     }
 }
 
