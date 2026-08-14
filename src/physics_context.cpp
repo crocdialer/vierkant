@@ -1634,7 +1634,8 @@ void PhysicsScene::update(double time_delta)
         obj->set_global_transform(global);
     };
 
-    vierkant::SelectVisitor<vierkant::Object3D> visitor({}, false);
+    // editor-layer objects are tool-state, never simulated
+    vierkant::SelectVisitor<vierkant::Object3D> visitor(~vierkant::LAYER_EDITOR, false);
     root()->accept(visitor);
 
     for(auto *obj: visitor.objects)

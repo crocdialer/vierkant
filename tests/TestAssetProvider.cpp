@@ -110,7 +110,7 @@ TEST(TestAssetProvider, populate_sampler_override)
     framebuffer_info.size = {static_cast<uint32_t>(res.x), static_cast<uint32_t>(res.y), 1};
     vierkant::Framebuffer framebuffer(test_context.device, framebuffer_info);
 
-    auto render_result = pbr_renderer->render_scene(renderer, scene, cam, {});
+    auto render_result = pbr_renderer->render_scene(renderer, scene, cam, vierkant::LAYER_ALL);
     VkCommandBuffer cmd_buffer = renderer.render(framebuffer);
     EXPECT_EQ(render_result.num_draws, 1);
     ASSERT_TRUE(cmd_buffer);

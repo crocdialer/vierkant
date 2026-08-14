@@ -14,7 +14,7 @@ namespace vierkant
 SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rasterizer &renderer,
                                                                   const vierkant::SceneConstPtr &scene,
                                                                   const vierkant::Object3DPtr &cam,
-                                                                  const std::set<std::string> & /*tags*/)
+                                                                  uint32_t /*layer_mask*/)
 {
     auto physics_scene = std::dynamic_pointer_cast<const vierkant::PhysicsScene>(scene);
     if(!physics_scene) { return {}; }
