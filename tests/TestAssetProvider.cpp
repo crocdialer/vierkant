@@ -95,7 +95,7 @@ TEST(TestAssetProvider, populate_sampler_override)
 
     auto scene = vierkant::Scene::create({}, provider);
     auto cam = scene->create_object();
-    cam->add_component<vierkant::camera_component_t>({vierkant::physical_camera_params_t{}});
+    cam->add_component<vierkant::camera_component_t>();
     auto mesh_node = scene->create_mesh_object({result.mesh});
     scene->add_object(mesh_node);
 

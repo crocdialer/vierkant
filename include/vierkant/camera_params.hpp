@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <variant>
 #include <vierkant/math.hpp>
 
 namespace vierkant
@@ -54,7 +53,5 @@ struct physical_camera_params_t
     //! will adjust focal_length to match provided field-of-view (fov) in radians
     inline void set_fovx(float fovx) { focal_length = 0.5f * sensor_width / std::tan(fovx * 0.5f); }
 };
-
-using camera_params_variant_t = std::variant<ortho_camera_params_t, physical_camera_params_t>;
 
 }// namespace vierkant

@@ -59,10 +59,10 @@ vierkant::Object3DPtr Scene::create_primitive_object(vierkant::primitive_type ty
 
 vierkant::Object3DPtr Scene::create_object() const { return m_object_store->create_object(); }
 
-vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_params_variant_t &params) const
+vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_component_t &params) const
 {
     auto cam = create_object();
-    cam->add_component<vierkant::camera_component_t>({params});
+    cam->add_component<vierkant::camera_component_t>(params);
     return cam;
 }
 

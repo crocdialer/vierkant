@@ -28,23 +28,15 @@ glm::mat4 projection_matrix(const vierkant::Object3D *camera)
     assert(camera);
     if(const auto *camera_cmp = camera->get_component_ptr<camera_component_t>())
     {
-        return std::visit(
-                [](auto &&cam_param) -> glm::mat4 {
-                    using T = std::decay_t<decltype(cam_param)>;
+        const auto &params = *camera_cmp;
 
-                    if constexpr(std::is_same_v<T, vierkant::physical_camera_params_t>)
-                    {
-                        return perspective_infinite_reverse_RH_ZO(cam_param.fovy(), cam_param.aspect,
-                                                                  cam_param.clipping_distances.x);
-                    }
-                    if constexpr(std::is_same_v<T, vierkant::ortho_camera_params_t>)
-                    {
-                        return ortho_reverse_RH_ZO(cam_param.left, cam_param.right, cam_param.bottom, cam_param.top,
-                                                   cam_param.near_, cam_param.far_);
-                    }
-                    return {};
-                },
-                camera_cmp->params);
+        if(params.projection == camera_component_t::ORTHO)
+        {
+            return ortho_reverse_RH_ZO(params.ortho.left, params.ortho.right, params.ortho.bottom, params.ortho.top,
+                                       params.ortho.near_, params.ortho.far_);
+        }
+        return perspective_infinite_reverse_RH_ZO(params.physical.fovy(), params.physical.aspect,
+                                                  params.physical.clipping_distances.x);
     }
     return {};
 }
@@ -54,18 +46,9 @@ float near(const vierkant::Object3D *camera)
     assert(camera);
     if(const auto *camera_cmp = camera->get_component_ptr<camera_component_t>())
     {
-        return std::visit(
-                [](auto &&cam_param) -> float {
-                    using T = std::decay_t<decltype(cam_param)>;
-
-                    if constexpr(std::is_same_v<T, vierkant::physical_camera_params_t>)
-                    {
-                        return cam_param.clipping_distances.x;
-                    }
-                    if constexpr(std::is_same_v<T, vierkant::ortho_camera_params_t>) { return cam_param.near_; }
-                    return 0.f;
-                },
-                camera_cmp->params);
+        const auto &params = *camera_cmp;
+        return params.projection == camera_component_t::ORTHO ? params.ortho.near_
+                                                           : params.physical.clipping_distances.x;
     }
     return 0.f;
 }
@@ -75,18 +58,8 @@ float far(const vierkant::Object3D *camera)
     assert(camera);
     if(const auto *camera_cmp = camera->get_component_ptr<camera_component_t>())
     {
-        return std::visit(
-                [](auto &&cam_param) -> float {
-                    using T = std::decay_t<decltype(cam_param)>;
-
-                    if constexpr(std::is_same_v<T, vierkant::physical_camera_params_t>)
-                    {
-                        return cam_param.clipping_distances.y;
-                    }
-                    if constexpr(std::is_same_v<T, vierkant::ortho_camera_params_t>) { return cam_param.far_; }
-                    return 0.f;
-                },
-                camera_cmp->params);
+        const auto &params = *camera_cmp;
+        return params.projection == camera_component_t::ORTHO ? params.ortho.far_ : params.physical.clipping_distances.y;
     }
     return 0.f;
 }
@@ -96,23 +69,15 @@ vierkant::Frustum frustum(const vierkant::Object3D *camera)
     assert(camera);
     if(const auto *camera_cmp = camera->get_component_ptr<camera_component_t>())
     {
-        return std::visit(
-                [](auto &&cam_param) -> vierkant::Frustum {
-                    using T = std::decay_t<decltype(cam_param)>;
+        const auto &params = *camera_cmp;
 
-                    if constexpr(std::is_same_v<T, vierkant::physical_camera_params_t>)
-                    {
-                        return {cam_param.aspect, cam_param.fovx(), cam_param.clipping_distances.x,
-                                cam_param.clipping_distances.y};
-                    }
-                    if constexpr(std::is_same_v<T, vierkant::ortho_camera_params_t>)
-                    {
-                        return {cam_param.left, cam_param.right, cam_param.bottom,
-                                cam_param.top,  cam_param.near_, cam_param.far_};
-                    }
-                    return {};
-                },
-                camera_cmp->params);
+        if(params.projection == camera_component_t::ORTHO)
+        {
+            return {params.ortho.left, params.ortho.right, params.ortho.bottom,
+                    params.ortho.top,  params.ortho.near_, params.ortho.far_};
+        }
+        return {params.physical.aspect, params.physical.fovx(), params.physical.clipping_distances.x,
+                params.physical.clipping_distances.y};
     }
     return {};
 }
@@ -122,51 +87,41 @@ vierkant::Ray calculate_ray(const vierkant::Object3D *camera, const glm::vec2 &p
     assert(camera);
     if(const auto *camera_cmp = camera->get_component_ptr<camera_component_t>())
     {
-        return std::visit(
-                [camera, &pos, &extent](auto &&cam_param) -> vierkant::Ray {
-                    using T = std::decay_t<decltype(cam_param)>;
+        const auto &params = *camera_cmp;
+        auto t = camera->global_transform();
+        glm::mat3 m = glm::mat3_cast(t.rotation);
 
-                    if constexpr(std::is_same_v<T, vierkant::physical_camera_params_t>)
-                    {
-                        // bring click_pos to range -1, 1
-                        glm::vec2 click_2D(pos);
-                        glm::vec2 offset(extent / 2.0f);
-                        click_2D -= offset;
-                        click_2D /= offset;
-                        click_2D.y = -click_2D.y;
+        if(params.projection == camera_component_t::ORTHO)
+        {
+            const auto &cam_param = params.ortho;
+            const glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, cam_param.left, cam_param.right),
+                                  crocore::map_value<float>(pos.y, extent.y, 0, cam_param.bottom, cam_param.top));
 
-                        // convert fovy to radians
-                        const float rad = cam_param.fovx();
-                        const float near = cam_param.clipping_distances.x;
-                        const float hLength = std::tan(rad / 2) * near;
-                        const float vLength = hLength / cam_param.aspect;
+            glm::vec3 click_world_pos =
+                    glm::vec3(t.translation) - m[2] * cam_param.near_ + m[0] * coord.x + m[1] * coord.y;
+            glm::vec3 ray_dir = -m[2];
+            spdlog::trace("clicked_world: ({}, {}, {})", click_world_pos.x, click_world_pos.y, click_world_pos.z);
+            return {click_world_pos, ray_dir};
+        }
+        const auto &cam_param = params.physical;
 
-                        auto t = camera->global_transform();
-                        glm::mat3 m = glm::mat3_cast(t.rotation);
-                        glm::vec3 ray_origin = glm::vec3(t.translation) - m[2] * near + m[0] * hLength * click_2D.x +
-                                               m[1] * vLength * click_2D.y;
-                        glm::vec3 ray_dir = ray_origin - glm::vec3(t.translation);
-                        return {ray_origin, ray_dir};
-                    }
+        // bring click_pos to range -1, 1
+        glm::vec2 click_2D(pos);
+        glm::vec2 offset(extent / 2.0f);
+        click_2D -= offset;
+        click_2D /= offset;
+        click_2D.y = -click_2D.y;
 
-                    if constexpr(std::is_same_v<T, vierkant::ortho_camera_params_t>)
-                    {
-                        const glm::vec2 coord(
-                                crocore::map_value<float>(pos.x, 0, extent.x, cam_param.left, cam_param.right),
-                                crocore::map_value<float>(pos.y, extent.y, 0, cam_param.bottom, cam_param.top));
+        // convert fovy to radians
+        const float rad = cam_param.fovx();
+        const float near = cam_param.clipping_distances.x;
+        const float hLength = std::tan(rad / 2) * near;
+        const float vLength = hLength / cam_param.aspect;
 
-                        auto t = camera->global_transform();
-                        glm::mat3 m = glm::mat3_cast(t.rotation);
-                        glm::vec3 click_world_pos =
-                                glm::vec3(t.translation) - m[2] * cam_param.near_ + m[0] * coord.x + m[1] * coord.y;
-                        glm::vec3 ray_dir = -m[2];
-                        spdlog::trace("clicked_world: ({}, {}, {})", click_world_pos.x, click_world_pos.y,
-                                      click_world_pos.z);
-                        return {click_world_pos, ray_dir};
-                    }
-                    return {};
-                },
-                camera_cmp->params);
+        glm::vec3 ray_origin = glm::vec3(t.translation) - m[2] * near + m[0] * hLength * click_2D.x +
+                               m[1] * vLength * click_2D.y;
+        glm::vec3 ray_dir = ray_origin - glm::vec3(t.translation);
+        return {ray_origin, ray_dir};
     }
     return {};
 }

@@ -41,7 +41,7 @@ TEST(TestPBRDeferred, basic)
     auto scene = vierkant::Scene::create();
 
     auto cam = scene->create_object();
-    cam->add_component<vierkant::camera_component_t>({vierkant::physical_camera_params_t{}});
+    cam->add_component<vierkant::camera_component_t>();
     EXPECT_TRUE(cam);
 
     auto mesh_node = scene->create_mesh_object({mesh});

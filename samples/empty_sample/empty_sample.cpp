@@ -47,8 +47,7 @@ void HelloTriangleApplication::create_context_and_window()
     window_delegate.draw_fn = [this](const vierkant::WindowPtr &w) { return draw(w); };
     window_delegate.resize_fn = [this](uint32_t w, uint32_t h) {
         create_graphics_pipeline();
-        auto &camera_params = std::get<vierkant::physical_camera_params_t>(
-                m_camera->get_component<vierkant::camera_component_t>().params);
+        auto &camera_params = m_camera->get_component<vierkant::camera_component_t>().physical;
         camera_params.aspect = m_window->aspect_ratio();
     };
     window_delegate.close_fn = [this]() { running = false; };
@@ -78,8 +77,7 @@ void HelloTriangleApplication::create_context_and_window()
 
     // camera
     m_camera = m_object_store->create_object();
-    vierkant::physical_camera_params_t params = {};
-    m_camera->add_component<vierkant::camera_component_t>({params});
+    m_camera->add_component<vierkant::camera_component_t>();
     m_camera->name = "default";
 
     m_camera->set_transform({.translation = {0.f, 0.f, 3.f}});
