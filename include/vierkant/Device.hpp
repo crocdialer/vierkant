@@ -18,6 +18,46 @@ DEFINE_CLASS_PTR(Device)
 //! define a shared handle for a VkQueryPool
 using QueryPoolPtr = std::shared_ptr<VkQueryPool_T>;
 
+//! define a shared handle for a VkSampler
+using VkSamplerPtr = std::shared_ptr<VkSampler_T>;
+
+/**
+ * @brief   sampler_state_t describes the sampling-state a VkSampler is created from.
+ *          it is default-constructable, comparable and hashable, used as key by vierkant::Device::sampler.
+ *
+ *          note: the mip-range is deliberately not part of the state. a sampler's maxLod is set to
+ *          VK_LOD_CLAMP_NONE, because the sampled mip-level is already clamped to the image-view's
+ *          level-range. keeping a per-image maxLod would only fragment the cache.
+ */
+struct sampler_state_t
+{
+    VkFilter min_filter = VK_FILTER_LINEAR;
+    VkFilter mag_filter = VK_FILTER_LINEAR;
+    VkSamplerAddressMode address_mode_u = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    VkSamplerAddressMode address_mode_v = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    VkSamplerAddressMode address_mode_w = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    VkSamplerMipmapMode mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    VkSamplerReductionMode reduction_mode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
+    float max_anisotropy = 0.f;
+    bool normalized_coords = true;
+
+    bool operator==(const sampler_state_t &other) const = default;
+};
+
+}// namespace vierkant
+
+namespace std
+{
+template<>
+struct hash<vierkant::sampler_state_t>
+{
+    size_t operator()(const vierkant::sampler_state_t &state) const;
+};
+}// namespace std
+
+namespace vierkant
+{
+
 QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query_count, VkQueryType query_type);
 
 /**
@@ -64,7 +104,6 @@ public:
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_pipeline;
         VkPhysicalDeviceOpacityMicromapPropertiesEXT micromap_opacity;
         VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader;
-        VkPhysicalDeviceDescriptorBufferPropertiesEXT descriptor_buffer;
     };
 
     struct create_info_t
@@ -175,6 +214,15 @@ public:
      */
     void set_object_name(uint64_t handle, VkObjectType type, const std::string &name) const;
 
+    /**
+     * @brief   sampler returns a shared VkSampler for a provided sampler-state.
+     *          samplers are cached and shared device-wide, distinct sampler-states are rare.
+     *
+     * @param   state   a provided sampler_state_t
+     * @return  a retrieved or newly created, shared VkSampler
+     */
+    VkSamplerPtr sampler(const sampler_state_t &state);
+
 private:
     explicit Device(const create_info_t &create_info);
 
@@ -204,6 +252,10 @@ private:
 
     // transient command pool (transfer queue)
     VkCommandPool m_command_pool_transfer = VK_NULL_HANDLE;
+
+    // device-wide cache of shared samplers (assets can be loaded from worker-threads)
+    std::unordered_map<sampler_state_t, VkSamplerPtr> m_samplers;
+    std::mutex m_sampler_mutex;
 };
 
 }// namespace vierkant

@@ -87,12 +87,10 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, cons
  *
  * @param   device                  handle for the vierkant::Device to create the DescriptorSetLayout
  * @param   descriptors             an array of descriptor_t to create a layout from
- * @param   use_descriptor_buffer   flag indicating if the layout is intended for use with descriptor-buffers
  * @return  the newly created DescriptorSetLayoutPtr
  */
 DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device,
-                                                    const descriptor_map_t &descriptors,
-                                                    bool use_descriptor_buffer = false);
+                                                    const descriptor_map_t &descriptors);
 
 /**
  * @brief   Create a shared VkDescriptorSet (DescriptorSetPtr) for a provided set-layout.
@@ -114,17 +112,6 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device, const 
  */
 void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_map_t &descriptors,
                            const DescriptorSetPtr &descriptor_set);
-
-/**
- * @brief   Update an existing shared vierkant::Buffer, used as descriptor-buffer,
- *          with a provided array of vierkant::descriptor_t.
- *
- * @param   device          handle for the vierkant::Device to update the DescriptorSet
- * @param   descriptors     an array of descriptor_t to use for updating the descriptor-buffer
- * @param   descriptor_set  handle for a shared VkDescriptorSet to update
- */
-void update_descriptor_buffer(const vierkant::DevicePtr &device, const DescriptorSetLayoutPtr &layout,
-                              const descriptor_map_t &descriptors, const vierkant::BufferPtr &out_descriptor_buffer);
 
 /**
  * @brief   find_or_create_set_layout can be used to search for an existing descriptor-set-layout or create a new one.

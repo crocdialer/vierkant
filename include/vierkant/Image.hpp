@@ -14,7 +14,6 @@ DEFINE_CLASS_PTR(Image)
 using VkImagePtr = std::shared_ptr<VkImage_T>;
 using VkImageViewPtr = std::shared_ptr<VkImageView_T>;
 using VkImageLayoutPtr = std::shared_ptr<VkImageLayout>;
-using VkSamplerPtr = std::shared_ptr<VkSampler_T>;
 
 VkDeviceSize num_bytes(VkFormat format);
 
@@ -39,22 +38,15 @@ public:
         VkSharingMode sharing_mode = VK_SHARING_MODE_EXCLUSIVE;
         VkImageViewType view_type = VK_IMAGE_VIEW_TYPE_2D;
         VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
-        VkSamplerAddressMode address_mode_u = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        VkSamplerAddressMode address_mode_v = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        VkSamplerAddressMode address_mode_w = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        VkFilter min_filter = VK_FILTER_LINEAR;
-        VkFilter mag_filter = VK_FILTER_LINEAR;
 
-        VkSamplerReductionMode reduction_mode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
+        //! sampling-state, only used for images created with VK_IMAGE_USAGE_SAMPLED_BIT
+        vierkant::sampler_state_t sampler_state = {};
 
         VkComponentMapping component_swizzle = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
                                                 VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
-        float max_anisotropy = 0.f;
         bool initial_layout_transition = true;
         bool use_mipmap = false;
         bool autogenerate_mipmaps = true;
-        VkSamplerMipmapMode mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        bool normalized_coords = true;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         uint32_t num_layers = 1;
         VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;

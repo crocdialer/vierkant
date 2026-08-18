@@ -250,14 +250,12 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              vierkant::Image::Format format, VkQueue load_queue);
 
 /**
- * @brief   create_sampler creates a VkSampler from a texture_sampler_t descriptor.
+ * @brief   create_sampler retrieves a shared VkSampler for a texture_sampler_t descriptor.
  *
  * @param   device      handle to a vierkant::Device
  * @param   ts          a texture_sampler_t descriptor
- * @param   num_mips    number of mip-levels the sampler should address
- * @return  a newly created, ref-counted VkSampler
+ * @return  a retrieved or newly created, ref-counted VkSampler
  */
-vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const vierkant::texture_sampler_t &ts,
-                                      uint32_t num_mips);
+vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const vierkant::texture_sampler_t &ts);
 
 }// namespace vierkant::model

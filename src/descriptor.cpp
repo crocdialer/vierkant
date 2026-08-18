@@ -42,7 +42,7 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, cons
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device,
-                                                    const descriptor_map_t &descriptors, bool use_descriptor_buffer)
+                                                    const descriptor_map_t &descriptors)
 {
     constexpr VkDescriptorBindingFlags default_flags =
             VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
@@ -81,8 +81,6 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
     layout_info.bindingCount = static_cast<uint32_t>(bindings.size());
     layout_info.pBindings = bindings.data();
     layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
-
-    if(use_descriptor_buffer) { layout_info.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT; }
 
     VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
     vkCheck(vkCreateDescriptorSetLayout(device->handle(), &layout_info, nullptr, &descriptor_set_layout),
@@ -307,172 +305,6 @@ DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &devi
         set_it = next.insert(std::make_pair(std::move(descriptors), std::move(new_set))).first;
     }
     return set_it->second;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct descriptor_size_fn_t
-{
-    explicit descriptor_size_fn_t(VkPhysicalDevice physical_device)
-    {
-        properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_PROPERTIES_EXT;
-        VkPhysicalDeviceProperties2 device_properties = {};
-        device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-        device_properties.pNext = &properties;
-        vkGetPhysicalDeviceProperties2(physical_device, &device_properties);
-    }
-
-    inline size_t operator()(VkDescriptorType t) const
-    {
-        switch(t)
-        {
-            case VK_DESCRIPTOR_TYPE_SAMPLER: return properties.samplerDescriptorSize;
-            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return properties.combinedImageSamplerDescriptorSize;
-            case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE: return properties.sampledImageDescriptorSize;
-            case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: return properties.storageImageDescriptorSize;
-            case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER: return properties.uniformTexelBufferDescriptorSize;
-            case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER: return properties.storageTexelBufferDescriptorSize;
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: return properties.uniformBufferDescriptorSize;
-            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: return properties.storageBufferDescriptorSize;
-            case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT: return properties.inputAttachmentDescriptorSize;
-            case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR: return properties.accelerationStructureDescriptorSize;
-
-            default: throw std::runtime_error("descriptor-type not support in descriptor-buffer");
-        }
-    }
-    VkPhysicalDeviceDescriptorBufferPropertiesEXT properties = {};
-};
-
-void update_descriptor_buffer(const vierkant::DevicePtr &device, const DescriptorSetLayoutPtr &layout,
-                              const descriptor_map_t &descriptors,
-                              const vierkant::BufferPtr & /*out_descriptor_buffer*/)
-{
-    assert(vkGetDescriptorSetLayoutSizeEXT && vkGetDescriptorSetLayoutBindingOffsetEXT && vkGetDescriptorEXT &&
-           vkGetAccelerationStructureDeviceAddressKHR);
-
-    auto descriptor_size_fn = descriptor_size_fn_t(device->physical_device());
-
-    // query buffer-size for provided layout
-    VkDeviceSize size;
-    vkGetDescriptorSetLayoutSizeEXT(device->handle(), layout.get(), &size);
-
-    std::vector<uint8_t> out_data(size);
-
-    for(const auto &[binding, descriptor]: descriptors)
-    {
-        VkDeviceSize offset;
-        vkGetDescriptorSetLayoutBindingOffsetEXT(device->handle(), layout.get(), binding, &offset);
-        uint8_t *data_ptr = out_data.data() + offset;
-
-        auto desc_stride = descriptor_size_fn(descriptor.type);
-
-        VkDescriptorGetInfoEXT descriptor_get_info = {};
-        descriptor_get_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT;
-        descriptor_get_info.type = descriptor.type;
-
-        switch(descriptor.type)
-        {
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-            {
-                for(uint32_t i = 0; i < descriptor.buffers.size(); ++i)
-                {
-                    const auto &buf = descriptor.buffers[i];
-
-                    if(buf)
-                    {
-                        descriptor_t::buffer_range_t buf_range = {};
-                        if(descriptor.buffer_ranges.size() > i) { buf_range = descriptor.buffer_ranges[i]; }
-
-                        VkDescriptorAddressInfoEXT address_info = {};
-                        address_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT;
-                        address_info.format = VK_FORMAT_UNDEFINED;
-                        address_info.address = buf->device_address() + buf_range.offset;
-                        address_info.range = buf_range.range ? buf_range.range : buf->num_bytes() - buf_range.offset;
-
-                        if(descriptor_get_info.type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
-                        {
-                            descriptor_get_info.data.pStorageBuffer = &address_info;
-                        }
-                        else
-                        {
-                            descriptor_get_info.data.pUniformBuffer = &address_info;
-                        }
-
-                        vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride,
-                                           data_ptr + i * desc_stride);
-                    }
-                }
-            }
-            break;
-
-            case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-            case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-            {
-                for(uint32_t i = 0; i < descriptor.images.size(); ++i)
-                {
-                    const auto &img = descriptor.images[i];
-
-                    if(img)
-                    {
-                        const auto &image_view =
-                                i < descriptor.image_views.size() ? descriptor.image_views[i] : img->image_view();
-
-                        VkDescriptorImageInfo image_info;
-                        image_info.sampler = img->sampler().get();
-                        image_info.imageView = image_view;
-                        image_info.imageLayout = img->image_layout();
-
-                        if(descriptor.type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
-                        {
-                            descriptor_get_info.data.pSampledImage = &image_info;
-                        }
-                        else if(descriptor.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-                        {
-                            descriptor_get_info.data.pCombinedImageSampler = &image_info;
-                        }
-                        else
-                        {
-                            descriptor_get_info.data.pStorageImage = &image_info;
-                        }
-
-                        vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride,
-                                           data_ptr + i * desc_stride);
-                    }
-                }
-            }
-            break;
-
-            case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
-            {
-                for(uint32_t i = 0; i < descriptor.acceleration_structures.size(); ++i)
-                {
-                    const auto &acceleration_structure = descriptor.acceleration_structures[i];
-
-                    // get device address
-                    VkAccelerationStructureDeviceAddressInfoKHR address_info = {};
-                    address_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-                    address_info.accelerationStructure = acceleration_structure.get();
-
-                    descriptor_get_info.data.accelerationStructure =
-                            vkGetAccelerationStructureDeviceAddressKHR(device->handle(), &address_info);
-                    vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride, data_ptr + i * desc_stride);
-                }
-                break;
-            }
-
-            default:
-                throw std::runtime_error("update_descriptor_buffer: unsupported descriptor-type -> " +
-                                         std::to_string(descriptor.type));
-        }
-    }
-    // set-layout needs alternative flag:
-    // VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT
-
-    // buffers additional flags:
-    // VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT
-    // VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

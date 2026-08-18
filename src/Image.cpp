@@ -351,43 +351,7 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
     }
     ////////////////////////////////////////// create image sampler ////////////////////////////////////////////////////
 
-    if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT)
-    {
-        VkSamplerCreateInfo sampler_create_info = {};
-        sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        sampler_create_info.magFilter = m_format.mag_filter;
-        sampler_create_info.minFilter = m_format.min_filter;
-        sampler_create_info.addressModeU = m_format.address_mode_u;
-        sampler_create_info.addressModeV = m_format.address_mode_v;
-        sampler_create_info.addressModeW = m_format.address_mode_w;
-
-        sampler_create_info.anisotropyEnable = static_cast<VkBool32>(m_format.max_anisotropy > 0.f);
-        sampler_create_info.maxAnisotropy = m_format.max_anisotropy;
-
-        sampler_create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-
-        // [0 ... tex_width] vs. [0 ... 1]
-        sampler_create_info.unnormalizedCoordinates = static_cast<VkBool32>(!m_format.normalized_coords);
-
-        sampler_create_info.compareEnable = VK_FALSE;
-        sampler_create_info.compareOp = VK_COMPARE_OP_ALWAYS;
-
-        sampler_create_info.mipmapMode = m_format.mipmap_mode;
-        sampler_create_info.mipLodBias = 0.0f;
-        sampler_create_info.minLod = 0.0f;
-        sampler_create_info.maxLod = static_cast<float>(m_num_mip_levels);
-
-        VkSamplerReductionModeCreateInfo reduction_mode_info = {};
-        reduction_mode_info.sType = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
-        reduction_mode_info.reductionMode = m_format.reduction_mode;
-        sampler_create_info.pNext = &reduction_mode_info;
-
-        VkSampler sampler;
-        vkCheck(vkCreateSampler(m_device->handle(), &sampler_create_info, nullptr, &sampler),
-                "failed to create texture sampler!");
-        m_sampler = VkSamplerPtr(sampler,
-                                 [device = m_device](VkSampler s) { vkDestroySampler(device->handle(), s, nullptr); });
-    }
+    if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT) { m_sampler = m_device->sampler(m_format.sampler_state); }
 
     ////////////////////////////////////////// layout transitions //////////////////////////////////////////////////////
 
@@ -785,19 +749,11 @@ bool Image::Format::operator==(const Image::Format &other) const
     if(sharing_mode != other.sharing_mode) { return false; }
     if(view_type != other.view_type) { return false; }
     if(usage != other.usage) { return false; }
-    if(address_mode_u != other.address_mode_u) { return false; }
-    if(address_mode_v != other.address_mode_v) { return false; }
-    if(address_mode_w != other.address_mode_w) { return false; }
-    if(min_filter != other.min_filter) { return false; }
-    if(mag_filter != other.mag_filter) { return false; }
-    if(reduction_mode != other.reduction_mode) { return false; }
+    if(sampler_state != other.sampler_state) { return false; }
     if(memcmp(&component_swizzle, &other.component_swizzle, sizeof(VkComponentMapping)) != 0) { return false; }
-    if(max_anisotropy != other.max_anisotropy) { return false; }
     if(initial_layout_transition != other.initial_layout_transition) { return false; }
     if(use_mipmap != other.use_mipmap) { return false; }
     if(autogenerate_mipmaps != other.autogenerate_mipmaps) { return false; }
-    if(mipmap_mode != other.mipmap_mode) { return false; }
-    if(normalized_coords != other.normalized_coords) { return false; }
     if(sample_count != other.sample_count) { return false; }
     if(num_layers != other.num_layers) { return false; }
     if(memory_usage != other.memory_usage) { return false; }
@@ -825,22 +781,14 @@ size_t std::hash<vierkant::Image::Format>::operator()(vierkant::Image::Format co
     hash_combine(h, fmt.sharing_mode);
     hash_combine(h, fmt.view_type);
     hash_combine(h, fmt.usage);
-    hash_combine(h, fmt.address_mode_u);
-    hash_combine(h, fmt.address_mode_v);
-    hash_combine(h, fmt.address_mode_w);
-    hash_combine(h, fmt.min_filter);
-    hash_combine(h, fmt.mag_filter);
-    hash_combine(h, fmt.reduction_mode);
+    hash_combine(h, fmt.sampler_state);
     hash_combine(h, fmt.component_swizzle.r);
     hash_combine(h, fmt.component_swizzle.g);
     hash_combine(h, fmt.component_swizzle.b);
     hash_combine(h, fmt.component_swizzle.a);
-    hash_combine(h, fmt.max_anisotropy);
     hash_combine(h, fmt.initial_layout_transition);
     hash_combine(h, fmt.use_mipmap);
     hash_combine(h, fmt.autogenerate_mipmaps);
-    hash_combine(h, fmt.mipmap_mode);
-    hash_combine(h, fmt.normalized_coords);
     hash_combine(h, fmt.sample_count);
     hash_combine(h, fmt.num_layers);
     hash_combine(h, fmt.memory_usage);
