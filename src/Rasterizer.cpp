@@ -749,6 +749,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
         const auto &drawable = drawables[i];
         uint32_t mesh_index = 0;
         uint32_t vertex_buffer_index = vertex_buffer_refs.size();
+        uint32_t material_index = material_data.size();
 
         if(drawable.mesh && !drawable.mesh->entries.empty())
         {
@@ -778,9 +779,15 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
                     drawable.vertex_buffer ? drawable.vertex_buffer : drawable.mesh->vertex_buffer->device_address();
             vertex_buffer_refs.push_back(vertex_buffer_address);
 
-            if(!drawable.share_material || !material_index_map.contains(drawable.material_id))
+            // only dedup materials that are shared via a valid material-id
+            bool share_material = drawable.share_material && drawable.material_id;
+            auto material_it =
+                    share_material ? material_index_map.find(drawable.material_id) : material_index_map.end();
+
+            if(material_it != material_index_map.end()) { material_index = material_it->second; }
+            else
             {
-                material_index_map[drawable.material_id] = material_data.size();
+                if(share_material) { material_index_map[drawable.material_id] = material_index; }
                 material_data.push_back(drawable.material);
             }
 
@@ -795,7 +802,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
 
         frame_asset.mesh_draws[i].current_matrices = drawable.matrices;
         frame_asset.mesh_draws[i].mesh_index = mesh_index;
-        frame_asset.mesh_draws[i].material_index = material_index_map[drawable.material_id];
+        frame_asset.mesh_draws[i].material_index = material_index;
         frame_asset.mesh_draws[i].vertex_buffer_index = vertex_buffer_index;
 
         if(drawable.last_matrices) { frame_asset.mesh_draws[i].last_matrices = *drawable.last_matrices; }

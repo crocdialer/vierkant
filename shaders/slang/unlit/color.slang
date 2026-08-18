@@ -33,6 +33,6 @@ VertexData vertex_main(float3 a_position: Position, float4 a_color: Color, uint 
 [[shader("pixel")]]
 float4 fragment_main(nointerpolation in renderer::index_bundle_t indices, in VertexData vertex_in)
 {
-    uint material_index = indices.mesh_draw_index;
+    uint material_index = indices.material_index;
     return materials[material_index].color * vertex_in.color;
 }
