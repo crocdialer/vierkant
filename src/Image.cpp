@@ -351,23 +351,7 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
     }
     ////////////////////////////////////////// create image sampler ////////////////////////////////////////////////////
 
-    if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT)
-    {
-        vierkant::sampler_state_t sampler_state = {};
-        sampler_state.min_filter = m_format.min_filter;
-        sampler_state.mag_filter = m_format.mag_filter;
-        sampler_state.address_mode_u = m_format.address_mode_u;
-        sampler_state.address_mode_v = m_format.address_mode_v;
-        sampler_state.address_mode_w = m_format.address_mode_w;
-        sampler_state.mipmap_mode = m_format.mipmap_mode;
-        sampler_state.reduction_mode = m_format.reduction_mode;
-        sampler_state.max_anisotropy = m_format.max_anisotropy;
-
-        // [0 ... tex_width] vs. [0 ... 1]
-        sampler_state.normalized_coords = m_format.normalized_coords;
-
-        m_sampler = m_device->sampler(sampler_state);
-    }
+    if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT) { m_sampler = m_device->sampler(m_format.sampler_state); }
 
     ////////////////////////////////////////// layout transitions //////////////////////////////////////////////////////
 
@@ -765,19 +749,11 @@ bool Image::Format::operator==(const Image::Format &other) const
     if(sharing_mode != other.sharing_mode) { return false; }
     if(view_type != other.view_type) { return false; }
     if(usage != other.usage) { return false; }
-    if(address_mode_u != other.address_mode_u) { return false; }
-    if(address_mode_v != other.address_mode_v) { return false; }
-    if(address_mode_w != other.address_mode_w) { return false; }
-    if(min_filter != other.min_filter) { return false; }
-    if(mag_filter != other.mag_filter) { return false; }
-    if(reduction_mode != other.reduction_mode) { return false; }
+    if(sampler_state != other.sampler_state) { return false; }
     if(memcmp(&component_swizzle, &other.component_swizzle, sizeof(VkComponentMapping)) != 0) { return false; }
-    if(max_anisotropy != other.max_anisotropy) { return false; }
     if(initial_layout_transition != other.initial_layout_transition) { return false; }
     if(use_mipmap != other.use_mipmap) { return false; }
     if(autogenerate_mipmaps != other.autogenerate_mipmaps) { return false; }
-    if(mipmap_mode != other.mipmap_mode) { return false; }
-    if(normalized_coords != other.normalized_coords) { return false; }
     if(sample_count != other.sample_count) { return false; }
     if(num_layers != other.num_layers) { return false; }
     if(memory_usage != other.memory_usage) { return false; }
@@ -805,22 +781,14 @@ size_t std::hash<vierkant::Image::Format>::operator()(vierkant::Image::Format co
     hash_combine(h, fmt.sharing_mode);
     hash_combine(h, fmt.view_type);
     hash_combine(h, fmt.usage);
-    hash_combine(h, fmt.address_mode_u);
-    hash_combine(h, fmt.address_mode_v);
-    hash_combine(h, fmt.address_mode_w);
-    hash_combine(h, fmt.min_filter);
-    hash_combine(h, fmt.mag_filter);
-    hash_combine(h, fmt.reduction_mode);
+    hash_combine(h, fmt.sampler_state);
     hash_combine(h, fmt.component_swizzle.r);
     hash_combine(h, fmt.component_swizzle.g);
     hash_combine(h, fmt.component_swizzle.b);
     hash_combine(h, fmt.component_swizzle.a);
-    hash_combine(h, fmt.max_anisotropy);
     hash_combine(h, fmt.initial_layout_transition);
     hash_combine(h, fmt.use_mipmap);
     hash_combine(h, fmt.autogenerate_mipmaps);
-    hash_combine(h, fmt.mipmap_mode);
-    hash_combine(h, fmt.normalized_coords);
     hash_combine(h, fmt.sample_count);
     hash_combine(h, fmt.num_layers);
     hash_combine(h, fmt.memory_usage);

@@ -270,8 +270,8 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
         fmt.format = vk_format(img);
         fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         fmt.extent = {img->width(), img->height(), 1};
-        fmt.address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        fmt.address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        fmt.sampler_state.address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        fmt.sampler_state.address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;
         fmt.use_mipmap = true;
         fmt.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         fmt.initial_cmd_buffer = cmd_buf_handle;
@@ -332,7 +332,7 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
                     {
                         vierkant::Image::Format fmt;
                         fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-                        fmt.max_anisotropy = params.device->properties().core.limits.maxSamplerAnisotropy;
+                        fmt.sampler_state.max_anisotropy = params.device->properties().core.limits.maxSamplerAnisotropy;
                         ret.textures[key] = create_compressed_texture(params.device, img, fmt, params.load_queue);
                     }
                 },
@@ -426,8 +426,8 @@ vierkant::ImagePtr create_texture(const vierkant::DevicePtr &device, const croco
     fmt.format = vk_format(img);
     fmt.usage |= VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     fmt.extent = {img->width(), img->height(), 1};
-    fmt.address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    fmt.address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    fmt.sampler_state.address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    fmt.sampler_state.address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     fmt.use_mipmap = true;
     fmt.initial_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     fmt.initial_cmd_buffer = command_buffer.handle();
@@ -453,8 +453,8 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
     format.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     format.format = compression_result.mode == bcn::BC7 ? VK_FORMAT_BC7_UNORM_BLOCK : VK_FORMAT_BC5_UNORM_BLOCK;
     format.extent = {compression_result.base_width, compression_result.base_height, 1};
-    format.address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    format.address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    format.sampler_state.address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    format.sampler_state.address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     format.use_mipmap = compression_result.levels.size() > 1;
     format.autogenerate_mipmaps = false;
     format.initial_layout_transition = false;
