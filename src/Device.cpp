@@ -2,6 +2,7 @@
 #include <set>
 #include <vierkant/Device.hpp>
 #include <vierkant/git_hash.h>
+#include <vierkant/hash.hpp>
 
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
@@ -171,13 +172,11 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
         m_properties.ray_pipeline.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
         m_properties.mesh_shader.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
         m_properties.micromap_opacity.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPACITY_MICROMAP_PROPERTIES_EXT;
-        m_properties.descriptor_buffer.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_PROPERTIES_EXT;
         physical_device_properties.pNext = &m_properties.vulkan13;
         m_properties.vulkan13.pNext = &m_properties.acceleration_structure;
         m_properties.acceleration_structure.pNext = &m_properties.ray_pipeline;
         m_properties.ray_pipeline.pNext = &m_properties.mesh_shader;
         m_properties.mesh_shader.pNext = &m_properties.micromap_opacity;
-        m_properties.micromap_opacity.pNext = &m_properties.descriptor_buffer;
         vkGetPhysicalDeviceProperties2(create_info.physical_device, &physical_device_properties);
         m_properties.core = physical_device_properties.properties;
     }
@@ -314,11 +313,6 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     mesh_shader_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
     update_pnext(mesh_shader_features, VK_EXT_MESH_SHADER_EXTENSION_NAME);
 
-    //------------------------------------ VK_EXT_descriptor_buffer ----------------------------------------------------
-    VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer_features = {};
-    descriptor_buffer_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT;
-    update_pnext(descriptor_buffer_features, VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
-
     //------------------------------------ VK_KHR_fragment_shader_barycentric ------------------------------------------
     VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR barycentric_features = {};
     barycentric_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_KHR;
@@ -437,6 +431,10 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
 
 Device::~Device()
 {
+    // cached samplers are shared with images, which keep this device alive -> safe to drop here,
+    // and it needs to happen before vkDestroyDevice, unlike member-destruction order.
+    m_samplers.clear();
+
     if(m_command_pool_transfer)
     {
         vkDestroyCommandPool(m_device, m_command_pool_transfer, nullptr);
@@ -507,4 +505,69 @@ void Device::set_object_name(uint64_t handle, VkObjectType type, const std::stri
 
 void Device::wait_idle() const { vkDeviceWaitIdle(m_device); }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+VkSamplerPtr Device::sampler(const sampler_state_t &state)
+{
+    std::unique_lock lock(m_sampler_mutex);
+    auto it = m_samplers.find(state);
+    if(it != m_samplers.end()) { return it->second; }
+
+    VkSamplerReductionModeCreateInfo reduction_mode_info = {};
+    reduction_mode_info.sType = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
+    reduction_mode_info.reductionMode = state.reduction_mode;
+
+    VkSamplerCreateInfo sampler_create_info = {};
+    sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sampler_create_info.pNext = &reduction_mode_info;
+    sampler_create_info.magFilter = state.mag_filter;
+    sampler_create_info.minFilter = state.min_filter;
+    sampler_create_info.addressModeU = state.address_mode_u;
+    sampler_create_info.addressModeV = state.address_mode_v;
+    sampler_create_info.addressModeW = state.address_mode_w;
+    sampler_create_info.anisotropyEnable = static_cast<VkBool32>(state.max_anisotropy > 0.f);
+    sampler_create_info.maxAnisotropy = state.max_anisotropy;
+    sampler_create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    sampler_create_info.unnormalizedCoordinates = static_cast<VkBool32>(!state.normalized_coords);
+    sampler_create_info.compareEnable = VK_FALSE;
+    sampler_create_info.compareOp = VK_COMPARE_OP_ALWAYS;
+    sampler_create_info.mipmapMode = state.mipmap_mode;
+    sampler_create_info.mipLodBias = 0.0f;
+    sampler_create_info.minLod = 0.0f;
+
+    // the sampled mip-level is already clamped to the image-view's level-range, so an unclamped maxLod
+    // is equivalent to a per-image one and keeps the cache from fragmenting.
+    // unnormalized coordinates require minLod == maxLod == 0 though.
+    sampler_create_info.maxLod = state.normalized_coords ? VK_LOD_CLAMP_NONE : 0.f;
+
+    VkSampler sampler_handle;
+    vkCheck(vkCreateSampler(m_device, &sampler_create_info, nullptr, &sampler_handle),
+            "failed to create texture sampler!");
+
+    // capturing the raw handle is fine: users of a sampler hold a DevicePtr, and ~Device drops the cache
+    // before vkDestroyDevice.
+    auto ret = VkSamplerPtr(sampler_handle,
+                            [device = m_device](VkSampler s) { vkDestroySampler(device, s, nullptr); });
+    m_samplers[state] = ret;
+    spdlog::trace("created sampler - distinct sampler-states: {}", m_samplers.size());
+    return ret;
+}
+
 }// namespace vierkant
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+size_t std::hash<vierkant::sampler_state_t>::operator()(const vierkant::sampler_state_t &state) const
+{
+    size_t h = 0;
+    vierkant::hash_combine(h, state.min_filter);
+    vierkant::hash_combine(h, state.mag_filter);
+    vierkant::hash_combine(h, state.address_mode_u);
+    vierkant::hash_combine(h, state.address_mode_v);
+    vierkant::hash_combine(h, state.address_mode_w);
+    vierkant::hash_combine(h, state.mipmap_mode);
+    vierkant::hash_combine(h, state.reduction_mode);
+    vierkant::hash_combine(h, state.max_anisotropy);
+    vierkant::hash_combine(h, state.normalized_coords);
+    return h;
+}

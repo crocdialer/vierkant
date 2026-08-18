@@ -14,7 +14,6 @@ DEFINE_CLASS_PTR(Image)
 using VkImagePtr = std::shared_ptr<VkImage_T>;
 using VkImageViewPtr = std::shared_ptr<VkImageView_T>;
 using VkImageLayoutPtr = std::shared_ptr<VkImageLayout>;
-using VkSamplerPtr = std::shared_ptr<VkSampler_T>;
 
 VkDeviceSize num_bytes(VkFormat format);
 

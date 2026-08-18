@@ -353,40 +353,20 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
 
     if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT)
     {
-        VkSamplerCreateInfo sampler_create_info = {};
-        sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        sampler_create_info.magFilter = m_format.mag_filter;
-        sampler_create_info.minFilter = m_format.min_filter;
-        sampler_create_info.addressModeU = m_format.address_mode_u;
-        sampler_create_info.addressModeV = m_format.address_mode_v;
-        sampler_create_info.addressModeW = m_format.address_mode_w;
-
-        sampler_create_info.anisotropyEnable = static_cast<VkBool32>(m_format.max_anisotropy > 0.f);
-        sampler_create_info.maxAnisotropy = m_format.max_anisotropy;
-
-        sampler_create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        vierkant::sampler_state_t sampler_state = {};
+        sampler_state.min_filter = m_format.min_filter;
+        sampler_state.mag_filter = m_format.mag_filter;
+        sampler_state.address_mode_u = m_format.address_mode_u;
+        sampler_state.address_mode_v = m_format.address_mode_v;
+        sampler_state.address_mode_w = m_format.address_mode_w;
+        sampler_state.mipmap_mode = m_format.mipmap_mode;
+        sampler_state.reduction_mode = m_format.reduction_mode;
+        sampler_state.max_anisotropy = m_format.max_anisotropy;
 
         // [0 ... tex_width] vs. [0 ... 1]
-        sampler_create_info.unnormalizedCoordinates = static_cast<VkBool32>(!m_format.normalized_coords);
+        sampler_state.normalized_coords = m_format.normalized_coords;
 
-        sampler_create_info.compareEnable = VK_FALSE;
-        sampler_create_info.compareOp = VK_COMPARE_OP_ALWAYS;
-
-        sampler_create_info.mipmapMode = m_format.mipmap_mode;
-        sampler_create_info.mipLodBias = 0.0f;
-        sampler_create_info.minLod = 0.0f;
-        sampler_create_info.maxLod = static_cast<float>(m_num_mip_levels);
-
-        VkSamplerReductionModeCreateInfo reduction_mode_info = {};
-        reduction_mode_info.sType = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
-        reduction_mode_info.reductionMode = m_format.reduction_mode;
-        sampler_create_info.pNext = &reduction_mode_info;
-
-        VkSampler sampler;
-        vkCheck(vkCreateSampler(m_device->handle(), &sampler_create_info, nullptr, &sampler),
-                "failed to create texture sampler!");
-        m_sampler = VkSamplerPtr(sampler,
-                                 [device = m_device](VkSampler s) { vkDestroySampler(device->handle(), s, nullptr); });
+        m_sampler = m_device->sampler(sampler_state);
     }
 
     ////////////////////////////////////////// layout transitions //////////////////////////////////////////////////////
