@@ -10,7 +10,7 @@ static const uint LIGHT_TYPE_POINT = 0;
 static const uint LIGHT_TYPE_SPOT = 1;
 static const uint LIGHT_TYPE_DIRECTIONAL = 2;
 
-//! matches host-side vierkant::light_t (80 bytes), same layout as ray_common's light_t
+//! matches host-side vierkant::light_t (96 bytes), same layout as ray_common's light_t
 public struct lightsource_t
 {
     public float3 position;
@@ -33,6 +33,15 @@ public struct lightsource_t
 
     //! area-light extent: radius (Sphere/Disk/Tube) / half-width (Rect)
     public float size_x;
+
+    //! projector-cookie uv-scale, unused here (cookies are path-tracer only, layout is shared)
+    public float2 uv_scale;
+
+    //! projector-cookie texture-index, unused here (see above)
+    public uint texture_index;
+
+    //! explicit padding, see vierkant::light_t::pad
+    public uint pad;
 };
 
 float GeometrySchlickGGX(float NdotV, float roughness)

@@ -552,10 +552,10 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     desc_trace_data.stage_flags = VK_SHADER_STAGE_ALL;
     desc_trace_data.buffers = {frame_context.trace_data_ubo};
 
+    // images are assigned during the light-gather below: scene-textures plus any projector-cookies
     vierkant::descriptor_t &desc_textures = frame_context.tracable.descriptors[2];
     desc_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
-    desc_textures.images = frame_context.scene_ray_acceleration.textures;
 
     if(m_environment)
     {
@@ -636,6 +636,11 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
         lights.push_back(sun);
     }
 
+    // projector-cookies are appended behind the material-textures the ray-builder collected,
+    // so their indices stay valid for the descriptor-array assembled below
+    auto cookie_textures = frame_context.scene_ray_acceleration.textures;
+    std::unordered_map<vierkant::texture_key_t, uint32_t> cookie_indices;
+
     // scene lightsources: resolve component light-ids via asset-provider
     for(const auto *object: scene_visitor.objects)
     {
@@ -646,10 +651,30 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
             // Area stays reserved for emissive triangles (extracted, not authored)
             if(light_asset && light_asset->intensity > 0.f && light_asset->type != vierkant::LightType::Area)
             {
-                lights.push_back(vierkant::convert_light(*light_asset, object->global_transform()));
+                auto light = vierkant::convert_light(*light_asset, object->global_transform());
+
+                // cookies are sampled for Spot/Omni only. texture-index 0 (solid-white placeholder) means 'none'
+                if(light_asset->cookie &&
+                   (light_asset->type == vierkant::LightType::Spot || light_asset->type == vierkant::LightType::Omni))
+                {
+                    vierkant::texture_key_t key = {light_asset->cookie->texture_id, light_asset->cookie->sampler_id};
+
+                    if(auto it = cookie_indices.find(key); it != cookie_indices.end())
+                    {
+                        light.texture_index = it->second;
+                    }
+                    else if(auto img = scene->asset_provider()->texture(key))
+                    {
+                        light.texture_index = cookie_textures.size();
+                        cookie_indices[key] = light.texture_index;
+                        cookie_textures.push_back(std::move(img));
+                    }
+                }
+                lights.push_back(light);
             }
         }
     }
+    desc_textures.images = std::move(cookie_textures);
     if(!lights.empty()) { frame_context.lights_buffer->set_data(lights); }
     trace_data.trace_params.num_lights = lights.size();
 
