@@ -1258,6 +1258,26 @@ bool draw_light_ui(vierkant::lightsource_t &light)
         changed |= ImGui::InputFloat("radius", &light.size.x);
         changed |= ImGui::InputFloat("half_length", &light.size.y);
     }
+
+    // projector-cookie: only Spot/Omni sample one, hide the field elsewhere so it cannot be authored
+    if(light.type == LightType::Spot || light.type == LightType::Omni)
+    {
+        *text_buf = 0;
+        if(light.cookie) { strcpy(text_buf, light.cookie->texture_id.str().c_str()); }
+
+        if(ImGui::InputText("cookie texture-id", text_buf, buf_size, ImGuiInputTextFlags_EnterReturnsTrue))
+        {
+            // a hand-assigned raw texture has no realized sampler-permutation -> resolve to the {id, nil} base
+            if(*text_buf)
+            {
+                vierkant::texture_data_t tex_data = {};
+                tex_data.texture_id = vierkant::TextureId::from_string(text_buf);
+                light.cookie = tex_data;
+            }
+            else { light.cookie.reset(); }
+            changed = true;
+        }
+    }
     return changed;
 }
 

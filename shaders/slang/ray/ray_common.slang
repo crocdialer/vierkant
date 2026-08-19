@@ -128,6 +128,16 @@ public struct light_t
 
     //! area-light extent: radius (Sphere/Disk/Tube) / half-width (Rect)
     public float size_x;
+
+    //! projector-cookie uv-scale. Spot: 1/tan(outer_cone_angle)
+    public float2 uv_scale;
+
+    //! index into the bound texture-array, 0 marks 'no cookie'
+    public uint texture_index;
+
+    //! explicit padding: the buffer-reference array-stride follows the declared members, without
+    //! rounding up to the struct-alignment. must stay in sync with vierkant::light_t::pad
+    public uint pad;
 };
 
 //! simple struct to group rayhit-parameters

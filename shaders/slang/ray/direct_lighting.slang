@@ -28,8 +28,40 @@ public struct light_sample_t
     public float3 radiance;
 };
 
+//! projector-cookie: radiance-multiplier for one sampled direction, white when the light carries no cookie.
+//! Spot projects through its cone (gobo/slide), Omni maps the full sphere in lat-long (photometric profile).
+//! delta lights only - a pure multiplier, invisible to pdf/MIS
+float3 cookie_factor(light_t l, float3 dir_to_light, Sampler2D textures[])
+{
+    if(l.texture_index == 0) { return float3(1); }
+
+    // direction from the light toward the shading point, expressed in the light-frame
+    float3 D = -dir_to_light;
+    float3 p = float3(dot(D, l.tangent), dot(D, cross(l.direction, l.tangent)), dot(D, l.direction));
+    float2 uv;
+
+    if(l.type == LightType::Spot)
+    {
+        // behind the projector
+        if(p.z <= 0.0) { return float3(0); }
+
+        // uv_scale carries 1/tan(outer_cone_angle): the cookie-square circumscribes the cone,
+        // its corners are cut by the cone's angular attenuation
+        uv = 0.5 + 0.5 * p.xy * l.uv_scale / p.z;
+        if(any(uv != saturate(uv))) { return float3(0); }
+    }
+    else
+    {
+        // lat-long, covering the full sphere: no guards needed
+        uv = float2(atan2(p.y, p.x) * 0.5 * utils::ONE_OVER_PI + 0.5, acos(clamp(p.z, -1.0, 1.0)) * utils::ONE_OVER_PI);
+    }
+
+    // lod 0: NEE takes one sample per light per bounce, accumulation averages the aliasing away
+    return textures[NonUniformResourceIndex(l.texture_index)].SampleLevel(uv, 0).rgb;
+}
+
 //! sample an incident direction and unshadowed radiance for one light
-public light_sample_t sample_light(light_t l, float3 P, float2 Xi)
+public light_sample_t sample_light(light_t l, float3 P, float2 Xi, Sampler2D textures[])
 {
     light_sample_t ret;
     ret.pdf = 1.0;
@@ -131,7 +163,7 @@ public light_sample_t sample_light(light_t l, float3 P, float2 Xi)
             float angular_attenuation = clamp(cd * l.spot_angle_scale + l.spot_angle_offset, 0.0, 1.0);
             attenuation *= angular_attenuation * angular_attenuation;
         }
-        ret.radiance *= attenuation;
+        ret.radiance *= attenuation * cookie_factor(l, ret.direction, textures);
     }
     return ret;
 }
@@ -301,7 +333,7 @@ public float3 nee_surface(material_t material, trace_data_t trace_data, Raytraci
     uint num_lights = trace_data.params.num_lights;
     uint index = num_lights > 1 ? min(uint(utils::rnd(rng_state) * num_lights), num_lights - 1) : 0;
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
-    light_sample_t ls = sample_light(trace_data.lights[index], pos, Xi);
+    light_sample_t ls = sample_light(trace_data.lights[index], pos, Xi, textures);
 
     // skip the shadow ray for black samples (beyond range, inside a sphere-light)
     if(!any(ls.radiance > 0.0)) { return float3(0); }
@@ -340,7 +372,7 @@ public float3 nee_volume(Ray ray, trace_data_t trace_data, RaytracingAcceleratio
     uint num_lights = trace_data.params.num_lights;
     uint index = num_lights > 1 ? min(uint(utils::rnd(rng_state) * num_lights), num_lights - 1) : 0;
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
-    light_sample_t ls = sample_light(trace_data.lights[index], ray.origin, Xi);
+    light_sample_t ls = sample_light(trace_data.lights[index], ray.origin, Xi, textures);
 
     // skip the shadow ray for black samples (beyond range, inside a sphere-light)
     if(!any(ls.radiance > 0.0)) { return float3(0); }

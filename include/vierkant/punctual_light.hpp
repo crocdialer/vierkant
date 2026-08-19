@@ -5,9 +5,11 @@
 #pragma once
 
 #include <limits>
+#include <optional>
 #include <string>
 
 #include <crocore/NamedUUID.hpp>
+#include <vierkant/Material.hpp>
 #include <vierkant/math.hpp>
 #include <vierkant/object_component.hpp>
 #include <vierkant/transform.hpp>
@@ -54,6 +56,10 @@ struct lightsource_t
 
     //! area-light extents: x = radius (Sphere/Disk/Tube) or half-width (Rect), y = half-height (Rect) / half-length (Tube)
     glm::vec2 size = glm::vec2(1.f);
+
+    //! optional projector-cookie, modulating emitted radiance. Spot: projected through the cone (gobo/slide),
+    //! Omni: lat-long over the full sphere (photometric profile). ignored for all other types
+    std::optional<vierkant::texture_data_t> cookie;
 };
 
 //! lightsource object-component, referencing a lightsource-asset. position/direction come from the object-transform
@@ -86,8 +92,18 @@ struct alignas(16) light_t
 
     //! area-light extent: radius (Sphere/Disk/Tube) / half-width (Rect)
     float size_x;
+
+    //! projector-cookie uv-scale. Spot: 1/tan(outer_cone_angle), folded in to keep the shader trig-free
+    glm::vec2 uv_scale;
+
+    //! index into the renderer's texture-array, 0 marks 'no cookie' (index 0 is a solid-white placeholder)
+    uint32_t texture_index;
+
+    //! explicit trailing padding. the shader-side buffer-reference layout derives its array-stride from the
+    //! declared members only and does not round up to the struct-alignment, so the pad has to be spelled out
+    uint32_t pad;
 };
-static_assert(sizeof(light_t) == 80, "light_t layout must match shader-side (ray_common.slang)");
+static_assert(sizeof(light_t) == 96, "light_t layout must match shader-side (ray_common.slang)");
 
 static inline light_t convert_light(const vierkant::lightsource_t &light, const vierkant::transform_t &t)
 {
@@ -107,6 +123,10 @@ static inline light_t convert_light(const vierkant::lightsource_t &light, const 
     ret.tangent = t.rotation * glm::vec3(1.f, 0.f, 0.f);
     ret.size_x = light.size.x;
     ret.size_y = light.size.y;
+
+    // projector-cookie: the spot-map divides by tan(outer_cone_angle), pre-inverted here.
+    // texture_index stays 0 ('no cookie'), renderers own their texture-array and resolve it.
+    ret.uv_scale = glm::vec2(1.f / std::max(1.e-4f, std::tan(light.outer_cone_angle)));
     return ret;
 }
 

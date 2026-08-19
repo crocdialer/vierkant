@@ -113,7 +113,6 @@ void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_l
                          const std::unordered_set<vierkant::LightId> &extra_live_lights)
 {
     vierkant::asset_live_set_t live;
-    live.lights = extra_live_lights;
 
     // mark a material live, along with the textures/samplers it references
     auto mark_material = [this, &live](const vierkant::MaterialId &mat_id) {
@@ -129,11 +128,23 @@ void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_l
         }
     };
 
+    // mark a light live, along with the projector-cookie it references
+    auto mark_light = [this, &live](const vierkant::LightId &light_id) {
+        if(!live.lights.insert(light_id).second) { return; }
+
+        if(const auto *light = m_asset_provider->light(light_id); light && light->cookie)
+        {
+            live.textures.insert({light->cookie->texture_id, light->cookie->sampler_id});
+            if(light->cookie->sampler_id) { live.samplers.insert(light->cookie->sampler_id); }
+        }
+    };
+
     // caller-provided roots (e.g. a user-authored material-library) that outlive scene-graph references
     for(const auto &mat_id: extra_live_materials) { mark_material(mat_id); }
+    for(const auto &light_id: extra_live_lights) { mark_light(light_id); }
 
     LambdaVisitor visitor;
-    visitor.traverse(*root(), [&live, &mark_material](auto &obj) {
+    visitor.traverse(*root(), [&live, &mark_material, &mark_light](auto &obj) {
         if(auto *mesh_cmp = obj.template get_component_ptr<vierkant::mesh_component_t>(); mesh_cmp && mesh_cmp->mesh)
         {
             live.meshes.insert(mesh_cmp->mesh->id);
@@ -143,7 +154,7 @@ void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_l
         }
         if(auto *light_cmp = obj.template get_component_ptr<vierkant::lightsource_component_t>())
         {
-            live.lights.insert(light_cmp->light_id);
+            mark_light(light_cmp->light_id);
         }
         return true;
     });
