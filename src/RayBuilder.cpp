@@ -337,6 +337,10 @@ void RayBuilder::compact(build_result_t &build_result) const
         auto &acceleration_asset = *entry_assets_compact[i];
         acceleration_asset = create_acceleration_asset(create_info);
 
+        // the compacted structure describes the same geometry, keep tracking its vertex-buffer
+        acceleration_asset.vertex_buffer = build_result.acceleration_assets[i]->vertex_buffer;
+        acceleration_asset.vertex_buffer_offset = build_result.acceleration_assets[i]->vertex_buffer_offset;
+
         // copy the original BLAS to a compact version
         VkCopyAccelerationStructureInfoKHR copy_info = {};
         copy_info.sType = VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR;
@@ -807,7 +811,9 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     // run compaction on structures from previous frame
     for(auto &[anim_mesh, result]: previous_builds)
     {
-        if(params.use_compaction && result.compact && result.compacted_assets.empty())
+        if(!params.use_compaction || !result.compact) { continue; }
+
+        if(result.compacted_assets.empty())
         {
             // run compaction
             compact(result);
@@ -819,6 +825,11 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             semaphore_infos.push_back(wait_info);
 
             context->build_results[anim_mesh] = std::move(result);
+        }
+        else
+        {
+            // compaction completed a frame ago: keep the compacted structures, drop the originals
+            previous_mesh_assets[anim_mesh.mesh] = std::move(result.compacted_assets);
         }
     }
 
