@@ -61,7 +61,8 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info)
     // set the specialization info
     vierkant::pipeline_specialization pipeline_specialization;
     pipeline_specialization.set(0, m_brightness_thresh.x);
-    pipeline_specialization.set(0, m_brightness_thresh.y);
+    pipeline_specialization.set(1, m_brightness_thresh.y);
+    m_drawable.pipeline_format.specialization = std::move(pipeline_specialization);
 
     // descriptor
     vierkant::descriptor_t desc_texture = {};
