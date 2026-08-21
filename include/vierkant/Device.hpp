@@ -6,7 +6,6 @@
 
 #include <map>
 #include <vierkant/Instance.hpp>
-#include <vierkant/debug_label.hpp>
 #include <vierkant/math.hpp>
 #include <vk_mem_alloc.h>
 

@@ -1,3 +1,4 @@
+#include <array>
 #include <format>
 #include <set>
 #include <vierkant/Device.hpp>
@@ -568,8 +569,7 @@ VkSamplerPtr Device::sampler(const sampler_state_t &state)
 
     // capturing the raw handle is fine: users of a sampler hold a DevicePtr, and ~Device drops the cache
     // before vkDestroyDevice.
-    auto ret = VkSamplerPtr(sampler_handle,
-                            [device = m_device](VkSampler s) { vkDestroySampler(device, s, nullptr); });
+    auto ret = VkSamplerPtr(sampler_handle, [device = m_device](VkSampler s) { vkDestroySampler(device, s, nullptr); });
     m_samplers[state] = ret;
     spdlog::trace("created sampler - distinct sampler-states: {}", m_samplers.size());
     return ret;
