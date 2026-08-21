@@ -68,7 +68,7 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
     struct entry_plan_t
     {
         const vierkant::model::mesh_omm_entry_t *cache_entry = nullptr;
-        std::vector<VkMicromapUsageEXT> usages;
+        std::vector<VkMicromapUsageEXT> build_usages, geometry_usages;
         uint32_t entry_idx = 0;
         vierkant::MeshConstPtr mesh;
         size_t data_offset = 0;
@@ -89,6 +89,25 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
         size_t total_scratch_size = 0;
     };
     std::unordered_map<vierkant::MeshConstPtr, mesh_plan_t> mesh_plans;
+
+    // (subdivisionLevel, format) packed into a dword: the encoding a micro-triangle's opacity data uses
+    auto triangle_encoding = [](const VkMicromapTriangleEXT &tri) {
+        return (uint32_t(tri.subdivisionLevel) << 16) | tri.format;
+    };
+
+    auto to_usages = [](const std::unordered_map<uint32_t, uint32_t> &counts_per_encoding) {
+        std::vector<VkMicromapUsageEXT> ret;
+        ret.reserve(counts_per_encoding.size());
+        for(const auto &[encoding, count]: counts_per_encoding)
+        {
+            VkMicromapUsageEXT usage = {};
+            usage.count = count;
+            usage.subdivisionLevel = encoding >> 16;
+            usage.format = encoding & 0xFFFF;
+            ret.push_back(usage);
+        }
+        return ret;
+    };
 
     // pass 1: collect plans and query micromap build sizes
     for(const auto &mesh: params.meshes)
@@ -116,26 +135,26 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             plan.entry_idx = i;
             plan.mesh = mesh;
 
-            // build VkMicromapUsageEXT by counting (subdivisionLevel, format) pairs in triangles[]
-            std::unordered_map<uint32_t, uint32_t> lf_counts;
-            for(const auto &tri: cache_it->second.triangles)
+            const auto &triangles = cache_it->second.triangles;
+
+            // the micromap build is described by its own entries ...
+            std::unordered_map<uint32_t, uint32_t> build_counts;
+            for(const auto &tri: triangles) { build_counts[triangle_encoding(tri)]++; }
+            plan.build_usages = to_usages(build_counts);
+
+            // ... the geometry by its triangles after index-indirection, skipping special indices
+            std::unordered_map<uint32_t, uint32_t> geometry_counts;
+            for(int32_t idx: cache_it->second.indices)
             {
-                uint32_t lf = (uint32_t(tri.subdivisionLevel) << 16) | tri.format;
-                lf_counts[lf]++;
+                if(idx < 0 || static_cast<size_t>(idx) >= triangles.size()) { continue; }
+                geometry_counts[triangle_encoding(triangles[idx])]++;
             }
-            for(const auto &[lf, count]: lf_counts)
-            {
-                VkMicromapUsageEXT usage = {};
-                usage.count = count;
-                usage.subdivisionLevel = lf >> 16;
-                usage.format = lf & 0xFFFF;
-                plan.usages.push_back(usage);
-            }
+            plan.geometry_usages = to_usages(geometry_counts);
 
             // query micromap build sizes
             auto query_info = build_info_proto;
-            query_info.usageCountsCount = static_cast<uint32_t>(plan.usages.size());
-            query_info.pUsageCounts = plan.usages.data();
+            query_info.usageCountsCount = static_cast<uint32_t>(plan.build_usages.size());
+            query_info.pUsageCounts = plan.build_usages.data();
 
             VkMicromapBuildSizesInfoEXT size_info = {};
             size_info.sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_SIZES_INFO_EXT;
@@ -165,7 +184,7 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
     }
 
     // pass 2: allocate buffers, upload, create micromaps, fill build infos
-    // build_infos references plan.usages.data() — plans must not be modified after this point
+    // build_infos references plan.build_usages.data() — plans must not be modified after this point
     std::vector<VkMicromapBuildInfoEXT> all_build_infos;
     std::vector<VkBufferMemoryBarrier2> barriers;
 
@@ -225,7 +244,7 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             micromap_asset_t asset = {};
             asset.buffer = build_data.micromap;
             asset.index_buffer_address = build_data.omm_input->device_address() + plan.indices_offset;
-            asset.micromap_usages = plan.usages;// copy; plan.usages stays alive for pUsageCounts below
+            asset.micromap_usages = plan.geometry_usages;
 
             VkMicromapCreateInfoEXT create_info = {};
             create_info.sType = VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT;
@@ -242,8 +261,8 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
                               }};
 
             auto &build_info = all_build_infos.emplace_back(build_info_proto);
-            build_info.usageCountsCount = static_cast<uint32_t>(plan.usages.size());
-            build_info.pUsageCounts = plan.usages.data();// stable: plan lives in mesh_plans
+            build_info.usageCountsCount = static_cast<uint32_t>(plan.build_usages.size());
+            build_info.pUsageCounts = plan.build_usages.data();// stable: plan lives in mesh_plans
             build_info.dstMicromap = asset.micromap.get();
             build_info.data.deviceAddress = build_data.omm_input->device_address() + plan.data_offset;
             build_info.triangleArray.deviceAddress = build_data.omm_input->device_address() + plan.triangles_offset;
