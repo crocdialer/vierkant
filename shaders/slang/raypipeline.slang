@@ -440,6 +440,33 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         float3 sigma_s = payload.media.sigma_s;
 
+        // throughput entering this segment: the equiangular estimator carries its own transmittance
+        float3 seg_beta = payload.beta;
+
+        uint light_index = 0;
+        bool equiangular = false;
+        ray::equiangular_t eq = {};
+
+        if(use_direct_lighting)
+        {
+            // one light-pick shared by both single-scatter strategies, so their MIS-weights refer
+            // to the same integrand. punctual lights are never bsdf-reachable, so this never
+            // competes with the phase-sampling MIS inside nee_volume
+            light_index = ray::pick_light(trace_data.params.num_lights, rng_state);
+            ray::light_t l = trace_data.lights[light_index];
+            equiangular = homogenous_medium && ray::has_punctual_falloff(l);
+
+            // set up before the scatter-branch moves payload.ray.origin off the segment-start
+            if(equiangular)
+            {
+                eq = ray::equiangular_setup(payload.ray, RayTCurrent(), l.position);
+                equiangular = eq.valid;
+            }
+        }
+
+        // density of a transmittance-sampled scatter at t
+        float dist_pdf = 0.0;
+
         if(homogenous_medium)
         {
             // emissive medium: analytic emission integral over the full segment,
@@ -457,6 +484,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             float3 density = sample_medium ? beam_tr * sigma_t : beam_tr;
             float pdf = max(channel_avg(density), ray::PDF_EPS);
             payload.beta *= sample_medium ? (sigma_s * beam_tr / pdf) : (beam_tr / pdf);
+            dist_pdf = sample_medium ? pdf : 0.0;
         }
         else
         {
@@ -498,6 +526,22 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             }
         }
 
+        // second estimate of the same single-scatter integral, MIS-combined with the
+        // transmittance-sampled one below. contributes whether or not the distance-sample
+        // scattered, which is what keeps thin media from losing the light-shaft entirely
+        if(equiangular)
+        {
+            float eq_pdf;
+            float t_eq = ray::equiangular_sample(eq, utils::rnd(rng_state), eq_pdf);
+            float3 beam_tr = exp(-sigma_t * t_eq);
+            float w = ray::power_heuristic(eq_pdf, max(channel_avg(beam_tr * sigma_t), ray::PDF_EPS));
+
+            float3 pos = payload.ray.origin + payload.ray.direction * t_eq;
+            float3 nee = ray::nee_volume(light_index, pos, payload.ray.direction, trace_data, topLevelAS, u_textures,
+                                         payload.media.phase_g, rng_state);
+            payload.radiance += seg_beta * beam_tr * sigma_s * w * nee / eq_pdf;
+        }
+
         if(sample_medium)
         {
             const float g = payload.media.phase_g;
@@ -506,8 +550,10 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
             if(use_direct_lighting)
             {
-                payload.radiance +=
-                        payload.beta * ray::nee_volume(payload.ray, trace_data, topLevelAS, u_textures, g, rng_state);
+                float w = equiangular ? ray::power_heuristic(dist_pdf, ray::equiangular_pdf(eq, t)) : 1.0;
+                payload.radiance += payload.beta * w *
+                                    ray::nee_volume(light_index, payload.ray.origin, payload.ray.direction, trace_data,
+                                                    topLevelAS, u_textures, g, rng_state);
             }
 
             float phase_pdf;

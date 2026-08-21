@@ -175,6 +175,65 @@ public float power_heuristic(float p_a, float p_b)
     return 1.0 / (1.0 + r * r);
 }
 
+//! whether a light's radiance carries the unbounded 1/d^2 punctual falloff
+public bool has_punctual_falloff(light_t l) { return l.type == LightType::Omni || l.type == LightType::Spot; }
+
+//! equiangular distance-sampling along a ray-segment toward a point-light (Kulla/Fajardo 2012):
+//! a density proportional to 1/d^2, cancelling the punctual falloff exactly
+public struct equiangular_t
+{
+    //! projection of the light onto the ray-axis
+    public float t_center;
+
+    //! perpendicular distance from the light to the ray-axis, floored to keep the density finite
+    public float dist_perp;
+
+    //! angles subtended at the segment-ends, the interval sampled uniformly
+    public float theta_a, theta_b;
+
+    //! dist_perp / (theta_b - theta_a). factored out so the density needs no epsilon-guard:
+    //! a pdf-scale one would clamp it right where it peaks, near the light
+    public float norm;
+
+    //! segment-length, the sampled distance is clamped against it
+    public float seg_len;
+
+    //! false for a degenerate segment (zero length or zero subtended angle)
+    public bool valid;
+};
+
+public equiangular_t equiangular_setup(Ray ray, float seg_len, float3 light_pos)
+{
+    equiangular_t ret;
+    float3 to_light = light_pos - ray.origin;
+    ret.t_center = dot(to_light, ray.direction);
+    ret.dist_perp = max(sqrt(max(dot(to_light, to_light) - ret.t_center * ret.t_center, 0.0)), EPS);
+    ret.theta_a = atan2(-ret.t_center, ret.dist_perp);
+    ret.theta_b = atan2(seg_len - ret.t_center, ret.dist_perp);
+    ret.seg_len = seg_len;
+
+    float delta_theta = ret.theta_b - ret.theta_a;
+    ret.valid = seg_len > 0.0 && delta_theta > 0.0;
+    ret.norm = ret.valid ? ret.dist_perp / delta_theta : 0.0;
+    return ret;
+}
+
+//! density at t. shares the struct with equiangular_sample(), so the floored 'dist_perp' stays
+//! consistent between sampling and pdf and introduces no bias
+public float equiangular_pdf(equiangular_t eq, float t)
+{
+    float d = t - eq.t_center;
+    return eq.norm / (eq.dist_perp * eq.dist_perp + d * d);
+}
+
+//! sample a distance in [0, seg_len], writing out its density
+public float equiangular_sample(equiangular_t eq, float Xi, out float pdf)
+{
+    float t = clamp(eq.t_center + eq.dist_perp * tan(lerp(eq.theta_a, eq.theta_b, Xi)), 0.0, eq.seg_len);
+    pdf = equiangular_pdf(eq, t);
+    return t;
+}
+
 //! whether bsdf/phase-sampled rays can hit this light: sun-discs via the miss shaders,
 //! analytic light bodies via the raygen ghost-light pass
 public bool bsdf_reachable(light_t l)
@@ -363,30 +422,37 @@ public float3 nee_surface(material_t material, trace_data_t trace_data, Raytraci
     return radiance;
 }
 
-//! next-event estimation at a volume-scattering event, using the phase function.
-//! requires trace_data.num_lights > 0
-public float3 nee_volume(Ray ray, trace_data_t trace_data, RaytracingAccelerationStructure as, Sampler2D textures[],
-                         float phase_g, inout uint rng_state)
+//! uniform 1/N light-pick (single light: keep rng-stream untouched)
+public uint pick_light(uint num_lights, inout uint rng_state)
 {
-    // uniform 1/N light-pick (single light: keep rng-stream untouched)
+    return num_lights > 1 ? min(uint(utils::rnd(rng_state) * num_lights), num_lights - 1) : 0;
+}
+
+//! next-event estimation at a point 'pos' inside a medium, toward the light 'index' (from pick_light).
+//! 'dir' is the direction the path travels. the medium-throughput up to 'pos' is *not* included - it
+//! differs per distance-sampling strategy, so the caller carries it.
+//! requires trace_data.num_lights > 0
+public float3 nee_volume(uint index, float3 pos, float3 dir, trace_data_t trace_data,
+                         RaytracingAccelerationStructure as, Sampler2D textures[], float phase_g,
+                         inout uint rng_state)
+{
     uint num_lights = trace_data.params.num_lights;
-    uint index = num_lights > 1 ? min(uint(utils::rnd(rng_state) * num_lights), num_lights - 1) : 0;
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
-    light_sample_t ls = sample_light(trace_data.lights[index], ray.origin, Xi, textures);
+    light_sample_t ls = sample_light(trace_data.lights[index], pos, Xi, textures);
 
     // skip the shadow ray for black samples (beyond range, inside a sphere-light)
     if(!any(ls.radiance > 0.0)) { return float3(0); }
 
     // shadow ray from inside volume: cull back faces from enclosing mesh
     Ray r;
-    r.origin = ray.origin;
+    r.origin = pos;
     r.direction = ls.direction;
     r.tmin = EPS;
     r.tmax = ls.dist;
     float3 transmittance = transmittance_test(r, as, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, trace_data, textures, rng_state);
     if(!any(transmittance > 0.0)) { return float3(0); }
 
-    float phase = utils::phase_hg(dot(ray.direction, ls.direction), phase_g);
+    float phase = utils::phase_hg(dot(dir, ls.direction), phase_g);
 
     // MIS vs. phase-sampling for lights that phase-rays can hit (weight == 1 for all others)
     float weight = bsdf_reachable(trace_data.lights[index])
