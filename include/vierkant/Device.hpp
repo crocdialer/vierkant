@@ -106,6 +106,19 @@ public:
         VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader;
     };
 
+    //! memory-usage for a single device memory-heap
+    struct memory_budget_t
+    {
+        //! bytes of VkDeviceMemory allocated from this heap
+        VkDeviceSize block_bytes = 0;
+
+        //! bytes actually in use by allocations. below 'block_bytes' by the amount kept as pool-headroom
+        VkDeviceSize allocation_bytes = 0;
+
+        //! estimated current usage and available budget, as reported by VMA
+        VkDeviceSize usage = 0, budget = 0;
+    };
+
     struct create_info_t
     {
         //! handle for the vulkan-instance
@@ -163,6 +176,13 @@ public:
      * @return a struct grouping physical-device properties
      */
     [[nodiscard]] const properties_t &properties() const { return m_properties; };
+
+    /**
+     * @brief   query current memory-usage per device memory-heap. cheap enough to call every frame.
+     *
+     * @return  an array of memory_budget_t, one per memory-heap.
+     */
+    [[nodiscard]] std::vector<memory_budget_t> memory_budgets() const;
 
     /**
      * @return  handle for the highest-priority-queue of a certain type

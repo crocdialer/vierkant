@@ -507,6 +507,28 @@ void Device::wait_idle() const { vkDeviceWaitIdle(m_device); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+std::vector<Device::memory_budget_t> Device::memory_budgets() const
+{
+    const VkPhysicalDeviceMemoryProperties *memory_properties = nullptr;
+    vmaGetMemoryProperties(m_vk_mem_allocator, &memory_properties);
+
+    std::array<VmaBudget, VK_MAX_MEMORY_HEAPS> budgets = {};
+    vmaGetHeapBudgets(m_vk_mem_allocator, budgets.data());
+
+    std::vector<memory_budget_t> ret(memory_properties->memoryHeapCount);
+
+    for(uint32_t i = 0; i < ret.size(); ++i)
+    {
+        ret[i].block_bytes = budgets[i].statistics.blockBytes;
+        ret[i].allocation_bytes = budgets[i].statistics.allocationBytes;
+        ret[i].usage = budgets[i].usage;
+        ret[i].budget = budgets[i].budget;
+    }
+    return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 VkSamplerPtr Device::sampler(const sampler_state_t &state)
 {
     std::unique_lock lock(m_sampler_mutex);
