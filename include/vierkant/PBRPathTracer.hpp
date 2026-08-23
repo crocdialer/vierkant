@@ -271,8 +271,8 @@ private:
         //! optionally clamp indirect path-throughput
         float max_path_beta = 0.f;
 
-        //! flag: camera starts inside 'camera_media' (seed media-stack, disable back-face culling)
-        uint32_t camera_inside_media = false;
+        //! number of seeded entries in 'camera_media', outermost first. >0 also disables back-face culling
+        uint32_t camera_media_count = 0;
 
         //! debug: force a single direct-light estimator (0: MIS, 1: NEE-only, 2: BSDF-only)
         uint32_t mis_mode = 0;
@@ -313,7 +313,8 @@ private:
     {
         trace_params_t trace_params;
         camera_params_t camera_params;
-        media_t camera_media;
+        //! media the camera is submerged in, outermost first. seeds the path's media-stack
+        media_t camera_media[MAX_MEDIA_STACK_SIZE];
 
         VkDeviceAddress vertex_buffers{};
         VkDeviceAddress index_buffers{};

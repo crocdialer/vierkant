@@ -9,6 +9,9 @@
 namespace vierkant
 {
 
+//! maximum number of nested media a path can track (matches ray_common.slang's MAX_MEDIA_STACK_SIZE)
+constexpr uint32_t MAX_MEDIA_STACK_SIZE = 4;
+
 //! participating-medium description (matches the shader-side ray::media_t)
 struct alignas(16) media_t
 {

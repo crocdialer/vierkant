@@ -18,7 +18,8 @@ import "utils/sdf";
 import "utils/phase_function";
 import "utils/procedural_environment";
 
-static const uint MAX_MEDIA_STACK_SIZE = 4;
+// topmost media-stack slot; the stack holds only entered media, air is the empty stack
+static const uint MEDIA_STACK_TOP = ray::MAX_MEDIA_STACK_SIZE - 1;
 
 // path regularization: bounces below the pdf-threshold mark the path, later vertices floor their roughness
 static const float REGULARIZE_PDF_THRESHOLD = 1e3;
@@ -116,26 +117,16 @@ trace_result_t trace(uint2 coord, uint2 size)
         cone.spread_angle = spread_angle;
         cone.width = 0.0;
 
-        uint media_index = 0;
-        ray::packed_media_t media[MAX_MEDIA_STACK_SIZE];
+        // the stack holds entered media only; an empty stack is vacuum/air, so leaving the
+        // outermost medium needs no slot to return to. counts past the stack-size are kept
+        // (indices are clamped instead), so push and pop stay exact inverses at any depth.
+        ray::packed_media_t media[ray::MAX_MEDIA_STACK_SIZE];
 
-        // media[0] is always vacuum/air; leaving any medium returns here.
-        ray::media_t vacuum_media;
-        vacuum_media.sigma_s = float3(0);
-        vacuum_media.ior = 1.0;
-        vacuum_media.sigma_a = float3(0);
-        vacuum_media.phase_g = 0.0;
-        vacuum_media.emission = float3(0);
-        media[0] = ray::pack_media(vacuum_media);
-
-        // when the camera starts submerged, push its medium as the current one. seeding
-        // media_index = 1 also disables back-face culling below, so the surrounding
-        // volume's inner walls are visible and can 'Leave' back into air.
-        if(trace_data.params.camera_inside_media)
-        {
-            media_index = 1;
-            media[media_index] = ray::pack_media(trace_data.camera_media);
-        }
+        // when the camera starts submerged, seed the media it is inside, outermost first.
+        // a non-empty stack also disables back-face culling below, so the surrounding volumes'
+        // inner walls are visible and can 'Leave' back into their enclosing medium.
+        uint media_count = min(trace_data.params.camera_media_count, ray::MAX_MEDIA_STACK_SIZE);
+        for(uint m = 0; m < media_count; ++m) { media[m] = ray::pack_media(trace_data.camera_media[m]); }
 
         float3 beta = float3(1);
         float3 path_radiance = float3(0);
@@ -158,14 +149,15 @@ trace_result_t trace(uint2 coord, uint2 size)
             payload.albedo = float3(0);
             payload.radiance = path_radiance;
             payload.beta = beta;
-            payload.packed_media = media[media_index];
-            payload.last_ior = media[media_index > 0u ? media_index - 1u : 0u].ior();
+            payload.packed_media =
+                    media_count > 0u ? media[min(media_count - 1u, MEDIA_STACK_TOP)] : ray::VACUUM_MEDIA;
+            payload.last_ior = media_count > 1u ? media[min(media_count - 2u, MEDIA_STACK_TOP)].ior() : 1.0;
             payload.disp_lambda = disp_lambda;
             payload.ray = next_ray;
             payload.cone = cone;
             payload.entity_index = utils::MAX_UINT16;
 
-            uint ray_flags = media_index > 0u ? 0u : RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+            uint ray_flags = media_count > 0u ? 0u : RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 
             RayDesc ray_desc;
             ray_desc.Origin = next_ray.origin;
@@ -191,10 +183,11 @@ trace_result_t trace(uint2 coord, uint2 size)
 
             if(payload.media_op == ray::MediaOp::Enter)
             {
-                media_index = min(media_index + 1, MAX_MEDIA_STACK_SIZE - 1);
-                media[media_index] = payload.packed_media;
+                // past capacity the top slot is overwritten, but the count keeps counting
+                media[min(media_count, MEDIA_STACK_TOP)] = payload.packed_media;
+                media_count++;
             }
-            else if(payload.media_op == ray::MediaOp::Leave) { media_index = media_index > 0u ? media_index - 1u : 0u; }
+            else if(payload.media_op == ray::MediaOp::Leave) { media_count = media_count > 0u ? media_count - 1u : 0u; }
 
             // ghost-light pass: analytic light bodies are additive, non-terminating emitters.
             // front-facing intersections within the traced segment add MIS-weighted emission; the segment
