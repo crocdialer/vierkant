@@ -1,4 +1,6 @@
 #include "vierkant/PBRPathTracer.hpp"
+
+#include <ranges>
 #include <vierkant/Visitor.hpp>
 #include <vierkant/gpu_timestamp_util.hpp>
 #include <vierkant/punctual_light.hpp>
@@ -26,9 +28,7 @@ struct alignas(16) pixel_buffer_t
 constexpr std::array<uint32_t, 5> atrous_steps = {1, 2, 4, 8, 16};
 
 glm::mat4 projection_view(const vierkant::Object3DPtr &cam)
-{
-    return camera::projection_matrix(cam.get()) * mat4_cast(camera::view_transform(cam.get()));
-}
+{ return camera::projection_matrix(cam.get()) * mat4_cast(camera::view_transform(cam.get())); }
 
 PBRPathTracerPtr PBRPathTracer::create(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info)
 { return vierkant::PBRPathTracerPtr(new PBRPathTracer(device, create_info)); }
@@ -474,18 +474,19 @@ void PBRPathTracer::post_fx_pass(frame_context_t &frame_context)
     }
 }
 
-//! auto-detect a medium the camera is submerged in: the innermost (smallest world-OBB) volumetric
-//! object containing the camera position. mirrors the shader's 'has_volume' test
-//! (finite attenuation_distance). OBB containment is exact for rotated boxes but still loose for
-//! concave hulls; exactly covers the common 'large box with a volumetric material' case.
-static std::optional<vierkant::medium_params_t> detect_camera_medium(const std::vector<vierkant::Object3D *> &objects,
-                                                                     const vierkant::SceneConstPtr &scene,
-                                                                     const vierkant::Object3DPtr &cam)
+//! auto-detect the media a camera is submerged in: every volumetric object whose world-OBB contains
+//! the camera position, returned outermost-first so it can seed the path's media-stack. mirrors the
+//! shader's 'has_volume' test (finite attenuation_distance). OBB containment is exact for rotated
+//! boxes but still loose for concave hulls; exactly covers the common 'large box with a volumetric
+//! material' case.
+static std::vector<vierkant::medium_params_t> detect_camera_media(const std::vector<vierkant::Object3D *> &objects,
+                                                                  const vierkant::SceneConstPtr &scene,
+                                                                  const vierkant::Object3DPtr &cam)
 {
     const glm::vec3 cam_pos = cam->global_transform().translation;
 
-    std::optional<vierkant::medium_params_t> result;
-    float best_volume = std::numeric_limits<float>::max();
+    // (world-OBB volume, medium) pairs; the volume orders the nesting below
+    std::vector<std::pair<float, vierkant::medium_params_t>> found;
 
     for(const auto *object: objects)
     {
@@ -494,10 +495,6 @@ static std::optional<vierkant::medium_params_t> detect_camera_medium(const std::
         // world-space OBB containment test
         auto world_obb = object->obb().transform(object->global_transform());
         if(!world_obb.contains(cam_pos)) { continue; }
-
-        const glm::vec3 &h = world_obb.half_lengths;
-        float volume = 8.f * h.x * h.y * h.z;
-        if(volume >= best_volume) { continue; }
 
         // find a volumetric material (finite attenuation_distance) among this object's entries
         const auto &mesh_component = object->get_component<vierkant::mesh_component_t>();
@@ -528,11 +525,20 @@ static std::optional<vierkant::medium_params_t> detect_camera_medium(const std::
                 params.emission_color = mat->emission;
                 params.emission_intensity = mat->emissive_strength;
             }
-            result = params;
-            best_volume = volume;
+            const glm::vec3 &h = world_obb.half_lengths;
+            found.emplace_back(8.f * h.x * h.y * h.z, params);
             break;
         }
     }
+
+    // outermost -> innermost, inferring nesting from the enclosing volume. exact for properly
+    // nested volumes, arbitrary for merely overlapping ones - same ambiguity the previous
+    // innermost-wins policy resolved by silently picking one
+    std::ranges::sort(found, [](const auto &lhs, const auto &rhs) { return lhs.first > rhs.first; });
+
+    std::vector<vierkant::medium_params_t> result;
+    result.reserve(found.size());
+    for(const auto &params: found | std::views::values) { result.push_back(params); }
     return result;
 }
 
@@ -586,6 +592,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 
     trace_data_t trace_data = {};
 
+
     using namespace std::chrono;
     trace_data.trace_params.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     trace_data.trace_params.batch_index = m_batch_index;
@@ -606,16 +613,22 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     vierkant::SelectVisitor<Object3D> scene_visitor(layer_mask);
     scene->root()->accept(scene_visitor);
 
-    // default media: air. submerge the camera in a medium if one is set: an explicit global medium
-    // (settings override) wins, otherwise auto-detect the volumetric object the camera is inside.
-    trace_data.camera_media = {};
-    std::optional<vierkant::medium_params_t> camera_medium = frame_context.settings.camera_medium;
-    if(!camera_medium) { camera_medium = detect_camera_medium(scene_visitor.objects, scene, cam); }
-    if(camera_medium)
+    // media the camera is submerged in, outermost first. an empty stack is air. an explicit global
+    // medium (settings override) is the outermost layer - it has no geometry, so nothing pops it -
+    // and the auto-detected volumetric objects the camera is inside stack on top of it.
+    std::vector<vierkant::medium_params_t> camera_media;
+    if(frame_context.settings.camera_medium) { camera_media.push_back(*frame_context.settings.camera_medium); }
+    auto detected_media = detect_camera_media(scene_visitor.objects, scene, cam);
+    camera_media.insert(camera_media.end(), detected_media.begin(), detected_media.end());
+
+    // keep the innermost entries: those are the media every traced segment actually integrates through
+    const size_t num_camera_media = std::min<size_t>(camera_media.size(), vierkant::MAX_MEDIA_STACK_SIZE);
+    const size_t media_offset = camera_media.size() - num_camera_media;
+    for(size_t i = 0; i < num_camera_media; ++i)
     {
-        trace_data.camera_media = vierkant::to_media(*camera_medium);
-        trace_data.trace_params.camera_inside_media = true;
+        trace_data.camera_media[i] = vierkant::to_media(camera_media[media_offset + i]);
     }
+    trace_data.trace_params.camera_media_count = static_cast<uint32_t>(num_camera_media);
 
     // gather lights into one device-array: optional sunlight (disc-light) folded in as light[0]
     std::vector<vierkant::light_t> lights;

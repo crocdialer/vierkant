@@ -36,6 +36,9 @@ public struct RayCone
 
 public static const uint MISS_INDEX_DEFAULT = 0;
 
+//! maximum number of nested media a path can track (mirrored host-side in vierkant/media.hpp)
+public static const uint MAX_MEDIA_STACK_SIZE = 4;
+
 public enum MediaOp : uint
 {
     NoOp = 0,
@@ -45,13 +48,13 @@ public enum MediaOp : uint
 
 public struct media_t
 {
-    public float3 sigma_s;
-    public float ior;
-    public float3 sigma_a;
-    public float phase_g;
+    public float3 sigma_s = float3(0);
+    public float ior = 1.0;
+    public float3 sigma_a = float3(0);
+    public float phase_g = 0.0;
 
     //! emitted radiance Le. volumetric emission is sigma_a * Le, so it requires absorption
-    public float3 emission;
+    public float3 emission = float3(0);
     float pad;
 };
 
@@ -66,6 +69,10 @@ public struct packed_media_t
 
     public float ior() { return f16tof32(ior_phase & 0xFFFFu); }
 };
+
+//! vacuum/air in packed form: pack_rgb9e5(0) is 0, f32tof16(1.0) is 0x3C00. an empty media-stack
+//! resolves to this, so air never occupies a slot
+public static const packed_media_t VACUUM_MEDIA = {0u, 0u, 0u, 0x3C00u};
 
 public packed_media_t pack_media(media_t m)
 {
@@ -332,8 +339,8 @@ public struct trace_params_t
     //! clamp indirect path-throughput
     public float max_path_beta;
 
-    //! camera starts inside 'camera_media' (seed media-stack, disable back-face culling)
-    public bool camera_inside_media;
+    //! number of seeded entries in 'camera_media', outermost first. >0 also disables back-face culling
+    public uint camera_media_count;
 
     //! debug: force a single direct-light estimator
     public MisMode mis_mode;
@@ -369,7 +376,8 @@ public struct trace_data_t
 {
     public trace_params_t params;
     public camera_ubo_t camera;
-    public media_t camera_media;
+    //! media the camera is submerged in, outermost first. seeds the path's media-stack
+    public media_t camera_media[MAX_MEDIA_STACK_SIZE];
 
     // device pointers
     public Ptr<utils::packed_vertex_t, Access.Read> *vertex_buffers;
