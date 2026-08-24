@@ -109,6 +109,10 @@ struct model_assets_t
     std::vector<mesh_omm_data_t> omm_data;
 };
 
+//! schema-version folded into the bundle cache-key; bump on any parsing/serialization change that
+//! would make existing bundles decode wrong. layout-sizes are covered by serialized_layout_hash().
+constexpr uint32_t bundle_schema_version = 4;
+
 struct mesh_omm_key_t
 {
     vierkant::MeshId    mesh_id;
