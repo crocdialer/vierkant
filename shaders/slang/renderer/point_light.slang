@@ -78,7 +78,7 @@ public float3 shade(lightsource_t light, float3 V, float3 normal, float3 positio
 
         if(light.type == LIGHT_TYPE_SPOT)
         {
-            float cd = dot(light.direction, L);
+            float cd = dot(-light.direction, L);
             float angular_attenuation = clamp(cd * light.spot_angle_scale + light.spot_angle_offset, 0.0, 1.0);
             angular_attenuation *= angular_attenuation;
             att *= angular_attenuation;
