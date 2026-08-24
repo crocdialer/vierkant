@@ -56,3 +56,7 @@
 	path = extern/bc7enc_rdo
 	url = https://github.com/richgel999/bc7enc_rdo.git
 	shallow = true
+[submodule "extern/cereal"]
+	path = extern/cereal
+	url = git@github.com:USCiLab/cereal.git
+	shallow = true
