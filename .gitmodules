@@ -64,3 +64,7 @@
 	path = extern/libzip
 	url = git@github.com:nih-at/libzip.git
 	shallow = true
+[submodule "extern/cxxopts"]
+	path = extern/cxxopts
+	url = git@github.com:jarro2783/cxxopts.git
+	shallow = true
