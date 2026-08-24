@@ -60,3 +60,7 @@
 	path = extern/cereal
 	url = git@github.com:USCiLab/cereal.git
 	shallow = true
+[submodule "extern/libzip"]
+	path = extern/libzip
+	url = git@github.com:nih-at/libzip.git
+	shallow = true

@@ -16,6 +16,7 @@
 #include <vierkant/serialization/optional_nvp_cereal.hpp>
 
 #include <crocore/NamedId.hpp>
+#include <crocore/set_lru.hpp>
 
 #include <vierkant/CameraControl.hpp>
 #include <vierkant/Material.hpp>
@@ -37,6 +38,14 @@ std::string save_minimal(Archive const &, const crocore::NamedUUID<T> &named_id)
 template<class Archive, class T>
 void load_minimal(Archive const &, crocore::NamedUUID<T> &named_id, const std::string &uuid_str)
 { named_id = crocore::NamedUUID<T>::from_string(uuid_str); }
+template<class Archive, class T>
+void serialize(Archive &archive, crocore::set_lru<T> &set_lru)
+{
+    std::vector<T> array(set_lru.begin(), set_lru.end());
+    archive(array);
+    set_lru = {array.begin(), array.end()};
+}
+
 }// namespace crocore
 
 namespace vierkant
