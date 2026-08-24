@@ -23,6 +23,16 @@ jobs:
         with:
           submodules: 'recursive'
 
+      # libzip needs zlib unconditionally and zstd because we enable ENABLE_ZSTD.
+      # neither ships with the windows runner, so pull them from vcpkg.
+      - name: vcpkg build
+        uses: johnwason/vcpkg-action@v4
+        id: vcpkg
+        with:
+          pkgs: zlib zstd
+          triplet: x64-windows-release
+          token: ${{ github.token }}
+
       - name: Install Vulkan SDK
         uses: jakoch/install-vulkan-sdk-action@v1
         with:
@@ -39,11 +49,20 @@ jobs:
           # install_lavapipe: true
 
       - name: Configure CMake
-        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-release -DVCPKG_MANIFEST_MODE=OFF
 
       - name: Build
         # Build your program with the given configuration
         run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vierkant_ed_win_x64
+          path: |
+            ${{github.workspace}}/build/tools/${{env.BUILD_TYPE}}
+            !${{github.workspace}}/build/tools/${{env.BUILD_TYPE}}/*.lib
+            !${{github.workspace}}/build/tools/${{env.BUILD_TYPE}}/*.exp
 
         #     find/configure an external runner with nvidia/gpu support
         #

@@ -6,6 +6,7 @@
 
 #include <vierkant/Geometry.hpp>
 #include <vierkant/Mesh.hpp>
+#include <vierkant/hash.hpp>
 #include <vierkant/vertex_attrib.hpp>
 
 namespace vierkant
@@ -40,6 +41,19 @@ struct bone_vertex_data_t
     //! weights are [0..1] as float16_t
     uint16_t weight_x, weight_y, weight_z, weight_w;
 };
+
+//! bump on a semantic layout-change that keeps the size, e.g. a different encoding in the same bits.
+constexpr uint32_t serialized_layout_version = 1;
+
+//! identity of the layouts written into asset-bundles verbatim, folded into bundle cache-keys.
+inline size_t serialized_layout_hash()
+{
+    size_t hash_val = 0;
+    vierkant::hash_combine(hash_val, serialized_layout_version);
+    vierkant::hash_combine(hash_val, sizeof(packed_vertex_t));
+    vierkant::hash_combine(hash_val, sizeof(bone_vertex_data_t));
+    return hash_val;
+}
 
 enum class VertexLayout
 {

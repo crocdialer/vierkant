@@ -70,6 +70,7 @@ endif ()
 option(BUILD_SHARED_LIBS "Build Shared Libraries" OFF)
 option(BUILD_TESTS "Build Tests" ON)
 option(BUILD_EXAMPLES "Build Examples" ON)
+option(BUILD_VIERKANT_TOOLS "Build Tools (vierkant_ed, cache_4km, pbr_thumbnailer)" ON)
 option(BUILD_SPIRV_DEBUG_SYMBOLS "Build SPIRV debug symbols" OFF)
 
 if (MSVC)
@@ -108,6 +109,28 @@ include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/extern/imgui")
 include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/extern/volk")
 include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/extern/stb")
 include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/extern/bc7enc_rdo")
+
+# cereal, used only by src/serialization. build-time only: unlike entt/glm/imgui/volk it never
+# reaches a public header, so it is not installed.
+include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/extern/cereal/include")
+
+# libzip, backing vierkant::ziparchive. zstd only; no bzip2, no TLS backends.
+if (NOT TARGET zip)
+    set(BUILD_TOOLS OFF)
+    set(BUILD_REGRESS OFF)
+    set(BUILD_EXAMPLES OFF)
+    set(BUILD_DOC OFF)
+    set(ENABLE_BZIP2 OFF)
+    set(ENABLE_GNUTLS OFF)
+    set(ENABLE_MBEDTLS OFF)
+    set(ENABLE_OPENSSL OFF)
+    set(ENABLE_WINDOWS_CRYPTO OFF)
+    set(ENABLE_ZSTD ON)
+    set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
+    set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+    add_subdirectory(extern/libzip EXCLUDE_FROM_ALL)
+endif ()
+set(LIBS ${LIBS} zip)
 
 # mimalloc
 set(MI_BUILD_TESTS OFF)
@@ -227,6 +250,11 @@ if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif (BUILD_TESTS)
+
+#tools: editor + command-line utilities
+if (BUILD_VIERKANT_TOOLS)
+    add_subdirectory(tools)
+endif (BUILD_VIERKANT_TOOLS)
 
 # install vierkant-headers
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME} DESTINATION "include")

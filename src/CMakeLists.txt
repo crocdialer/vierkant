@@ -4,8 +4,8 @@ set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/extern/imgui)
 # suppress warnings from 3rd party headers
 include_directories(SYSTEM ${IMGUI_DIR})
 
-FILE(GLOB FOLDER_SOURCES *.c* imgui/*.c* model/*.c* ${CMAKE_CURRENT_BINARY_DIR}/*.cpp ${IMGUI_DIR}/*.c*)
-FILE(GLOB FOLDER_HEADERS *.h* model/*.h* ${CMAKE_BINARY_DIR}/include/${PROJECT_NAME} ${CMAKE_SOURCE_DIR}/include/${PROJECT_NAME}
+FILE(GLOB FOLDER_SOURCES *.c* imgui/*.c* model/*.c* serialization/*.c* ${CMAKE_CURRENT_BINARY_DIR}/*.cpp ${IMGUI_DIR}/*.c*)
+FILE(GLOB FOLDER_HEADERS *.h* model/*.h* serialization/*.h* ${CMAKE_BINARY_DIR}/include/${PROJECT_NAME} ${CMAKE_SOURCE_DIR}/include/${PROJECT_NAME}
         ${IMGUI_DIR}/*.h*)
 
 # vendored submodule TUs - bc7enc_rdo core subset only (no rdo/ert/ispc)

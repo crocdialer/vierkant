@@ -19,6 +19,25 @@ features
 - pragmatic+easy interface, thanks [imgui](https://github.com/ocornut/imgui)
 - entity-component-system (registry/entity) provided by [entt](https://github.com/skypjack/entt)
 
+tools
+-
+built by default, disable with `-DBUILD_VIERKANT_TOOLS=OFF`
+
+- **vierkant_ed** ![Preview](https://crocdialer.com/wp-content/uploads/2022/10/2022-09-30-chessboard.jpg)
+  - 3d-viewer/editor with the raster- and raytracing backends
+  - view a gltf2-model using an HDR-background: `./vierkant_ed foo.gltf bar.hdr`
+  - drag&drop model/image-files, save settings with 's'
+- **cache_4km** — bake self-contained `.4km` asset-bundles from model-files
+- **pbr_thumbnailer** — 3d-model thumbnailer, rasterization or path-tracer backend
+
+nightly builds:
+-
+- windows:
+[vierkant_ed_win_x64.zip](https://github.com/crocdialer/vierkant/releases/download/nightly/vierkant_ed_win_x64.zip)
+
+- linux:
+[vierkant_ed_linux_x64.tar.xz](https://github.com/crocdialer/vierkant/releases/download/nightly/vierkant_ed_linux_x64.tar.xz)
+
 submodules:
 - 
 - https://github.com/crocdialer/crocore
@@ -35,3 +54,6 @@ submodules:
 - https://github.com/zeux/volk
 - https://github.com/nothings/stb
 - https://github.com/richgel999/bc7enc_rdo
+- https://github.com/USCiLab/cereal
+- https://github.com/nih-at/libzip
+- https://github.com/jarro2783/cxxopts
