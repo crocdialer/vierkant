@@ -109,10 +109,9 @@ include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/extern/volk")
 include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/extern/stb")
 include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/extern/bc7enc_rdo")
 
-# cereal, used by include/vierkant/serialization. build-time only: unlike entt/glm/imgui/volk it is
-# deliberately not installed, and neither is the serialization-directory that needs it.
+# cereal, used only by src/serialization. build-time only: unlike entt/glm/imgui/volk it never
+# reaches a public header, so it is not installed.
 include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/extern/cereal/include")
-set(INCLUDE_DIRS ${INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/extern/cereal/include)
 
 # libzip, backing vierkant::ziparchive. zstd only; no bzip2, no TLS backends.
 if (NOT TARGET zip)
@@ -252,10 +251,7 @@ if (BUILD_TESTS)
 endif (BUILD_TESTS)
 
 # install vierkant-headers
-# 'serialization' is excluded on purpose: those headers pull in cereal, which vierkant does not ship.
-# in-tree consumers reach them through the build-interface include-dirs. see scripts/check_install.sh
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME} DESTINATION "include"
-        PATTERN "serialization" EXCLUDE)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME} DESTINATION "include")
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/${LIB_NAME} DESTINATION "include")
 
 # install entt-headers

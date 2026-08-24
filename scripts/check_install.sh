@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# assert the installed header-tree ships no cereal. keeping serialization out of the install-set is
-# what the vierkant/vierkant_projects repo-split used to guarantee structurally.
+# assert the installed header-tree ships no cereal. serialization lives under src/, so this should
+# hold by construction - this is the regression-guard, not the mechanism.
 #
 # usage: check_install.sh <build-dir>
 
@@ -16,11 +16,6 @@ cmake --install "${build_dir}" --prefix "${prefix}" > /dev/null
 if hits=$(grep -rl "cereal/" "${prefix}/include" 2>/dev/null); then
     echo "error: cereal reached the install-tree:" >&2
     echo "${hits}" >&2
-    exit 1
-fi
-
-if [ -d "${prefix}/include/vierkant/serialization" ]; then
-    echo "error: include/vierkant/serialization was installed" >&2
     exit 1
 fi
 

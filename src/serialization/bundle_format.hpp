@@ -4,9 +4,8 @@
 
 #pragma once
 
-//! serializers for the asset-bundle on-disk format. private to vierkant on purpose: nothing outside
-//! should be writing a bundle, and this pulls in cereal. the component/settings serializers other
-//! documents legitimately embed live in include/vierkant/serialization/components.hpp.
+//! serializers for the asset-bundle on-disk format. the serializers for engine components other
+//! documents legitimately embed live next door in components.hpp.
 
 // GCC 13 false-positive -Wdangling-reference (gcc.gnu.org/bugzilla/show_bug.cgi?id=107488):
 // cereal's polymorphic_impl.hpp lookup() returns a stored ref, not a ref-to-temporary;
@@ -16,22 +15,20 @@
 #pragma GCC diagnostic ignored "-Wdangling-reference"
 #endif
 
-#include <cereal/archives/binary.hpp>
-#include <cereal/archives/json.hpp>
 #include <cereal/cereal.hpp>
-#include <cereal/types/memory.hpp>
+
+#include <cereal/types/memory.hpp>       // nodes::NodePtr
 #include <cereal/types/optional.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/unordered_map.hpp>
-#include <cereal/types/unordered_set.hpp>
-#include <cereal/types/variant.hpp>
+#include <cereal/types/polymorphic.hpp>   // CEREAL_REGISTER_TYPE / _POLYMORPHIC_RELATION below
+#include <cereal/types/unordered_map.hpp> // model_assets_t::textures, ::texture_samplers
+#include <cereal/types/variant.hpp>       // geometry_variant_t
 #include <cereal/types/vector.hpp>
 
-#include <vierkant/serialization/animation_cereal.hpp>
-#include <vierkant/serialization/collision_cereal.hpp>
-#include <vierkant/serialization/components.hpp>
-#include <vierkant/serialization/glm_cereal.hpp>
-#include <vierkant/serialization/optional_nvp_cereal.hpp>
+#include "animation_cereal.hpp"
+#include "collision_cereal.hpp"
+#include "components.hpp"
+#include "glm_cereal.hpp"
+#include "optional_nvp_cereal.hpp"
 
 #include "vierkant/model/model_loading.hpp"
 #include <vierkant/Mesh.hpp>

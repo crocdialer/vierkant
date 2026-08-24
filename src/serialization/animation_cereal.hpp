@@ -5,8 +5,6 @@
 #pragma once
 
 #include <cereal/cereal.hpp>
-#include <cereal/types/list.hpp>
-#include <cereal/types/memory.hpp>
 #include <vierkant/animation.hpp>
 #include <vierkant/nodes.hpp>
 

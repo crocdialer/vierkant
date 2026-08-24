@@ -1,9 +1,8 @@
 #pragma once
 
-#include <vierkant/serialization/optional_nvp_cereal.hpp>
+#include "optional_nvp_cereal.hpp"
 #include <cereal/cereal.hpp>
-#include <cereal/types/list.hpp>
-#include <cereal/types/memory.hpp>
+#include <cereal/types/variant.hpp>// collision::shape_t / constraint::constraint_t
 #include <vierkant/physics_context.hpp>
 #include <vierkant/character.hpp>
 

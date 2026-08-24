@@ -4,16 +4,20 @@
 
 #pragma once
 
-//! serializers for vierkant types that other people's documents legitimately embed: engine
-//! components and renderer/window settings. the asset-bundle format itself is deliberately not
-//! here - it is private to vierkant, see src/serialization.
+//! serializers for engine components and renderer/window settings - the vierkant types that an
+//! application's own documents embed. the asset-bundle on-disk format lives in bundle_format.hpp.
 //!
-//! this directory is excluded from the install-tree (cereal is not shipped), see scripts/check_install.sh
+//! cereal is an implementation detail of vierkant and is never shipped, so this lives under src/
+//! rather than include/. in-tree consumers reach it the way tests/ reach the platform backends:
+//! by putting src/ on their include-path.
 
 #include <cereal/cereal.hpp>
+#include <cereal/types/map.hpp>     // material_t::texture_data
+#include <cereal/types/optional.hpp>// std::optional members + make_optional_nvp
+#include <cereal/types/vector.hpp>  // crocore::set_lru is archived as a vector
 
-#include <vierkant/serialization/glm_cereal.hpp>
-#include <vierkant/serialization/optional_nvp_cereal.hpp>
+#include "glm_cereal.hpp"
+#include "optional_nvp_cereal.hpp"
 
 #include <crocore/NamedId.hpp>
 #include <crocore/set_lru.hpp>
