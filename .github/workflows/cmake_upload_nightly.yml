@@ -1,0 +1,65 @@
+name: upload_nightly
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+
+  check_date:
+    runs-on: ubuntu-latest
+    name: Check latest commit
+    outputs:
+      should_run: ${{ steps.should_run.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: print latest_commit
+        run: echo ${{ github.sha }}
+
+      # empty rev-list means the tip is older than a day -> nothing new to publish.
+      # the shallow default checkout is enough here, only the tip commit's date is read.
+      - id: should_run
+        continue-on-error: true
+        name: check latest commit is less than a day
+        if: ${{ github.event_name == 'schedule' }}
+        run: test -z "$(git rev-list --after='24 hours' ${{ github.sha }})" && echo "should_run=false" >> "$GITHUB_OUTPUT"
+
+  update_nightly:
+    needs: check_date
+    if: ${{ needs.check_date.outputs.should_run != 'false' }}
+    runs-on: ubuntu-latest
+
+    # the releaser creates the 'nightly' tag on first run and force-pushes it afterwards, both via
+    # the API. that needs contents:write - without it the failure reads 'Tag/release does not exist
+    # and could not create it', which looks like a missing tag rather than a 403.
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download linux artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: cmake_build.yml
+          workflow_conclusion: success
+          name: vierkant_ed_linux_x64
+          skip_unpack: false
+
+      - name: Download windows artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: cmake_build_windows.yml
+          workflow_conclusion: success
+          name: vierkant_ed_win_x64
+          skip_unpack: true
+
+      - name: Update nightly pre-release
+        # - Upload artifacts defined by the user.
+        uses: pyTooling/Actions/releaser@r0
+        with:
+          tag: nightly
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            vierkant_ed_linux_x64.tar.xz
+            vierkant_ed_win_x64.zip

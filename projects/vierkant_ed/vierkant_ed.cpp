@@ -181,8 +181,6 @@ void VierkantEd::create_context_and_window()
         device_info.extensions.push_back(VK_EXT_MESH_SHADER_EXTENSION_NAME);
     }
 
-    // NOTE: those extensions can be used, but not widely supported and our implementation is experimental
-    //    device_info.extensions.push_back(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
     if(vierkant::check_device_extension_support(physical_device, {VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME}))
     {
         device_info.extensions.push_back(VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME);
