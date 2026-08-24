@@ -60,9 +60,9 @@ jobs:
         with:
           name: vierkant_ed_win_x64
           path: |
-            ${{github.workspace}}/build/projects/${{env.BUILD_TYPE}}
-            !${{github.workspace}}/build/projects/${{env.BUILD_TYPE}}/*.lib
-            !${{github.workspace}}/build/projects/${{env.BUILD_TYPE}}/*.exp
+            ${{github.workspace}}/build/tools/${{env.BUILD_TYPE}}
+            !${{github.workspace}}/build/tools/${{env.BUILD_TYPE}}/*.lib
+            !${{github.workspace}}/build/tools/${{env.BUILD_TYPE}}/*.exp
 
         #     find/configure an external runner with nvidia/gpu support
         #

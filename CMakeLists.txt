@@ -70,7 +70,7 @@ endif ()
 option(BUILD_SHARED_LIBS "Build Shared Libraries" OFF)
 option(BUILD_TESTS "Build Tests" ON)
 option(BUILD_EXAMPLES "Build Examples" ON)
-option(BUILD_PROJECTS "Build Projects (vierkant_ed, cache_4km, pbr_thumbnailer)" ON)
+option(BUILD_VIERKANT_TOOLS "Build Tools (vierkant_ed, cache_4km, pbr_thumbnailer)" ON)
 option(BUILD_SPIRV_DEBUG_SYMBOLS "Build SPIRV debug symbols" OFF)
 
 if (MSVC)
@@ -251,10 +251,10 @@ if (BUILD_TESTS)
     add_subdirectory(tests)
 endif (BUILD_TESTS)
 
-#projects: editor + command-line tools
-if (BUILD_PROJECTS)
-    add_subdirectory(projects)
-endif (BUILD_PROJECTS)
+#tools: editor + command-line utilities
+if (BUILD_VIERKANT_TOOLS)
+    add_subdirectory(tools)
+endif (BUILD_VIERKANT_TOOLS)
 
 # install vierkant-headers
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME} DESTINATION "include")

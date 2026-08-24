@@ -19,9 +19,9 @@ features
 - pragmatic+easy interface, thanks [imgui](https://github.com/ocornut/imgui)
 - entity-component-system (registry/entity) provided by [entt](https://github.com/skypjack/entt)
 
-projects
+tools
 -
-built by default, disable with `-DBUILD_PROJECTS=OFF`
+built by default, disable with `-DBUILD_VIERKANT_TOOLS=OFF`
 
 - **vierkant_ed** ![Preview](https://crocdialer.com/wp-content/uploads/2022/10/2022-09-30-chessboard.jpg)
   - 3d-viewer/editor with the raster- and raytracing backends

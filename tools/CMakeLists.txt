@@ -12,7 +12,7 @@ FILE(GLOB FOLDER_CONTENT *)
 FOREACH (folderItem ${FOLDER_CONTENT})
     IF (IS_DIRECTORY ${folderItem})
         STRING(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/" "" itemName ${folderItem})
-        MESSAGE("adding project: '${itemName}'")
+        MESSAGE("adding tool: '${itemName}'")
 
         FILE(GLOB FOLDER_SOURCES ${folderItem}/*.c*)
         FILE(GLOB FOLDER_HEADERS ${folderItem}/*.h*)
@@ -32,6 +32,6 @@ FOREACH (folderItem ${FOLDER_CONTENT})
 ENDFOREACH (folderItem)
 
 # vierkant_ed serializes engine components into its own scene/settings documents, so it needs the
-# internal serialization-headers and cereal. the other projects use the cereal-free bundle.hpp.
+# internal serialization-headers and cereal. the other tools use the cereal-free bundle.hpp.
 target_include_directories(vierkant_ed PRIVATE ${VIERKANT_INTERNAL_INCLUDE_DIR}
         ${PROJECT_SOURCE_DIR}/extern/cereal/include)
