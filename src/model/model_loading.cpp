@@ -308,6 +308,7 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
 
     // skin + bones
     ret.mesh->root_bone = mesh_assets.root_bone;
+    ret.mesh->skin_transform = mesh_assets.skin_transform;
 
     // node hierarchy
     ret.mesh->root_node = mesh_assets.root_node;

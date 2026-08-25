@@ -217,7 +217,8 @@ void serialize(Archive &archive, vierkant::model::model_assets_t &mesh_assets)
             // only for bundles written by this or a newer version; older bundles get a different
             // cache-filename (see model_bundle_filename) and are re-baked rather than mis-read.
             cereal::make_nvp("omm_data", mesh_assets.omm_data), cereal::make_nvp("lights", mesh_assets.lights),
-            cereal::make_nvp("light_instances", mesh_assets.light_instances));
+            cereal::make_nvp("light_instances", mesh_assets.light_instances),
+            cereal::make_nvp("skin_transform", mesh_assets.skin_transform));
 }
 
 }// namespace vierkant::model

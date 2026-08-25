@@ -1119,6 +1119,9 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
             {
                 const tinygltf::Skin &skin = model.skins[tiny_node.skin];
                 out_assets.root_bone = create_bone_hierarchy_bfs(skin, model, node_map);
+
+                // bone-transforms are relative to this node, keep its transform to get back to model-space
+                out_assets.skin_transform = world_transform;
             }
 
             for(const auto &primitive: mesh.primitives)

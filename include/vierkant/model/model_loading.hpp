@@ -102,6 +102,10 @@ struct model_assets_t
     //! optional bone node-hierarchy
     vierkant::nodes::NodePtr root_bone;
 
+    //! transform from bone- to model-space. bone-transforms are relative to the skinned node,
+    //! this is that node's transform. identity when there is no skin.
+    vierkant::transform_t skin_transform;
+
     //! optional array of animations defined for nodes
     std::vector<vierkant::nodes::node_animation_t> node_animations;
 
@@ -111,7 +115,7 @@ struct model_assets_t
 
 //! schema-version folded into the bundle cache-key; bump on any parsing/serialization change that
 //! would make existing bundles decode wrong. layout-sizes are covered by serialized_layout_hash().
-constexpr uint32_t bundle_schema_version = 4;
+constexpr uint32_t bundle_schema_version = 5;
 
 struct mesh_omm_key_t
 {

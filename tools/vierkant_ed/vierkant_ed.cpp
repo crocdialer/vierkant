@@ -538,9 +538,13 @@ vierkant::window_delegate_t::draw_result_t VierkantEd::draw(const vierkant::Wind
                     auto &animation_state = obj->get_component<vierkant::animation_component_t>();
                     animation = mesh->node_animations[animation_state.index];
                     auto node = mesh->root_bone ? mesh->root_bone : mesh->root_node;
+
+                    // bone-transforms are relative to the skinned node, the node-hierarchy already
+                    // carries model-space transforms
+                    auto node_transform = mesh->root_bone ? modelview * mesh->skin_transform : modelview;
                     m_draw_context.draw_node_hierarchy(m_renderer_overlay, node, animation,
-                                                       static_cast<float>(animation_state.current_time), modelview,
-                                                       cam_projection);
+                                                       static_cast<float>(animation_state.current_time),
+                                                       node_transform, cam_projection);
                 }
             }
         }
