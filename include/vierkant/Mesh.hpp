@@ -246,6 +246,9 @@ public:
     vierkant::nodes::NodePtr root_node, root_bone;
     std::vector<vierkant::nodes::node_animation_t> node_animations;
 
+    //! transform from bone- to model-space, matching the entry-transforms of the skinned entries
+    vierkant::transform_t skin_transform;
+
     //! vertex buffer
     vierkant::BufferPtr vertex_buffer;
 

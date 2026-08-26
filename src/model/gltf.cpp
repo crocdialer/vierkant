@@ -10,6 +10,7 @@
 
 #include <deque>
 #include <tiny_gltf.h>
+#include <unordered_set>
 
 #include <vierkant/model/gltf.hpp>
 #include <vierkant/transform.hpp>
@@ -722,6 +723,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, c
     {
         std::deque<node_helper_t> node_queue;
         node_queue.push_back({static_cast<size_t>(skin.skeleton), {}, nullptr});
+        std::unordered_set<vierkant::nodes::NodeId> bone_ids;
 
         while(!node_queue.empty())
         {
@@ -736,6 +738,15 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, c
             bone_node->parent = parent_node;
             bone_node->name = skeleton_node.name;
             bone_node->index = joint_map[current_index];
+
+            // derived from the name, so it survives a re-export and a bundle re-bake
+            bone_node->id = vierkant::nodes::NodeId::from_name(
+                    skeleton_node.name.empty() ? "joint_" + std::to_string(bone_node->index) : skeleton_node.name);
+            if(!bone_ids.insert(bone_node->id).second)
+            {
+                spdlog::warn("duplicate bone-name '{}': attachments will resolve to the first one",
+                             skeleton_node.name);
+            }
             bone_node->offset = vierkant::transform_cast(inverse_binding_matrices[joint_map[current_index]]);
             bone_node->transform = local_joint_transform;
 
@@ -1119,6 +1130,9 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
             {
                 const tinygltf::Skin &skin = model.skins[tiny_node.skin];
                 out_assets.root_bone = create_bone_hierarchy_bfs(skin, model, node_map);
+
+                // bone-transforms are relative to this node, keep its transform to get back to model-space
+                out_assets.skin_transform = world_transform;
             }
 
             for(const auto &primitive: mesh.primitives)

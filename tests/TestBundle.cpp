@@ -24,6 +24,12 @@ vierkant::model::model_assets_t dummy_assets()
     material.name = "test-material";
     material.roughness = 0.25f;
     assets.materials = {material};
+
+    // a single bone, covering nodes::node_t serialization
+    auto root_bone = std::make_shared<vierkant::nodes::node_t>();
+    root_bone->name = "root_bone";
+    root_bone->id = vierkant::nodes::NodeId::from_name(root_bone->name);
+    assets.root_bone = root_bone;
     return assets;
 }
 
@@ -54,6 +60,10 @@ TEST(Bundle, file_roundtrip)
     ASSERT_EQ(loaded->materials.size(), 1);
     EXPECT_EQ(loaded->materials[0].name, "test-material");
     EXPECT_EQ(loaded->materials[0].roughness, 0.25f);
+
+    ASSERT_TRUE(loaded->root_bone);
+    EXPECT_EQ(loaded->root_bone->name, "root_bone");
+    EXPECT_EQ(loaded->root_bone->id, vierkant::nodes::NodeId::from_name("root_bone"));
 
     const auto &bundle = std::get<vierkant::mesh_buffer_bundle_t>(loaded->geometry_data);
     EXPECT_EQ(bundle.vertex_stride, sizeof(vierkant::packed_vertex_t));

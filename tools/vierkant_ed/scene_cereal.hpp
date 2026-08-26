@@ -29,7 +29,8 @@ void serialize(Archive &ar, scene_node_t &scene_node)
        cereal::make_optional_nvp("physics_state", scene_node.physics_state),
        cereal::make_optional_nvp("constraints", scene_node.constraints),
        cereal::make_optional_nvp("camera_state", scene_node.camera_state),
-       cereal::make_optional_nvp("light_state", scene_node.light_state));
+       cereal::make_optional_nvp("light_state", scene_node.light_state),
+       cereal::make_optional_nvp("bone_anchor", scene_node.bone_anchor));
 }
 
 template<class Archive>

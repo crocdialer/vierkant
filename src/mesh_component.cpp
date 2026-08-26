@@ -1,3 +1,4 @@
+#include <stack>
 #include <vierkant/mesh_component.hpp>
 
 namespace vierkant
@@ -70,6 +71,38 @@ std::vector<vierkant::AABB> mesh_sub_aabbs(const vierkant::mesh_component_t &cmp
         for(const auto &entry: cmp.mesh->entries) { add_aabb(entry, cmp.library); }
     }
     return ret;
+}
+
+Object3D *bone_mirror_root(const vierkant::Object3D &mesh_object)
+{
+    for(const auto &child: mesh_object.children)
+    {
+        if(child->has_component<vierkant::bone_component_t>()) { return child.get(); }
+    }
+    return nullptr;
+}
+
+Object3D *bone_object_by_id(const vierkant::Object3D &mesh_object, vierkant::nodes::NodeId node_id)
+{
+    auto *mirror_root = bone_mirror_root(mesh_object);
+    if(!mirror_root || node_id.is_nil()) { return nullptr; }
+
+    std::stack<vierkant::Object3D *> object_stack;
+    object_stack.push(mirror_root);
+
+    while(!object_stack.empty())
+    {
+        auto *object = object_stack.top();
+        object_stack.pop();
+
+        // stop at attached content, only the mirror itself is searched
+        const auto *bone_cmp = object->get_component_ptr<vierkant::bone_component_t>();
+        if(!bone_cmp) { continue; }
+        if(bone_cmp->node_id == node_id) { return object; }
+
+        for(const auto &child: object->children) { object_stack.push(child.get()); }
+    }
+    return nullptr;
 }
 
 }// namespace vierkant

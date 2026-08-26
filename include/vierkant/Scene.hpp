@@ -93,6 +93,18 @@ public:
 
     [[nodiscard]] vierkant::Object3DPtr create_object() const;
 
+    /**
+     * @brief   'ensure_bone_mirror' mirrors a skinned mesh's bone-hierarchy as child-objects,
+     *          so that objects can be attached to individual bones.
+     *
+     * the mirror is derived data, driven by the animation in Scene::update and not serialized.
+     * it is created on demand and this call is idempotent: an existing mirror is kept as-is.
+     * does nothing, if the mesh has no skeleton.
+     *
+     * @param   mesh_object an object, expected to carry a mesh-component
+     */
+    void ensure_bone_mirror(vierkant::Object3D &mesh_object) const;
+
     [[nodiscard]] vierkant::Object3DPtr
     create_camera(const vierkant::camera_component_t &params = {}) const;
 

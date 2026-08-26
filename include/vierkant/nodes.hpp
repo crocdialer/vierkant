@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <crocore/NamedUUID.hpp>
 #include <list>
 #include <map>
 #include <memory>
@@ -14,12 +15,18 @@
 namespace vierkant::nodes
 {
 
+DEFINE_NAMED_UUID(NodeId)
+
 using NodePtr = std::shared_ptr<struct node_t>;
 using NodeConstPtr = std::shared_ptr<const struct node_t>;
 
 struct node_t
 {
     std::string name;
+
+    //! stable id, derived from the node-name. nil outside bone-hierarchies.
+    NodeId id = NodeId::nil();
+
     vierkant::transform_t transform = {};
     vierkant::transform_t offset = {};
     uint32_t index = 0;
@@ -57,6 +64,20 @@ NodeConstPtr node_by_name(const NodeConstPtr& root, const std::string &name);
  */
 void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
                              std::vector<vierkant::transform_t> &transforms);
+
+/**
+ * @brief   Create local transformation matrices, matching the provided node-hierarchy and animation.
+ *          in contrast to build_node_matrices_bfs, transforms are neither accumulated along the
+ *          hierarchy nor combined with a node's offset. useful to drive a mirrored hierarchy that
+ *          performs its own composition.
+ *
+ * @param   root        a root node of a node-hierarchy.
+ * @param   animation   a const-ref for an animation_t object.
+ * @param   time        current time.
+ * @param   transforms  ref to an array of transformation-matrices. will be populated by this function.
+ */
+void build_local_transforms_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
+                                std::vector<vierkant::transform_t> &transforms);
 
 /**
  * @brief   Create morph-weights, matching the provided node-hierarchy and animation.

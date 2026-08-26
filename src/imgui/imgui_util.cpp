@@ -1301,6 +1301,15 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
     ImGui::BulletText("%zu positions", num_vertices);
     ImGui::BulletText("%zu faces", num_faces);
     ImGui::BulletText("%d bones", vierkant::nodes::num_nodes_in_hierarchy(mesh->root_bone));
+
+    // mirror the bones as objects, so things can be attached to them via the scenegraph
+    if(mesh->root_bone)
+    {
+        ImGui::SameLine();
+        ImGui::BeginDisabled(vierkant::bone_mirror_root(*object) != nullptr);
+        if(ImGui::Button("create bone-objects")) { scene->ensure_bone_mirror(*object); }
+        ImGui::EndDisabled();
+    }
     ImGui::Separator();
     ImGui::Spacing();
 

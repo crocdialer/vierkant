@@ -11,7 +11,7 @@ namespace vierkant::nodes
 
 using traversal_fn = std::function<bool(const NodeConstPtr &)>;
 
-static inline void bfs(const NodeConstPtr &root, const traversal_fn &fn)
+static void bfs(const NodeConstPtr &root, const traversal_fn &fn)
 {
     if(!root) { return; }
 
@@ -53,6 +53,24 @@ NodeConstPtr node_by_name(const NodeConstPtr &root, const std::string &name)
         return true;
     });
     return ret;
+}
+
+void build_local_transforms_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
+                                std::vector<vierkant::transform_t> &transforms)
+{
+    if(!root) { return; }
+    transforms.resize(num_nodes_in_hierarchy(root));
+
+    bfs(root, [&transforms, &animation, time](const NodeConstPtr &node) {
+        auto node_transform = node->transform;
+
+        if(const auto it = animation.keys.find(node); it != animation.keys.end())
+        {
+            create_animation_transform(it->second, time, animation.interpolation_mode, node_transform);
+        }
+        transforms[node->index] = node_transform;
+        return true;
+    });
 }
 
 template<typename T, typename>
