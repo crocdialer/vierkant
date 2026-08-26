@@ -2,10 +2,45 @@
 #include "vierkant/Visitor.hpp"
 #include "vierkant/physics_context.hpp"
 
+#include <deque>
 #include <ranges>
+#include <stack>
 
 namespace vierkant
 {
+
+//! write animated local bone-transforms into a mesh-object's mirrored bone-hierarchy
+static void update_bone_mirror(vierkant::Object3D &mirror_root, const vierkant::Mesh &mesh,
+                               const vierkant::animation_component_t &animation_state)
+{
+    std::vector<vierkant::transform_t> local_transforms;
+    vierkant::nodes::build_local_transforms_bfs(mesh.root_bone, mesh.node_animations[animation_state.index],
+                                                static_cast<float>(animation_state.current_time), local_transforms);
+
+    std::stack<vierkant::Object3D *> object_stack;
+    object_stack.push(&mirror_root);
+
+    while(!object_stack.empty())
+    {
+        auto *object = object_stack.top();
+        object_stack.pop();
+
+        // stop at attached content, only the mirror itself is driven
+        auto *bone_cmp = object->get_component_ptr<vierkant::bone_component_t>();
+        if(!bone_cmp) { continue; }
+
+        // the root has no index, it carries the constant skin-transform
+        if(bone_cmp->index)
+        {
+            object->get_component<vierkant::transform_component_t>().transform = local_transforms[*bone_cmp->index];
+        }
+        for(const auto &child: object->children) { object_stack.push(child.get()); }
+    }
+
+    // the transforms above were written in place, bypassing the cache-invalidation in set_transform.
+    // re-setting the root's own transform invalidates the whole sub-tree once, instead of per bone.
+    mirror_root.set_transform(*mirror_root.transform());
+}
 
 struct range_item_t
 {
@@ -58,6 +93,40 @@ vierkant::Object3DPtr Scene::create_primitive_object(vierkant::primitive_type ty
 }
 
 vierkant::Object3DPtr Scene::create_object() const { return m_object_store->create_object(); }
+
+vierkant::Object3D *Scene::create_bone_mirror(const vierkant::Object3DPtr &mesh_object) const
+{
+    const auto *mesh_cmp = mesh_object->get_component_ptr<vierkant::mesh_component_t>();
+    if(!mesh_cmp || !mesh_cmp->mesh || !mesh_cmp->mesh->root_bone) { return nullptr; }
+    if(auto *existing = vierkant::bone_mirror_root(*mesh_object)) { return existing; }
+
+    const auto &mesh = mesh_cmp->mesh;
+
+    // the mirror-root carries the bone- to model-space transform, its children mirror the bones
+    auto mirror_root = create_object();
+    mirror_root->name = "skeleton";
+    mirror_root->set_transform(mesh->skin_transform);
+    mirror_root->add_component<vierkant::bone_component_t>();
+
+    std::deque<std::pair<vierkant::nodes::NodeConstPtr, vierkant::Object3DPtr>> node_queue = {
+            {mesh->root_bone, mirror_root}};
+
+    while(!node_queue.empty())
+    {
+        auto [node, parent_object] = node_queue.front();
+        node_queue.pop_front();
+
+        auto bone_object = create_object();
+        bone_object->name = node->name;
+        bone_object->set_transform(node->transform);
+        bone_object->add_component<vierkant::bone_component_t>({.index = node->index});
+        parent_object->add_child(bone_object);
+
+        for(const auto &child_node: node->children) { node_queue.emplace_back(child_node, bone_object); }
+    }
+    mesh_object->add_child(mirror_root);
+    return mirror_root.get();
+}
 
 vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_component_t &params) const
 {
@@ -165,50 +234,56 @@ void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_l
 void Scene::update(double time_delta)
 {
     LambdaVisitor visitor;
-    visitor.traverse(*m_root, [time_delta, animation_delta = time_delta * animation_speed,
-                               frame = m_current_frame](Object3D &obj) -> bool {
-        if(obj.enabled)
-        {
-            auto animation_cmp = obj.get_component_ptr<animation_component_t>();
-            auto mesh_cmp = obj.get_component_ptr<mesh_component_t>();
+    visitor.traverse(*m_root,
+                     [time_delta, animation_delta = time_delta * animation_speed,
+                      frame = m_current_frame](Object3D &obj) -> bool {
+                         if(obj.enabled)
+                         {
+                             auto animation_cmp = obj.get_component_ptr<animation_component_t>();
+                             auto mesh_cmp = obj.get_component_ptr<mesh_component_t>();
 
-            if(auto *flag_cmp = obj.get_component_ptr<flag_component_t>())
-            {
-                for(uint32_t i = 0; i <= msb(flag_component_t::MAX_ENUM); ++i)
-                {
-                    if(flag_cmp->flags & (1U << i)) { flag_cmp->timestamps[i] = frame; }
-                }
+                             if(auto *flag_cmp = obj.get_component_ptr<flag_component_t>())
+                             {
+                                 for(uint32_t i = 0; i <= msb(flag_component_t::MAX_ENUM); ++i)
+                                 {
+                                     if(flag_cmp->flags & (1U << i)) { flag_cmp->timestamps[i] = frame; }
+                                 }
 
-                // clear previous dirt flags
-                flag_cmp->flags = 0;
-            }
-            if(animation_cmp && mesh_cmp)
-            {
-                vierkant::update_animation(mesh_cmp->mesh->node_animations[animation_cmp->index], animation_delta,
-                                           *animation_cmp);
-            }
-            if(auto *update_cmp = obj.get_component_ptr<update_component_t>())
-            {
-                if(update_cmp->update_fn) { update_cmp->update_fn(obj, time_delta); }
-            }
-            if(auto *timer_cmp = obj.get_component_ptr<timer_component_t>())
-            {
-                timer_cmp->duration -= timer_component_t::duration_t(time_delta);
-                if(timer_cmp->duration <= timer_component_t::duration_t(0) && timer_cmp->timer_fn)
-                {
-                    timer_cmp->timer_fn(obj);
+                                 // clear previous dirt flags
+                                 flag_cmp->flags = 0;
+                             }
+                             if(animation_cmp && mesh_cmp)
+                             {
+                                 vierkant::update_animation(mesh_cmp->mesh->node_animations[animation_cmp->index],
+                                                            animation_delta, *animation_cmp);
 
-                    if(timer_cmp->repeat) { timer_cmp->duration += timer_cmp->total; }
-                    else
-                    {
-                        timer_cmp->timer_fn = {};
-                    }
-                }
-            }
-            return true;
-        }
-        return false;
-    });
+                                 if(auto *mirror_root = vierkant::bone_mirror_root(obj))
+                                 {
+                                     update_bone_mirror(*mirror_root, *mesh_cmp->mesh, *animation_cmp);
+                                 }
+                             }
+                             if(auto *update_cmp = obj.get_component_ptr<update_component_t>())
+                             {
+                                 if(update_cmp->update_fn) { update_cmp->update_fn(obj, time_delta); }
+                             }
+                             if(auto *timer_cmp = obj.get_component_ptr<timer_component_t>())
+                             {
+                                 timer_cmp->duration -= timer_component_t::duration_t(time_delta);
+                                 if(timer_cmp->duration <= timer_component_t::duration_t(0) && timer_cmp->timer_fn)
+                                 {
+                                     timer_cmp->timer_fn(obj);
+
+                                     if(timer_cmp->repeat) { timer_cmp->duration += timer_cmp->total; }
+                                     else
+                                     {
+                                         timer_cmp->timer_fn = {};
+                                     }
+                                 }
+                             }
+                             return true;
+                         }
+                         return false;
+                     });
 
     // increase framenumbrs after update
     m_current_frame++;

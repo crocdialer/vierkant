@@ -72,4 +72,13 @@ std::vector<vierkant::AABB> mesh_sub_aabbs(const vierkant::mesh_component_t &cmp
     return ret;
 }
 
+Object3D *bone_mirror_root(const vierkant::Object3D &mesh_object)
+{
+    for(const auto &child: mesh_object.children)
+    {
+        if(child->has_component<vierkant::bone_component_t>()) { return child.get(); }
+    }
+    return nullptr;
+}
+
 }// namespace vierkant

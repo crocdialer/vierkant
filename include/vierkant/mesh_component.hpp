@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <vector>
 #include <vierkant/Mesh.hpp>
+#include <vierkant/Object3D.hpp>
 #include <vierkant/object_component.hpp>
 
 namespace vierkant
@@ -40,6 +41,14 @@ struct bone_component_t
     //! index of the mirrored bone. absent for the hierarchy's root, which carries the skin-transform.
     std::optional<uint32_t> index = {};
 };
+
+/**
+ * @brief   bone_mirror_root returns a mesh-object's mirrored bone-hierarchy, if one was created.
+ *
+ * @param   mesh_object an object, expected to carry a mesh-component
+ * @return  the mirror's root-object or nullptr, if no mirror exists
+ */
+Object3D *bone_mirror_root(const vierkant::Object3D &mesh_object);
 
 //! struct grouping host/gpu versions of a mesh
 struct mesh_asset_t

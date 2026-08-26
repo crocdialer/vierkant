@@ -452,6 +452,10 @@ void VierkantEd::save_scene(std::filesystem::path path)
         // editor-layer objects are tool-state, not scene-content. skip them and their subtrees.
         if(obj.layers & vierkant::LAYER_EDITOR) { return false; }
 
+        // bone-objects mirror a mesh's skeleton and are re-created on demand, so they are not
+        // emitted. anything attached below them is ordinary content, so keep descending.
+        if(obj.has_component<vierkant::bone_component_t>()) { return true; }
+
         obj_to_node_index[&obj] = data.nodes.size();
 
         scene_node_t &node = data.nodes.emplace_back();
@@ -539,7 +543,14 @@ void VierkantEd::save_scene(std::filesystem::path path)
             if(flags_cmp->scene_id) { return false; }
         }
         auto &node = data.nodes[obj_to_node_index[&obj]];
-        for(const auto &child: obj.children) { node.children.push_back(obj_to_node_index[child.get()]); }
+        for(const auto &child: obj.children)
+        {
+            // children that were skipped above (editor-layer, bones) have no node to point at
+            if(auto it = obj_to_node_index.find(child.get()); it != obj_to_node_index.end())
+            {
+                node.children.push_back(it->second);
+            }
+        }
 
         if(auto *mesh_component = obj.get_component_ptr<vierkant::mesh_component_t>())
         {
