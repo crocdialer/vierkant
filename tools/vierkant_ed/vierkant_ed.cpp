@@ -459,13 +459,6 @@ void VierkantEd::update(double time_delta)
     m_scene->animation_speed = m_settings.animation_playback ? m_settings.playback_speed : 0.0;
     m_scene->simulation_playback = m_settings.physics_playback;
 
-    // inspecting a skeleton is a mirror-trigger: bones have to exist as objects to be picked.
-    // built before the scene-update, so the mirror is driven the same frame it appears.
-    if(m_settings.draw_node_hierarchy)
-    {
-        for(const auto &obj: m_selected_objects) { m_scene->create_bone_mirror(obj); }
-    }
-
     // update animated objects, step the simulation, clear flags
     m_scene->update(time_delta);
 

@@ -29,8 +29,9 @@ static void update_bone_mirror(vierkant::Object3D &mirror_root, const vierkant::
         auto *bone_cmp = object->get_component_ptr<vierkant::bone_component_t>();
         if(!bone_cmp) { continue; }
 
-        // the root has no index, it carries the constant skin-transform
-        if(bone_cmp->index)
+        // the root has no index, it carries the constant skin-transform.
+        // a mesh swapped after mirror-creation can leave stale indices -> freeze instead of read out of bounds.
+        if(bone_cmp->index && *bone_cmp->index < local_transforms.size())
         {
             object->get_component<vierkant::transform_component_t>().transform = local_transforms[*bone_cmp->index];
         }
@@ -94,11 +95,11 @@ vierkant::Object3DPtr Scene::create_primitive_object(vierkant::primitive_type ty
 
 vierkant::Object3DPtr Scene::create_object() const { return m_object_store->create_object(); }
 
-vierkant::Object3D *Scene::create_bone_mirror(const vierkant::Object3DPtr &mesh_object) const
+void Scene::ensure_bone_mirror(vierkant::Object3D &mesh_object) const
 {
-    const auto *mesh_cmp = mesh_object->get_component_ptr<vierkant::mesh_component_t>();
-    if(!mesh_cmp || !mesh_cmp->mesh || !mesh_cmp->mesh->root_bone) { return nullptr; }
-    if(auto *existing = vierkant::bone_mirror_root(*mesh_object)) { return existing; }
+    const auto *mesh_cmp = mesh_object.get_component_ptr<vierkant::mesh_component_t>();
+    if(!mesh_cmp || !mesh_cmp->mesh || !mesh_cmp->mesh->root_bone) { return; }
+    if(vierkant::bone_mirror_root(mesh_object)) { return; }
 
     const auto &mesh = mesh_cmp->mesh;
 
@@ -119,13 +120,12 @@ vierkant::Object3D *Scene::create_bone_mirror(const vierkant::Object3DPtr &mesh_
         auto bone_object = create_object();
         bone_object->name = node->name;
         bone_object->set_transform(node->transform);
-        bone_object->add_component<vierkant::bone_component_t>({.index = node->index});
+        bone_object->add_component<vierkant::bone_component_t>({.index = node->index, .node_id = node->id});
         parent_object->add_child(bone_object);
 
         for(const auto &child_node: node->children) { node_queue.emplace_back(child_node, bone_object); }
     }
-    mesh_object->add_child(mirror_root);
-    return mirror_root.get();
+    mesh_object.add_child(mirror_root);
 }
 
 vierkant::Object3DPtr Scene::create_camera(const vierkant::camera_component_t &params) const

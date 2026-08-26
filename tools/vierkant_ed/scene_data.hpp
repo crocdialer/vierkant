@@ -54,6 +54,9 @@ struct scene_node_t
 
     //! optional lightsource-state
     std::optional<vierkant::lightsource_component_t> light_state = {};
+
+    //! optional id of a bone this node is attached to. its parent-node carries the skinned mesh.
+    std::optional<vierkant::nodes::NodeId> bone_anchor = {};
 };
 
 struct scene_data_t

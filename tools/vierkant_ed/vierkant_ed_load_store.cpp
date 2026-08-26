@@ -445,6 +445,9 @@ void VierkantEd::save_scene(std::filesystem::path path)
     std::unordered_set<vierkant::MeshId> mesh_ids;
     std::map<vierkant::Object3D *, size_t> obj_to_node_index;
 
+    // bone-attached objects, paired with the nearest non-bone ancestor they are emitted under
+    std::vector<std::pair<vierkant::Object3D *, uint32_t>> bone_attachments;
+
     vierkant::LambdaVisitor visitor;
     visitor.traverse(*m_scene->root(), [&](vierkant::Object3D &obj) -> bool {
         if(&obj == m_scene->root().get()) { return true; }
@@ -456,13 +459,24 @@ void VierkantEd::save_scene(std::filesystem::path path)
         // emitted. anything attached below them is ordinary content, so keep descending.
         if(obj.has_component<vierkant::bone_component_t>()) { return true; }
 
-        obj_to_node_index[&obj] = data.nodes.size();
+        auto node_index = static_cast<uint32_t>(data.nodes.size());
+        obj_to_node_index[&obj] = node_index;
 
         scene_node_t &node = data.nodes.emplace_back();
         node.name = obj.name;
         node.enabled = obj.enabled;
         if(const auto *obj_transform = obj.transform()) { node.transform = *obj_transform; }
         node.transform_space = obj.transform_space();
+
+        // attached to a bone: anchor by bone-id and emit the node under the nearest non-bone ancestor,
+        // since the bones in between have no node to be a child of.
+        auto *ancestor = obj.parent();
+        if(const auto *bone_cmp = ancestor ? ancestor->get_component_ptr<vierkant::bone_component_t>() : nullptr)
+        {
+            node.bone_anchor = bone_cmp->node_id;
+            while(ancestor && ancestor->has_component<vierkant::bone_component_t>()) { ancestor = ancestor->parent(); }
+            if(ancestor) { bone_attachments.emplace_back(ancestor, node_index); }
+        }
 
         if(auto *flags_cmp = obj.get_component_ptr<vierkant::subscene_component_t>())
         {
@@ -523,8 +537,14 @@ void VierkantEd::save_scene(std::filesystem::path path)
         return true;
     });
 
-    // add top-lvl scenegraph-nodes
-    for(const auto &child: m_scene->root()->children) { data.scene_roots.push_back(obj_to_node_index[child.get()]); }
+    // add top-lvl scenegraph-nodes. children skipped above (editor-layer) have no node to point at.
+    for(const auto &child: m_scene->root()->children)
+    {
+        if(auto it = obj_to_node_index.find(child.get()); it != obj_to_node_index.end())
+        {
+            data.scene_roots.push_back(static_cast<uint32_t>(it->second));
+        }
+    }
 
     // the camera we look through, if it is one of this scene's own nodes. the editor-camera has no
     // node (it is skipped above), and neither has a camera inside a sub-scene instance - both leave
@@ -560,6 +580,15 @@ void VierkantEd::save_scene(std::filesystem::path path)
         }
         return true;
     });
+
+    // link bone-attachments, the loop above only sees direct children
+    for(const auto &[ancestor, node_index]: bone_attachments)
+    {
+        if(auto it = obj_to_node_index.find(ancestor); it != obj_to_node_index.end())
+        {
+            data.nodes[it->second].children.push_back(node_index);
+        }
+    }
 
     std::ofstream ofs(path.string());
     try
@@ -780,6 +809,24 @@ void VierkantEd::build_scene(const std::optional<scene_data_t> &scene_data_in, b
                 {
                     out_objects[i]->add_child(out_objects[child_index]);
                 }
+            }
+
+            // re-attach bone-anchored objects. the save-rule linked them to the mesh-object,
+            // so their current parent is the object owning the skeleton.
+            for(uint32_t i = 0; i < scene_data.nodes.size(); ++i)
+            {
+                const auto &node = scene_data.nodes[i];
+                if(!node.bone_anchor) { continue; }
+
+                vierkant::Object3D *bone_object = nullptr;
+
+                if(auto *mesh_object = out_objects[i]->parent())
+                {
+                    m_scene->ensure_bone_mirror(*mesh_object);
+                    bone_object = vierkant::bone_object_by_id(*mesh_object, *node.bone_anchor);
+                }
+                if(bone_object) { bone_object->add_child(out_objects[i]); }
+                else { spdlog::warn("could not resolve bone-anchor for node: {}", node.name); }
             }
 
             // add scene-roots

@@ -59,7 +59,8 @@ void serialize(Archive &archive, vierkant::nodes::node_t &n)
             cereal::make_nvp("offset", n.offset),
             cereal::make_nvp("index", n.index),
             cereal::make_nvp("parent", n.parent),
-            cereal::make_nvp("children", n.children));
+            cereal::make_nvp("children", n.children),
+            cereal::make_nvp("id", n.id));
 }
 
 }// namespace vierkant::nodes

@@ -32,7 +32,7 @@ struct mesh_component_t
  *
  * those objects are derived from a mesh's bone-hierarchy, not authored scene-content: they are
  * driven by the animation each frame and are not serialized. objects attached to them are ordinary
- * scene-content and do persist, anchored by the bone's name.
+ * scene-content and do persist, anchored by the bone's id.
  */
 struct bone_component_t
 {
@@ -40,6 +40,9 @@ struct bone_component_t
 
     //! index of the mirrored bone. absent for the hierarchy's root, which carries the skin-transform.
     std::optional<uint32_t> index = {};
+
+    //! id of the mirrored bone, used to anchor attachments. nil for the hierarchy's root.
+    vierkant::nodes::NodeId node_id = vierkant::nodes::NodeId::nil();
 };
 
 /**
@@ -49,6 +52,15 @@ struct bone_component_t
  * @return  the mirror's root-object or nullptr, if no mirror exists
  */
 Object3D *bone_mirror_root(const vierkant::Object3D &mesh_object);
+
+/**
+ * @brief   bone_object_by_id searches a mesh-object's bone-mirror for a bone.
+ *
+ * @param   mesh_object an object, expected to carry a mesh-component
+ * @param   node_id     id of the searched bone
+ * @return  the bone's object or nullptr, if there is no mirror or no such bone
+ */
+Object3D *bone_object_by_id(const vierkant::Object3D &mesh_object, vierkant::nodes::NodeId node_id);
 
 //! struct grouping host/gpu versions of a mesh
 struct mesh_asset_t

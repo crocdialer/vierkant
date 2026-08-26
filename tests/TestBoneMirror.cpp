@@ -13,11 +13,13 @@ vierkant::MeshPtr create_skinned_mesh()
 
     auto root_bone = std::make_shared<nodes::node_t>();
     root_bone->name = "root_bone";
+    root_bone->id = nodes::NodeId::from_name(root_bone->name);
     root_bone->index = 0;
     root_bone->transform.translation = {1.f, 0.f, 0.f};
 
     auto child_bone = std::make_shared<nodes::node_t>();
     child_bone->name = "child_bone";
+    child_bone->id = nodes::NodeId::from_name(child_bone->name);
     child_bone->index = 1;
     child_bone->parent = root_bone;
     child_bone->transform.translation = {0.f, 2.f, 0.f};
@@ -37,7 +39,8 @@ TEST(BoneMirror, create_mirrors_the_hierarchy)
     auto scene = vierkant::Scene::create();
     auto mesh_object = scene->create_mesh_object({create_skinned_mesh()});
 
-    auto *mirror_root = scene->create_bone_mirror(mesh_object);
+    scene->ensure_bone_mirror(*mesh_object);
+    auto *mirror_root = vierkant::bone_mirror_root(*mesh_object);
     ASSERT_TRUE(mirror_root);
 
     // the root is unindexed and carries the skin-transform, the bones below mirror the node-hierarchy
@@ -55,16 +58,22 @@ TEST(BoneMirror, create_mirrors_the_hierarchy)
     EXPECT_EQ(child_bone->name, "child_bone");
     EXPECT_EQ(child_bone->get_component<bone_component_t>().index, 1);
 
-    // idempotent: a second call returns the existing mirror instead of adding another one
-    EXPECT_EQ(scene->create_bone_mirror(mesh_object), mirror_root);
+    // idempotent: a second call keeps the existing mirror instead of adding another one
+    scene->ensure_bone_mirror(*mesh_object);
+    EXPECT_EQ(vierkant::bone_mirror_root(*mesh_object), mirror_root);
     EXPECT_EQ(mesh_object->children.size(), 1);
+
+    // bones are addressed by their node-id, the root carries none
+    EXPECT_EQ(bone_object_by_id(*mesh_object, nodes::NodeId::from_name("child_bone")), child_bone.get());
+    EXPECT_EQ(bone_object_by_id(*mesh_object, nodes::NodeId::nil()), nullptr);
+    EXPECT_EQ(bone_object_by_id(*mesh_object, nodes::NodeId::from_name("nope")), nullptr);
 }
 
 TEST(BoneMirror, create_without_skeleton)
 {
     auto scene = vierkant::Scene::create();
     auto mesh_object = scene->create_mesh_object({vierkant::Mesh::create()});
-    EXPECT_EQ(scene->create_bone_mirror(mesh_object), nullptr);
+    scene->ensure_bone_mirror(*mesh_object);
     EXPECT_TRUE(mesh_object->children.empty());
 }
 
@@ -80,7 +89,8 @@ TEST(BoneMirror, update_drives_globals_and_attachments)
     mesh_object->set_transform({.translation = {100.f, 0.f, 0.f}});
     scene->add_object(mesh_object);
 
-    auto *mirror_root = scene->create_bone_mirror(mesh_object);
+    scene->ensure_bone_mirror(*mesh_object);
+    auto *mirror_root = vierkant::bone_mirror_root(*mesh_object);
     ASSERT_TRUE(mirror_root);
 
     // an ordinary object attached to the deepest bone
@@ -102,4 +112,47 @@ TEST(BoneMirror, update_drives_globals_and_attachments)
     mesh_object->set_transform({.translation = {0.f, 0.f, 0.f}});
     scene->update(0.0);
     EXPECT_EQ(attachment->global_transform().translation, glm::vec3(7.f, 10.f, 20.f));
+}
+
+TEST(BoneMirror, attachment_transform_survives_updates)
+{
+    auto scene = vierkant::Scene::create();
+    auto mesh = create_skinned_mesh();
+
+    // a moving root-bone, so the mirror is rewritten on every update
+    auto &keys = mesh->node_animations[0].keys[mesh->root_bone];
+    keys.positions[0.f] = {.value = {0.f, 0.f, 0.f}};
+    keys.positions[5.f] = {.value = {0.f, 100.f, 0.f}};
+
+    auto mesh_object = scene->create_mesh_object({mesh});
+    scene->add_object(mesh_object);
+    scene->ensure_bone_mirror(*mesh_object);
+
+    auto *bone = vierkant::bone_object_by_id(*mesh_object, nodes::NodeId::from_name("child_bone"));
+    ASSERT_TRUE(bone);
+
+    auto attachment = scene->create_object();
+    bone->add_child(attachment);
+
+    // set a local transform, the way the object-UI's text-fields do
+    const vierkant::transform_t local = {.translation = {1.f, 2.f, 3.f}};
+    attachment->set_transform(local);
+
+    const auto global_before = attachment->global_transform().translation;
+    for(uint32_t i = 0; i < 3; ++i) { scene->update(0.1); }
+    ASSERT_TRUE(attachment->transform());
+    EXPECT_EQ(attachment->transform()->translation, local.translation);
+
+    // the bone really did move, so the check above is not vacuous
+    EXPECT_NE(attachment->global_transform().translation, global_before);
+
+    // set a global transform, the way the guizmo does
+    const vierkant::transform_t global = {.translation = {10.f, 20.f, 30.f}};
+    attachment->set_global_transform(global);
+    EXPECT_EQ(attachment->global_transform().translation, global.translation);
+
+    // the bone keeps moving, so the attachment moves with it - but its local transform stays put
+    const auto relative = *attachment->transform();
+    for(uint32_t i = 0; i < 3; ++i) { scene->update(0.1); }
+    EXPECT_EQ(attachment->transform()->translation, relative.translation);
 }

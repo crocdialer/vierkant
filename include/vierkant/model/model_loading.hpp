@@ -115,7 +115,7 @@ struct model_assets_t
 
 //! schema-version folded into the bundle cache-key; bump on any parsing/serialization change that
 //! would make existing bundles decode wrong. layout-sizes are covered by serialized_layout_hash().
-constexpr uint32_t bundle_schema_version = 5;
+constexpr uint32_t bundle_schema_version = 6;
 
 struct mesh_omm_key_t
 {

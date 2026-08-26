@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <crocore/NamedUUID.hpp>
 #include <list>
 #include <map>
 #include <memory>
@@ -14,12 +15,18 @@
 namespace vierkant::nodes
 {
 
+DEFINE_NAMED_UUID(NodeId)
+
 using NodePtr = std::shared_ptr<struct node_t>;
 using NodeConstPtr = std::shared_ptr<const struct node_t>;
 
 struct node_t
 {
     std::string name;
+
+    //! stable id, derived from the node-name. nil outside bone-hierarchies.
+    NodeId id = NodeId::nil();
+
     vierkant::transform_t transform = {};
     vierkant::transform_t offset = {};
     uint32_t index = 0;
