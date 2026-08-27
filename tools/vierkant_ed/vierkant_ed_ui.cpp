@@ -49,7 +49,16 @@ void VierkantEd::create_ui()
     auto center_selected_objects = [this] {
         if(!editor_camera_active()) { return; }
         vierkant::AABB aabb;
-        for(const auto &obj: m_selected_objects) { aabb += obj->aabb().transform(obj->global_transform()); }
+        for(const auto &obj: m_selected_objects)
+        {
+            if(auto obj_aabb = obj->aabb(); obj_aabb.valid()) { aabb += obj_aabb.transform(obj->global_transform()); }
+            else
+            {
+                auto p = obj->global_transform().translation;
+                aabb += vierkant::AABB(p, p);
+            }
+        }
+        if(!aabb.valid()) { return; }
         m_camera_control.orbit->look_at = aabb.center();
         if(m_camera_control.orbit->transform_cb)
         {
@@ -551,12 +560,10 @@ void VierkantEd::create_ui()
                         {
                             auto new_obj = m_scene->create_mesh_object({box_mesh});
                             new_obj->name = spdlog::fmt_lib::format("cube_{}", new_obj->id() % 1000);
-                            new_obj->set_transform({
-                                    .translation = glm::vec3(0.f, 10.f, 0.f) + glm::ballRand(1.f)});
+                            new_obj->set_transform({.translation = glm::vec3(0.f, 10.f, 0.f) + glm::ballRand(1.f)});
                             vierkant::object_component auto &cmp =
                                     new_obj->add_component<vierkant::physics_component_t>();
-                            vierkant::collision::box_t box = {
-                                    box_mesh->entries.front().bounding_box.half_extents()};
+                            vierkant::collision::box_t box = {box_mesh->entries.front().bounding_box.half_extents()};
                             cmp.shape = box;
                             cmp.mass = 1.f;
 
@@ -891,7 +898,10 @@ void VierkantEd::create_camera_controls()
     m_camera_control.fly = m_settings.fly_camera;
 
     if(m_settings.camera_control == CameraControlMode::Fly) { m_camera_control.current = m_camera_control.fly; }
-    else { m_camera_control.current = m_camera_control.orbit; }
+    else
+    {
+        m_camera_control.current = m_camera_control.orbit;
+    }
 
     // viewport-camera: an editor-layer member of the scene-graph, so the scene-ui's camera-tab
     // lists it next to the scene-cameras. its layer keeps it out of rendering, physics and saving.
@@ -1000,8 +1010,8 @@ void VierkantEd::create_camera_controls()
 void VierkantEd::update_js(double time_delta)
 {
     // the fly-delegate stops updating the states while the character consumes the gamepad
-    if(m_camera_control.current == m_camera_control.fly && !m_settings.character_input &&
-       editor_camera_active() && !m_fly_joystick_states.empty())
+    if(m_camera_control.current == m_camera_control.fly && !m_settings.character_input && editor_camera_active() &&
+       !m_fly_joystick_states.empty())
     {
         const auto &js_state = m_fly_joystick_states.front();
         constexpr float deadzone_thresh = 0.008f;
@@ -1014,9 +1024,9 @@ void VierkantEd::update_js(double time_delta)
             {
                 auto *params = &cam_cmp->physical;
                 constexpr float focus_sensitivity = 2.f;
-                params->focal_distance = std::clamp(
-                        params->focal_distance * std::exp(static_cast<float>(time_delta) * focus_sensitivity * throttle),
-                        params->clipping_distances.x, params->clipping_distances.y);
+                params->focal_distance = std::clamp(params->focal_distance * std::exp(static_cast<float>(time_delta) *
+                                                                                      focus_sensitivity * throttle),
+                                                    params->clipping_distances.x, params->clipping_distances.y);
                 if(m_path_tracer) { m_path_tracer->reset_accumulator(); }
             }
         }

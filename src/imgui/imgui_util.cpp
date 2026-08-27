@@ -949,6 +949,14 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
 
         if(ImGui::Button("add light")) { assets->add_light({}); }
         ImGui::SameLine();
+        if(ImGui::Button("add light-object"))
+        {
+            auto new_light = scene->create_lightsource();
+            new_light->name = "light_" + std::to_string(new_light->id());
+            new_light->set_global_transform(camera->global_transform());
+            scene->add_object(new_light);
+        }
+        ImGui::SameLine();
         if(ImGui::Button("prune unused")) { scene->prune_assets(); }
 
         for(const auto &light_id: std::views::keys(assets->lights()))
