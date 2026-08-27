@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <vierkant/Window.hpp>
 
 #define GLFW_INCLUDE_NONE
@@ -103,19 +104,21 @@ std::vector<Joystick> get_joystick_states(const std::vector<Joystick> &previous_
     std::vector<Joystick> ret;
     ret.reserve(gamepad_states.size());
 
-    for(uint32_t i = 0; i < gamepad_states.size(); ++i)
+    for(auto &state: gamepad_states)
     {
-        auto &state = gamepad_states[i];
-
+        // match the previous state by device-id. a position in the list is not an identity,
+        // it shifts when a device is added or removed.
+        auto previous = std::ranges::find_if(
+                previous_joysticks, [&state](const Joystick &js) { return js.device_id() == state.id; });
         std::vector<uint8_t> previous_buttons;
-        if(i < previous_joysticks.size()) { previous_buttons = previous_joysticks[i].buttons(); }
+        if(previous != previous_joysticks.end()) { previous_buttons = previous->buttons(); }
 
         const uint64_t device_id = state.id;
         auto rumble_fn = [device_id](float strong, float weak, uint32_t duration_ms) {
             return gamepad::rumble(device_id, strong, weak, duration_ms);
         };
-        ret.emplace_back(std::move(state.name), std::move(state.buttons), std::move(state.axis), previous_buttons,
-                         std::move(rumble_fn));
+        ret.emplace_back(device_id, std::move(state.name), std::move(state.buttons), std::move(state.axis),
+                         previous_buttons, std::move(rumble_fn));
     }
     return ret;
 }

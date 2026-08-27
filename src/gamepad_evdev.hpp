@@ -36,6 +36,9 @@ axis_layout_t detect_axis_layout(const unsigned long *abs_bits);
 //! map a raw axis-value into [0, 1], or into [-1, 1] if @p centered.
 float normalize_axis(const input_absinfo &abs, bool centered);
 
+//! true if a centered axis still carries the kernel-default, i.e. no report has arrived yet.
+bool axis_unreported(const input_absinfo &abs);
+
 }// namespace vierkant::gamepad
 
 #endif// __linux__
