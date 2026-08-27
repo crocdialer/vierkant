@@ -85,4 +85,18 @@ TEST(GamepadEvdev, out_of_range_and_degenerate_axes_stay_bounded)
     EXPECT_FLOAT_EQ(normalize_axis(make_absinfo(0, 0, 0), false), 0.f);
 }
 
+//! regression: a pad that has not reported yet used to read as both sticks fully deflected,
+//! because the kernel's zero-initialized axis-value is the minimum of an unsigned stick-range.
+TEST(GamepadEvdev, an_unreported_stick_is_recognized)
+{
+    // hid-generic sticks are 0..65535 and rest near the middle, so 0 cannot be a rest-position
+    EXPECT_TRUE(axis_unreported(make_absinfo(0, 0, 65535)));
+    EXPECT_FALSE(axis_unreported(make_absinfo(32768, 0, 65535)));
+    EXPECT_FALSE(axis_unreported(make_absinfo(65535, 0, 65535)));
+
+    // xpad sticks are -32768..32767 and rest at 0, which is why the defect never showed there
+    EXPECT_FALSE(axis_unreported(make_absinfo(0, -32768, 32767)));
+    EXPECT_FALSE(axis_unreported(make_absinfo(-32768, -32768, 32767)));
+}
+
 #endif// __linux__

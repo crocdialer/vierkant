@@ -43,6 +43,13 @@ float normalize_axis(const input_absinfo &abs, bool centered)
     return centered ? t * 2.f - 1.f : t;
 }
 
+bool axis_unreported(const input_absinfo &abs)
+{
+    // the kernel zero-initializes its axis-values, so an unreported axis reads as 0. on an unsigned
+    // range that is hard-deflection, on a signed one it is the rest-position and nothing is wrong.
+    return abs.minimum >= 0 && abs.value == abs.minimum;
+}
+
 namespace
 {
 
@@ -62,6 +69,9 @@ struct device_t
     bool dpad_is_hat = false;
     bool has_rumble = false;
 
+    //! set while the device has not reported yet - its stick-axes are a kernel-default, not a rest-position.
+    bool sticks_unreported = false;
+
     //! id of a single uploaded FF_RUMBLE-effect, re-uploaded in place. -1 means: none allocated yet.
     int16_t effect_id = -1;
 };
@@ -77,6 +87,17 @@ void close_device(device_t &device)
     if(device.effect_id >= 0) { ioctl(device.fd, EVIOCRMFF, device.effect_id); }
     close(device.fd);
     device.fd = -1;
+}
+
+//! true if any stick still carries the kernel-default, i.e. the device has not reported yet
+bool no_reports_yet(int fd, const axis_layout_t &layout)
+{
+    for(int code: {ABS_X, ABS_Y, layout.right_x, layout.right_y})
+    {
+        input_absinfo abs = {};
+        if(ioctl(fd, EVIOCGABS(code), &abs) == 0 && axis_unreported(abs)) { return true; }
+    }
+    return false;
 }
 
 std::optional<device_t> open_device(const std::string &node, bool &access_denied)
@@ -113,6 +134,7 @@ std::optional<device_t> open_device(const std::string &node, bool &access_denied
     device.layout = detect_axis_layout(abs_bits);
     device.dpad_is_hat = test_bit(ABS_HAT0X, abs_bits);
     device.has_rumble = read_write && test_bit(FF_RUMBLE, ff_bits);
+    device.sticks_unreported = no_reports_yet(fd, device.layout);
 
     if(!read_write && test_bit(FF_RUMBLE, ff_bits))
     {
@@ -180,12 +202,18 @@ void poll_hotplug()
 }
 
 //! drain the device's event-queue. we poll state via ioctl, but an unread queue grows and hides device-loss.
-bool drain_events(const device_t &device)
+bool drain_events(device_t &device)
 {
     input_event events[32];
     for(;;)
     {
         ssize_t num_bytes = read(device.fd, events, sizeof(events));
+
+        // an EV_ABS means the kernel has seen a report, so its axis-values are real from here on
+        for(ssize_t i = 0; device.sticks_unreported && i < num_bytes / static_cast<ssize_t>(sizeof(input_event)); ++i)
+        {
+            if(events[i].type == EV_ABS) { device.sticks_unreported = false; }
+        }
         if(num_bytes < 0) { return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR; }
         if(num_bytes < static_cast<ssize_t>(sizeof(events))) { return true; }
     }
@@ -207,6 +235,12 @@ bool read_state(const device_t &device, state_t &out)
     out.axis[GLFW_GAMEPAD_AXIS_LEFT_Y] = read_axis(ABS_Y, true);
     out.axis[GLFW_GAMEPAD_AXIS_RIGHT_X] = read_axis(device.layout.right_x, true);
     out.axis[GLFW_GAMEPAD_AXIS_RIGHT_Y] = read_axis(device.layout.right_y, true);
+
+    if(device.sticks_unreported)
+    {
+        out.axis[GLFW_GAMEPAD_AXIS_LEFT_X] = out.axis[GLFW_GAMEPAD_AXIS_LEFT_Y] = 0.f;
+        out.axis[GLFW_GAMEPAD_AXIS_RIGHT_X] = out.axis[GLFW_GAMEPAD_AXIS_RIGHT_Y] = 0.f;
+    }
 
     // triggers are one-sided, but the canonical layout expects them in [-1, 1]
     out.axis[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] = read_axis(device.layout.trigger_left, false) * 2.f - 1.f;

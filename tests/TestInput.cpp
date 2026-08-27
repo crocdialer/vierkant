@@ -23,7 +23,7 @@ std::vector<uint8_t> canonical_buttons(std::initializer_list<uint32_t> pressed)
 TEST(Input, gamepad_axes_are_read_from_canonical_slots)
 {
     // sticks fully deflected, left trigger fully pressed, right trigger released
-    Joystick js("pad", canonical_buttons({}), canonical_axis(1.f, 0.f, 0.f, -1.f, 1.f, -1.f));
+    Joystick js(1, "pad", canonical_buttons({}), canonical_axis(1.f, 0.f, 0.f, -1.f, 1.f, -1.f));
 
     EXPECT_FLOAT_EQ(js.analog_left().x, 1.f);
     EXPECT_FLOAT_EQ(js.analog_left().y, 0.f);
@@ -37,30 +37,30 @@ TEST(Input, gamepad_axes_are_read_from_canonical_slots)
 
 TEST(Input, gamepad_dpad_is_read_from_canonical_slots)
 {
-    EXPECT_EQ(Joystick("pad", canonical_buttons({11}), canonical_axis(0, 0, 0, 0, -1, -1)).dpad(),
+    EXPECT_EQ(Joystick(1, "pad", canonical_buttons({11}), canonical_axis(0, 0, 0, 0, -1, -1)).dpad(),
               glm::vec2(0.f, 1.f));// up
-    EXPECT_EQ(Joystick("pad", canonical_buttons({12}), canonical_axis(0, 0, 0, 0, -1, -1)).dpad(),
+    EXPECT_EQ(Joystick(1, "pad", canonical_buttons({12}), canonical_axis(0, 0, 0, 0, -1, -1)).dpad(),
               glm::vec2(1.f, 0.f));// right
-    EXPECT_EQ(Joystick("pad", canonical_buttons({13}), canonical_axis(0, 0, 0, 0, -1, -1)).dpad(),
+    EXPECT_EQ(Joystick(1, "pad", canonical_buttons({13}), canonical_axis(0, 0, 0, 0, -1, -1)).dpad(),
               glm::vec2(0.f, -1.f));// down
-    EXPECT_EQ(Joystick("pad", canonical_buttons({14}), canonical_axis(0, 0, 0, 0, -1, -1)).dpad(),
+    EXPECT_EQ(Joystick(1, "pad", canonical_buttons({14}), canonical_axis(0, 0, 0, 0, -1, -1)).dpad(),
               glm::vec2(-1.f, 0.f));// left
 }
 
 TEST(Input, gamepad_button_events_are_edge_triggered)
 {
     auto previous = canonical_buttons({});
-    Joystick pressed("pad", canonical_buttons({0}), canonical_axis(0, 0, 0, 0, -1, -1), previous);
+    Joystick pressed(1, "pad", canonical_buttons({0}), canonical_axis(0, 0, 0, 0, -1, -1), previous);
 
     ASSERT_EQ(pressed.input_events().size(), 1);
     ASSERT_TRUE(pressed.input_events().contains(Joystick::Input::BUTTON_A));
     EXPECT_EQ(pressed.input_events().at(Joystick::Input::BUTTON_A), Joystick::Event::BUTTON_PRESS);
 
     // holding the same button is not an event
-    Joystick held("pad", canonical_buttons({0}), canonical_axis(0, 0, 0, 0, -1, -1), pressed.buttons());
+    Joystick held(1, "pad", canonical_buttons({0}), canonical_axis(0, 0, 0, 0, -1, -1), pressed.buttons());
     EXPECT_TRUE(held.input_events().empty());
 
-    Joystick released("pad", canonical_buttons({}), canonical_axis(0, 0, 0, 0, -1, -1), held.buttons());
+    Joystick released(1, "pad", canonical_buttons({}), canonical_axis(0, 0, 0, 0, -1, -1), held.buttons());
     ASSERT_TRUE(released.input_events().contains(Joystick::Input::BUTTON_A));
     EXPECT_EQ(released.input_events().at(Joystick::Input::BUTTON_A), Joystick::Event::BUTTON_RELEASE);
 }
@@ -73,7 +73,7 @@ TEST(Input, no_button_index_aliases_another_input)
 
     for(uint32_t i = 0; i < 15; ++i)
     {
-        Joystick js("pad", canonical_buttons({i}), canonical_axis(0, 0, 0, 0, -1, -1), canonical_buttons({}));
+        Joystick js(1, "pad", canonical_buttons({i}), canonical_axis(0, 0, 0, 0, -1, -1), canonical_buttons({}));
         ASSERT_EQ(js.input_events().size(), 1) << "button " << i << " produced no unique event";
 
         const auto input = js.input_events().begin()->first;
@@ -86,7 +86,7 @@ TEST(Input, no_button_index_aliases_another_input)
 //! a device reporting fewer axes/buttons than the canonical layout must not read out of bounds
 TEST(Input, degenerate_devices_are_survivable)
 {
-    Joystick empty("nothing", {}, {});
+    Joystick empty(1, "nothing", {}, {});
     EXPECT_EQ(empty.analog_left(), glm::vec2(0.f));
     EXPECT_EQ(empty.analog_right(), glm::vec2(0.f));
     EXPECT_EQ(empty.trigger(), glm::vec2(0.f));
@@ -94,7 +94,7 @@ TEST(Input, degenerate_devices_are_survivable)
     EXPECT_TRUE(empty.input_events().empty());
 
     // two axes, no buttons
-    Joystick partial("stick", {}, {1.f, 1.f});
+    Joystick partial(1, "stick", {}, {1.f, 1.f});
     EXPECT_FLOAT_EQ(partial.analog_left().x, 1.f);
     EXPECT_EQ(partial.analog_right(), glm::vec2(0.f));
     EXPECT_EQ(partial.trigger(), glm::vec2(0.f));

@@ -222,6 +222,7 @@ public:
     /**
      * @brief   construct a joystick-state.
      *
+     * @param   device_id           device-handle, stable while the device stays connected.
      * @param   name                display-name.
      * @param   buttons             button-states.
      * @param   axis                axis-values.
@@ -230,8 +231,11 @@ public:
      *
      * @note    @p buttons / @p axis are expected in canonical gamepad-order.
      */
-    Joystick(std::string name, std::vector<uint8_t> buttons, std::vector<float> axis,
+    Joystick(uint64_t device_id, std::string name, std::vector<uint8_t> buttons, std::vector<float> axis,
              const std::vector<uint8_t> &previous_buttons = {}, rumble_fn_t rumble_fn = {});
+
+    //! device-handle, stable while the device stays connected. never reused.
+    uint64_t device_id() const;
 
     const std::string &name() const;
 
@@ -259,6 +263,7 @@ public:
     bool rumble(float strong, float weak, uint32_t duration_ms) const;
 
 private:
+    uint64_t m_device_id = 0;
     std::string m_name;
     std::vector<uint8_t> m_buttons;
     std::vector<float> m_axis;

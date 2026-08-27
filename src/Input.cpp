@@ -58,9 +58,9 @@ static glm::vec2 analog_value(const std::vector<float> &axis, uint32_t index_h, 
             sign_v * glm::smoothstep(dead_zone, 1.f, fabsf(axis[index_v]))};
 }
 
-Joystick::Joystick(std::string name, std::vector<uint8_t> buttons, std::vector<float> axis,
+Joystick::Joystick(uint64_t device_id, std::string name, std::vector<uint8_t> buttons, std::vector<float> axis,
                    const std::vector<uint8_t> &previous_buttons, rumble_fn_t rumble_fn)
-    : m_name(std::move(name)), m_buttons(std::move(buttons)), m_axis(std::move(axis)),
+    : m_device_id(device_id), m_name(std::move(name)), m_buttons(std::move(buttons)), m_axis(std::move(axis)),
       m_rumble_fn(std::move(rumble_fn))
 {
     if(m_buttons.size() == previous_buttons.size())
@@ -76,6 +76,8 @@ Joystick::Joystick(std::string name, std::vector<uint8_t> buttons, std::vector<f
         }
     }
 }
+
+uint64_t Joystick::device_id() const { return m_device_id; }
 
 const std::string &Joystick::name() const { return m_name; }
 
