@@ -1,5 +1,6 @@
 #include "vierkant/punctual_light.hpp"
 #include <gtest/gtest.h>
+#include <random>
 
 using namespace vierkant;
 //____________________________________________________________________________//
@@ -104,4 +105,107 @@ TEST(PunctualLight, light_power_degenerate)
     // black or zero-intensity lights likewise
     EXPECT_FLOAT_EQ(light_power(make_light(LightType::Omni, 0.f)), 0.f);
     EXPECT_FLOAT_EQ(light_power(make_light(LightType::Rect, 1.f, glm::vec3(0))), 0.f);
+}
+
+//____________________________________________________________________________//
+
+namespace
+{
+
+//! histogram of table-draws, normalized to a distribution
+std::vector<double> sample_histogram(const std::vector<light_alias_bin_t> &bins, size_t num_draws)
+{
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(0.f, 1.f);
+    std::vector<double> histogram(bins.size(), 0.0);
+
+    for(size_t i = 0; i < num_draws; ++i)
+    {
+        auto index = sample_light_alias_table(bins, dist(rng), dist(rng));
+        EXPECT_LT(index, bins.size());
+        histogram[index] += 1.0 / num_draws;
+    }
+    return histogram;
+}
+
+}// namespace
+
+//____________________________________________________________________________//
+
+TEST(PunctualLight, alias_table_degenerate_sizes)
+{
+    EXPECT_TRUE(create_light_alias_table({}).empty());
+
+    // a single light is always picked, with probability 1
+    auto bins = create_light_alias_table({make_light(LightType::Omni, 3.f)});
+    ASSERT_EQ(bins.size(), 1);
+    EXPECT_EQ(bins[0].alias, 0);
+    EXPECT_FLOAT_EQ(bins[0].prob, 1.f);
+    EXPECT_EQ(sample_light_alias_table(bins, 0.99f, 0.99f), 0);
+}
+
+//____________________________________________________________________________//
+
+TEST(PunctualLight, alias_table_probabilities_match_power)
+{
+    // white omnis, so power == intensity: expected probabilities are 1/10, 3/10, 6/10
+    auto bins = create_light_alias_table({make_light(LightType::Omni, 1.f), make_light(LightType::Omni, 3.f),
+                                          make_light(LightType::Omni, 6.f)});
+    ASSERT_EQ(bins.size(), 3);
+    EXPECT_FLOAT_EQ(bins[0].prob, 0.1f);
+    EXPECT_FLOAT_EQ(bins[1].prob, 0.3f);
+    EXPECT_FLOAT_EQ(bins[2].prob, 0.6f);
+
+    // probabilities are normalized
+    float sum = 0.f;
+    for(const auto &bin: bins) { sum += bin.prob; }
+    EXPECT_NEAR(sum, 1.f, 1.e-6f);
+}
+
+//____________________________________________________________________________//
+
+TEST(PunctualLight, alias_table_sampling_reproduces_weights)
+{
+    // one bright light among many dim ones - the case the whole table exists for
+    std::vector<light_t> lights = {make_light(LightType::Omni, 100.f)};
+    for(uint32_t i = 0; i < 15; ++i) { lights.push_back(make_light(LightType::Omni, 1.f)); }
+
+    auto bins = create_light_alias_table(lights);
+    auto histogram = sample_histogram(bins, 400000);
+
+    for(size_t i = 0; i < bins.size(); ++i) { EXPECT_NEAR(histogram[i], bins[i].prob, 5.e-3); }
+
+    // the bright light takes 100/115 of the draws, instead of the uniform 1/16
+    EXPECT_NEAR(histogram[0], 100.0 / 115.0, 5.e-3);
+}
+
+//____________________________________________________________________________//
+
+TEST(PunctualLight, alias_table_zero_weight_lights)
+{
+    // a zero-weight light must never be drawn, and carries pdf 0 so hit-side MIS falls back
+    // to bsdf-sampling for it
+    std::vector<light_t> lights = {make_light(LightType::Omni, 2.f), make_light(LightType::Omni, 0.f),
+                                   make_light(LightType::Omni, 2.f)};
+    auto bins = create_light_alias_table(lights);
+    EXPECT_FLOAT_EQ(bins[1].prob, 0.f);
+
+    auto histogram = sample_histogram(bins, 100000);
+    EXPECT_EQ(histogram[1], 0.0);
+    EXPECT_NEAR(histogram[0], 0.5, 5.e-3);
+    EXPECT_NEAR(histogram[2], 0.5, 5.e-3);
+}
+
+//____________________________________________________________________________//
+
+TEST(PunctualLight, alias_table_all_zero_weights_is_uniform)
+{
+    // no light carries weight: the table must stay samplable rather than pick nothing
+    std::vector<light_t> lights(4, make_light(LightType::Omni, 0.f));
+    auto bins = create_light_alias_table(lights);
+
+    for(const auto &bin: bins) { EXPECT_FLOAT_EQ(bin.prob, 0.25f); }
+
+    auto histogram = sample_histogram(bins, 100000);
+    for(double p: histogram) { EXPECT_NEAR(p, 0.25, 5.e-3); }
 }

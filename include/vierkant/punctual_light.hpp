@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include <algorithm>
 #include <limits>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include <crocore/NamedUUID.hpp>
 #include <vierkant/Material.hpp>
@@ -163,6 +165,87 @@ static inline float light_power(const light_t &light)
     // NTSC luma, matching utils::LuminanceNTSC in the shaders
     const glm::vec3 luma = {0.299f, 0.587f, 0.114f};
     return glm::dot(light.color, luma) * light.intensity * measure;
+}
+
+//! one bucket of a Vose alias-table, picking a light in O(1) from two uniform draws
+struct light_alias_bin_t
+{
+    //! index picked when the threshold-draw fails
+    uint32_t alias = 0;
+
+    //! probability of keeping this bin's own index instead of 'alias'
+    float threshold = 1.f;
+
+    //! selection-probability of this bin's own index. needed for the MIS pdf-lookup
+    float prob = 0.f;
+};
+
+static_assert(sizeof(light_alias_bin_t) == 12, "light_alias_bin_t layout must match shader-side (ray_common.slang)");
+
+/**
+ * @brief   create_light_alias_table builds a Vose alias-table over the lights' selection-weights.
+ *
+ * zero-weight lights get probability 0 and are never picked, which is also what the hit-side MIS
+ * needs to give bsdf-sampling full weight for them. if no light carries weight the table
+ * degenerates to a uniform distribution, so it stays samplable.
+ *
+ * @param   lights  a provided array of lights
+ * @return  one bin per light
+ */
+static inline std::vector<light_alias_bin_t> create_light_alias_table(const std::vector<light_t> &lights)
+{
+    const size_t num_lights = lights.size();
+    std::vector<light_alias_bin_t> bins(num_lights);
+    if(!num_lights) { return bins; }
+
+    std::vector<float> weights(num_lights);
+    double total = 0.0;
+
+    for(size_t i = 0; i < num_lights; ++i)
+    {
+        weights[i] = std::max(0.f, light_power(lights[i]));
+        total += weights[i];
+    }
+    const bool uniform = total <= 0.0;
+
+    // scaled probabilities with mean 1, partitioned into under- and overfull bins
+    std::vector<double> scaled(num_lights);
+    std::vector<uint32_t> small, large;
+
+    for(size_t i = 0; i < num_lights; ++i)
+    {
+        bins[i].alias = static_cast<uint32_t>(i);
+        bins[i].prob = uniform ? 1.f / num_lights : static_cast<float>(weights[i] / total);
+        scaled[i] = uniform ? 1.0 : num_lights * weights[i] / total;
+        if(scaled[i] < 1.0) { small.push_back(static_cast<uint32_t>(i)); }
+        else { large.push_back(static_cast<uint32_t>(i)); }
+    }
+
+    while(!small.empty() && !large.empty())
+    {
+        uint32_t s = small.back(), l = large.back();
+        small.pop_back();
+        large.pop_back();
+
+        bins[s].threshold = static_cast<float>(scaled[s]);
+        bins[s].alias = l;
+
+        scaled[l] -= 1.0 - scaled[s];
+        if(scaled[l] < 1.0) { small.push_back(l); }
+        else { large.push_back(l); }
+    }
+
+    // whatever is left is 1 up to rounding, and keeps its self-alias
+    return bins;
+}
+
+//! draw an index from a Vose alias-table. u1/u2 are independent uniforms in [0, 1).
+//! the shader-side pick must match this exactly
+static inline uint32_t sample_light_alias_table(const std::vector<light_alias_bin_t> &bins, float u1, float u2)
+{
+    if(bins.empty()) { return 0; }
+    auto index = std::min(static_cast<uint32_t>(u1 * bins.size()), static_cast<uint32_t>(bins.size() - 1));
+    return u2 < bins[index].threshold ? index : bins[index].alias;
 }
 
 }// namespace vierkant

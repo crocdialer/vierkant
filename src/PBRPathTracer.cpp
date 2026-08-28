@@ -113,6 +113,10 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                 vierkant::Buffer::create(m_device, nullptr, sizeof(vierkant::light_t),
                                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
+        frame_context.light_alias_buffer =
+                vierkant::Buffer::create(m_device, nullptr, sizeof(vierkant::light_alias_bin_t),
+                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         vierkant::CommandBuffer::create_info_t cmd_buffer_info = {};
         cmd_buffer_info.device = m_device;
@@ -691,6 +695,10 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     if(!lights.empty()) { frame_context.lights_buffer->set_data(lights); }
     trace_data.trace_params.num_lights = lights.size();
 
+    // selection-distribution for next-event-estimation, rebuilt per frame (O(num_lights))
+    auto light_alias_table = vierkant::create_light_alias_table(lights);
+    if(!light_alias_table.empty()) { frame_context.light_alias_buffer->set_data(light_alias_table); }
+
     // assign buffer-addresses
     trace_data.vertex_buffers = frame_context.scene_ray_acceleration.vertex_buffer_addresses->device_address();
     trace_data.index_buffers = frame_context.scene_ray_acceleration.index_buffer_addresses->device_address();
@@ -698,6 +706,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.materials = frame_context.scene_ray_acceleration.material_buffer->device_address();
     trace_data.out_pixels = m_storage.pixel_buffer->device_address();
     trace_data.lights = frame_context.lights_buffer->device_address();
+    trace_data.light_alias_table = frame_context.light_alias_buffer->device_address();
 
     // upload data
     frame_context.trace_data_ubo->set_data(&trace_data, sizeof(trace_data_t));

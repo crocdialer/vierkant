@@ -229,7 +229,7 @@ private:
 
         vierkant::ImagePtr out_image, out_depth;
 
-        vierkant::BufferPtr trace_data_ubo, composition_ubo, lights_buffer;
+        vierkant::BufferPtr trace_data_ubo, composition_ubo, lights_buffer, light_alias_buffer;
 
         BloomUPtr bloom;
 
@@ -322,7 +322,13 @@ private:
         VkDeviceAddress materials{};
         VkDeviceAddress out_pixels{};
         VkDeviceAddress lights{};
+        VkDeviceAddress light_alias_table{};
     };
+
+    //! offset of the last member, pinned so an insertion above cannot silently shift the layout
+    //! away from ray::trace_data_t in ray_common.slang (checked against spirv-dis)
+    static_assert(offsetof(trace_data_t, light_alias_table) == 576,
+                  "trace_data_t layout must match shader-side (ray_common.slang)");
 
     struct alignas(16) composition_ubo_t
     {
