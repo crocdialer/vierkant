@@ -211,7 +211,8 @@ trace_result_t trace(uint2 coord, uint2 size)
                     // drop the light-body hit-add on refractive-caustic paths (see miss shaders)
                     if(trace_data.params.suppress_refractive_caustics && seg_caustic) { continue; }
 
-                    float p_nee = ray::light_pdf(l, seg_ray.origin, seg_ray.direction) / trace_data.params.num_lights;
+                    float p_nee = ray::light_pdf(l, seg_ray.origin, seg_ray.direction) *
+                                  ray::light_pick_pdf(trace_data, li);
                     float w = ray::mis_weight_hit(trace_data.params.mis_mode, seg_prev_pdf, p_nee);
                     payload.radiance += seg_beta * w * l.color * l.intensity;
                 }
@@ -445,7 +446,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             // one light-pick shared by both single-scatter strategies, so their MIS-weights refer
             // to the same integrand. punctual lights are never bsdf-reachable, so this never
             // competes with the phase-sampling MIS inside nee_volume
-            light_index = ray::pick_light(trace_data.params.num_lights, rng_state);
+            light_index = ray::pick_light(trace_data, rng_state);
             ray::light_t l = trace_data.lights[light_index];
             equiangular = homogenous_medium && ray::has_punctual_falloff(l);
 
@@ -823,7 +824,8 @@ float3 eval_distant_lights(float3 dir, float prev_bsdf_pdf)
         float pdf = ray::light_pdf(l, float3(0), dir);
         if(pdf <= 0.0) { continue; }
 
-        float w = ray::mis_weight_hit(trace_data.params.mis_mode, prev_bsdf_pdf, pdf / trace_data.params.num_lights);
+        float w = ray::mis_weight_hit(trace_data.params.mis_mode, prev_bsdf_pdf,
+                                      pdf * ray::light_pick_pdf(trace_data, i));
         radiance += w * l.color * l.intensity;
     }
     return radiance;

@@ -215,7 +215,9 @@ void serialize(Archive &archive, vierkant::PBRPathTracer::settings_t &render_set
             cereal::make_optional_nvp("sunlight_params", render_settings.sunlight_params),
             cereal::make_optional_nvp("mis_mode", render_settings.mis_mode),
             cereal::make_optional_nvp("suppress_refractive_caustics", render_settings.suppress_refractive_caustics),
-            cereal::make_optional_nvp("max_accumulation_drift", render_settings.max_accumulation_drift));
+            cereal::make_optional_nvp("max_accumulation_drift", render_settings.max_accumulation_drift),
+            cereal::make_optional_nvp("light_selection_uniform_mix",
+                                      render_settings.light_selection_uniform_mix));
 }
 
 template<class Archive>

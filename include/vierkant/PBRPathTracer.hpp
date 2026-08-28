@@ -70,6 +70,11 @@ public:
         //! debug: force a single direct-light estimator (0: MIS, 1: NEE-only, 2: BSDF-only)
         uint32_t mis_mode = 0;
 
+        //! fraction of uniform picking blended into the power-weighted light-selection [0, 1].
+        //! keeps lights that are dim at the focus-point but bright next to nearby surfaces from being
+        //! starved of samples. 1 is plain uniform picking
+        float light_selection_uniform_mix = 0.5f;
+
         //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
         bool suppress_refractive_caustics = false;
 

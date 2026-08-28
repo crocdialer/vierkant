@@ -696,7 +696,12 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.trace_params.num_lights = lights.size();
 
     // selection-distribution for next-event-estimation, rebuilt per frame (O(num_lights))
-    auto light_alias_table = vierkant::create_light_alias_table(lights);
+    // reference the weights at the focus-point rather than the camera, that is where we are looking
+    const auto cam_transform = cam->global_transform();
+    const glm::vec3 focus_pos = cam_transform.translation + (cam_transform.rotation * glm::vec3(0.f, 0.f, -1.f)) *
+                                                                    camera_params.focal_distance;
+    auto light_alias_table = vierkant::create_light_alias_table(lights, focus_pos,
+                                                               frame_context.settings.light_selection_uniform_mix);
     if(!light_alias_table.empty()) { frame_context.light_alias_buffer->set_data(light_alias_table); }
 
     // assign buffer-addresses
