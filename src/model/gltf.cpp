@@ -245,15 +245,28 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, cons
 
         if(accessor.sparse.isSparse) { assert(false); }
 
-        auto insert = [&accessor, &buffer_view](const tinygltf::Buffer &input, auto &array) {
-            using elem_t = typename std::decay<decltype(array)>::type::value_type;
-            constexpr size_t elem_size = sizeof(elem_t);
+        // an optional tag-value names a narrower source-type to convert from, default is a plain copy
+        auto insert = [&accessor, &buffer_view]<typename src_t = std::nullptr_t>(const tinygltf::Buffer &input,
+                                                                                 auto &array, src_t = {}) {
+            using elem_t = typename std::decay_t<decltype(array)>::value_type;
 
             // data with offset
             const uint8_t *data = input.data.data() + buffer_view.byteOffset + accessor.byteOffset;
-            uint32_t stride = accessor.ByteStride(buffer_view);
+            const uint32_t stride = accessor.ByteStride(buffer_view);
 
-            if(stride == elem_size)
+            if constexpr(!std::is_same_v<src_t, std::nullptr_t>)
+            {
+                // per-element conversion
+                array.resize(accessor.count);
+
+                for(size_t i = 0; i < accessor.count; ++i)
+                {
+                    src_t src{};
+                    std::memcpy(&src, data + i * stride, sizeof(src_t));
+                    array[i] = elem_t(src);
+                }
+            }
+            else if(constexpr size_t elem_size = sizeof(elem_t); stride == elem_size)
             {
                 const auto *ptr = reinterpret_cast<const elem_t *>(data);
                 auto end = ptr + accessor.count;
@@ -280,9 +293,21 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, cons
         else if(attrib == attrib_texcoord) { insert(buffer, geometry->tex_coords); }
         else if(attrib == attrib_joints)
         {
-            assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT);
             assert(accessor.type == TINYGLTF_TYPE_VEC4);
-            insert(buffer, geometry->bone_indices);
+
+            if(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+            {
+                insert(buffer, geometry->bone_indices);
+            }
+            else if(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+            {
+                // widen uint8 -> uint16 joint-indices
+                insert(buffer, geometry->bone_indices, glm::vec<4, uint8_t>());
+            }
+            else
+            {
+                spdlog::error("unsupported joint-index type: {}", accessor.componentType);
+            }
         }
         else if(attrib == attrib_weights)
         {
@@ -613,8 +638,8 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
             if(value.Has(ext_diffuse_transmission_color_factor))
             {
                 const auto &c = value.Get(ext_diffuse_transmission_color_factor);
-                ret.diffuse_transmission_color = glm::dvec3(
-                        c.Get(0).GetNumberAsDouble(), c.Get(1).GetNumberAsDouble(), c.Get(2).GetNumberAsDouble());
+                ret.diffuse_transmission_color = glm::dvec3(c.Get(0).GetNumberAsDouble(), c.Get(1).GetNumberAsDouble(),
+                                                            c.Get(2).GetNumberAsDouble());
             }
 
             // two distinct slots: the factor texture contributes only its alpha channel, the color
@@ -718,11 +743,40 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, c
         inverse_binding_matrices = {data, data + bind_matrix_accessor.count};
     }
 
-    if(skin.skeleton >= 0 && static_cast<uint32_t>(skin.skeleton) < model.nodes.size() &&
+    // skin.skeleton is optional (gltf-spec): fall back to the joint whose parent is not a joint itself
+    int skeleton_index = skin.skeleton;
+
+    if(skeleton_index < 0)
+    {
+        std::unordered_map<int, int> parent_indices;
+        for(uint32_t i = 0; i < model.nodes.size(); ++i)
+        {
+            for(int child: model.nodes[i].children) { parent_indices[child] = static_cast<int>(i); }
+        }
+
+        std::vector<int> skeleton_roots;
+        for(int joint: skin.joints)
+        {
+            auto parent_it = parent_indices.find(joint);
+            if(parent_it == parent_indices.end() || !joint_map.contains(static_cast<uint32_t>(parent_it->second)))
+            {
+                skeleton_roots.push_back(joint);
+            }
+        }
+
+        if(!skeleton_roots.empty()) { skeleton_index = skeleton_roots.front(); }
+        if(skeleton_roots.size() > 1)
+        {
+            spdlog::warn("skin '{}' has {} disjoint joint-roots, using '{}'", skin.name, skeleton_roots.size(),
+                         model.nodes[skeleton_index].name);
+        }
+    }
+
+    if(skeleton_index >= 0 && static_cast<uint32_t>(skeleton_index) < model.nodes.size() &&
        !inverse_binding_matrices.empty())
     {
         std::deque<node_helper_t> node_queue;
-        node_queue.push_back({static_cast<size_t>(skin.skeleton), {}, nullptr});
+        node_queue.push_back({static_cast<size_t>(skeleton_index), {}, nullptr});
         std::unordered_set<vierkant::nodes::NodeId> bone_ids;
 
         while(!node_queue.empty())
@@ -744,8 +798,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, c
                     skeleton_node.name.empty() ? "joint_" + std::to_string(bone_node->index) : skeleton_node.name);
             if(!bone_ids.insert(bone_node->id).second)
             {
-                spdlog::warn("duplicate bone-name '{}': attachments will resolve to the first one",
-                             skeleton_node.name);
+                spdlog::warn("duplicate bone-name '{}': attachments will resolve to the first one", skeleton_node.name);
             }
             bone_node->offset = vierkant::transform_cast(inverse_binding_matrices[joint_map[current_index]]);
             bone_node->transform = local_joint_transform;
@@ -1064,8 +1117,8 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
         l.intensity = static_cast<float>(tiny_light.intensity);
 
         // range 0 means unlimited (gltf-spec)
-        l.range = tiny_light.range > 0.0 ? static_cast<float>(tiny_light.range)
-                                         : std::numeric_limits<float>::infinity();
+        l.range =
+                tiny_light.range > 0.0 ? static_cast<float>(tiny_light.range) : std::numeric_limits<float>::infinity();
         l.inner_cone_angle = static_cast<float>(tiny_light.spot.innerConeAngle);
         l.outer_cone_angle = static_cast<float>(tiny_light.spot.outerConeAngle);
 
