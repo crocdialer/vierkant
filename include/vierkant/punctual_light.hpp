@@ -130,4 +130,39 @@ static inline light_t convert_light(const vierkant::lightsource_t &light, const 
     return ret;
 }
 
+//! relative selection-weight for importance-sampled light-picking. luminance times a geometric
+//! measure: emitter flux for lights with extent, unit solid angle for delta lights.
+//! never used for shading, only to build a selection-distribution - the absolute scale is arbitrary.
+static inline float light_power(const light_t &light)
+{
+    float measure = 1.f;
+
+    switch(static_cast<LightType>(light.type))
+    {
+        // sun-disc: cap solid angle. angular_size is the cap half-angle, as sample_light() uses it
+        case LightType::Directional:
+            if(light.angular_size > 0.f) { measure = glm::two_pi<float>() * (1.f - std::cos(light.angular_size)); }
+            break;
+
+        // delta position, no extent: unit solid angle
+        case LightType::Omni:
+        case LightType::Spot: break;
+
+        // area emitters: pi * area. extents match the area-pdfs in sample_light()
+        case LightType::Rect: measure = glm::pi<float>() * 4.f * light.size_x * light.size_y; break;
+        case LightType::Disk: measure = glm::pi<float>() * glm::pi<float>() * light.size_x * light.size_x; break;
+        case LightType::Sphere:
+            measure = glm::pi<float>() * 4.f * glm::pi<float>() * light.size_x * light.size_x;
+            break;
+        case LightType::Tube: measure = glm::pi<float>() * 4.f * glm::pi<float>() * light.size_x * light.size_y; break;
+
+        // reserved for extracted emissive triangles
+        case LightType::Area: break;
+    }
+
+    // NTSC luma, matching utils::LuminanceNTSC in the shaders
+    const glm::vec3 luma = {0.299f, 0.587f, 0.114f};
+    return glm::dot(light.color, luma) * light.intensity * measure;
+}
+
 }// namespace vierkant
