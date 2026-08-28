@@ -147,6 +147,19 @@ public struct light_t
     public uint pad;
 };
 
+//! one bucket of a Vose alias-table, picking a light in O(1) from two uniform draws
+public struct light_alias_bin_t
+{
+    //! index picked when the threshold-draw fails
+    public uint alias;
+
+    //! probability of keeping this bin's own index instead of 'alias'
+    public float threshold;
+
+    //! selection-probability of this bin's own index. needed for the MIS pdf-lookup
+    public float prob;
+};
+
 //! simple struct to group rayhit-parameters
 public struct payload_t
 {
@@ -386,6 +399,7 @@ public struct trace_data_t
     public Ptr<material_t, Access.Read> materials;
     public pixel_data_t *out_pixels;
     public Ptr<light_t, Access.Read> lights;
+    public Ptr<light_alias_bin_t, Access.Read> light_alias_table;
 };
 
 }// namespace ray

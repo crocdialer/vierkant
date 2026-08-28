@@ -70,6 +70,11 @@ public:
         //! debug: force a single direct-light estimator (0: MIS, 1: NEE-only, 2: BSDF-only)
         uint32_t mis_mode = 0;
 
+        //! fraction of uniform picking blended into the power-weighted light-selection [0, 1].
+        //! keeps lights that are dim at the focus-point but bright next to nearby surfaces from being
+        //! starved of samples. 1 is plain uniform picking
+        float light_selection_uniform_mix = 0.5f;
+
         //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
         bool suppress_refractive_caustics = false;
 
@@ -229,7 +234,7 @@ private:
 
         vierkant::ImagePtr out_image, out_depth;
 
-        vierkant::BufferPtr trace_data_ubo, composition_ubo, lights_buffer;
+        vierkant::BufferPtr trace_data_ubo, composition_ubo, lights_buffer, light_alias_buffer;
 
         BloomUPtr bloom;
 
@@ -322,7 +327,13 @@ private:
         VkDeviceAddress materials{};
         VkDeviceAddress out_pixels{};
         VkDeviceAddress lights{};
+        VkDeviceAddress light_alias_table{};
     };
+
+    //! offset of the last member, pinned so an insertion above cannot silently shift the layout
+    //! away from ray::trace_data_t in ray_common.slang (checked against spirv-dis)
+    static_assert(offsetof(trace_data_t, light_alias_table) == 576,
+                  "trace_data_t layout must match shader-side (ray_common.slang)");
 
     struct alignas(16) composition_ubo_t
     {
