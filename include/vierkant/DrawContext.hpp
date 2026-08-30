@@ -129,12 +129,14 @@ public:
      * @param   node            a provided vierkant::nodes::NodeConstPtr.
      * @param   animation       an optional vierkant::nodes::node_animation_t
      * @param   animation_time  current animation-time
+     * @param   interpolation   a vierkant::InterpolationMode
      * @param   transform   a modelview transform
      * @param   projection      the projection matrix to use for drawing.
      */
     void draw_node_hierarchy(vierkant::Rasterizer &renderer, const vierkant::nodes::NodeConstPtr &node,
                              const vierkant::nodes::node_animation_t &animation, float animation_time,
-                             const vierkant::transform_t &transform, const glm::mat4 &projection);
+                             vierkant::InterpolationMode interpolation, const vierkant::transform_t &transform,
+                             const glm::mat4 &projection);
 
     /**
      * @brief   Render a skybox.

@@ -6,10 +6,8 @@
 
 #include <crocore/NamedUUID.hpp>
 #include <list>
-#include <map>
 #include <memory>
 #include <vierkant/animation.hpp>
-#include <vierkant/math.hpp>
 #include <vierkant/transform.hpp>
 
 namespace vierkant::nodes
@@ -52,18 +50,19 @@ uint32_t num_nodes_in_hierarchy(const NodeConstPtr &root);
  * @param   name    the name to search for.
  * @return  the found NodePtr or nullptr, if the name could not be found in the hierarchy.
  */
-NodeConstPtr node_by_name(const NodeConstPtr& root, const std::string &name);
+NodeConstPtr node_by_name(const NodeConstPtr &root, const std::string &name);
 
 /**
  * @brief   Create transformation matrices, matching the provided node-hierarchy and animation.
  *
- * @param   root        a root node of a node-hierarchy.
- * @param   animation   a const-ref for an animation_t object.
- * @param   time        current time.
- * @param   matrices    ref to an array of transformation-matrices. will be populated by this function.
+ * @param   root            a root node of a node-hierarchy.
+ * @param   animation       a const-ref for an animation_t object.
+ * @param   time            current time.
+ * @param   interpolation   a vierkant::InterpolationMode
+ * @param   transforms      ref to an array of transformation-matrices. will be populated by this function.
  */
 void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
-                             std::vector<vierkant::transform_t> &transforms);
+                             vierkant::InterpolationMode interpolation, std::vector<vierkant::transform_t> &transforms);
 
 /**
  * @brief   Create local transformation matrices, matching the provided node-hierarchy and animation.
@@ -74,9 +73,11 @@ void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &a
  * @param   root        a root node of a node-hierarchy.
  * @param   animation   a const-ref for an animation_t object.
  * @param   time        current time.
+ * @param   interpolation   a vierkant::InterpolationMode
  * @param   transforms  ref to an array of transformation-matrices. will be populated by this function.
  */
 void build_local_transforms_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
+                                vierkant::InterpolationMode interpolation,
                                 std::vector<vierkant::transform_t> &transforms);
 
 /**
@@ -86,10 +87,11 @@ void build_local_transforms_bfs(const NodeConstPtr &root, const node_animation_t
  * @param   root            a root node of a node-hierarchy.
  * @param   animation       a const-ref for an animation_t object.
  * @param   time            current time.
+ * @param   interpolation   a vierkant::InterpolationMode
  * @param   morph_weights   ref to an array of morph-weights. will be populated by this function.
  */
 template<typename T = float, typename = std::enable_if<std::is_floating_point_v<T>>>
 void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
-                             std::vector<std::vector<T>> &morph_weights);
+                             vierkant::InterpolationMode interpolation, std::vector<std::vector<T>> &morph_weights);
 
 }// namespace vierkant::nodes

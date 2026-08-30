@@ -163,7 +163,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
 
     for(const auto &[id, item]: params.mesh_compute_items)
     {
-        const auto &[mesh, animation_state] = item;
+        const auto &[mesh, animation_cmp] = item;
 
         // avoid computing duplicates
         auto cache_it = cached_offsets.find(item);
@@ -177,11 +177,11 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
         assert(vertex_stride == sizeof(packed_vertex_t));
 
         bool animation_update =
-                mesh && animation_state.index < mesh->node_animations.size() && (mesh->root_bone || mesh->morph_buffer);
+                mesh && animation_cmp.index < mesh->node_animations.size() && (mesh->root_bone || mesh->morph_buffer);
 
         if(animation_update)
         {
-            const auto &animation = mesh->node_animations[animation_state.index];
+            const auto &animation = mesh->node_animations[animation_cmp.index];
 
             // store current offset for this id
             ret.vertex_buffer_offsets[id] = vertex_offset;
@@ -191,8 +191,9 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
             {
                 // create array of bone-transformations for this mesh+animation-state
                 std::vector<vierkant::transform_t> bone_transforms;
-                vierkant::nodes::build_node_matrices_bfs(
-                        mesh->root_bone, animation, static_cast<float>(animation_state.current_time), bone_transforms);
+                vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, animation,
+                                                         static_cast<float>(animation_cmp.current_time),
+                                                         animation_cmp.interpolation_mode, bone_transforms);
 
                 // keep track of offsets
                 size_t bone_offset = combined_bone_data.size() * sizeof(vierkant::transform_t);
@@ -233,8 +234,8 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
                 // morph-target weights
                 std::vector<std::vector<float>> node_morph_weights;
                 vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation,
-                                                         static_cast<float>(animation_state.current_time),
-                                                         node_morph_weights);
+                                                         static_cast<float>(animation_cmp.current_time),
+                                                         animation_cmp.interpolation_mode, node_morph_weights);
 
                 for(uint32_t i = 0; i < mesh->entries.size(); ++i)
                 {

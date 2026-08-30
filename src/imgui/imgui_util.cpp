@@ -1284,7 +1284,10 @@ bool draw_light_ui(vierkant::lightsource_t &light)
                 tex_data.texture_id = vierkant::TextureId::from_string(text_buf);
                 light.cookie = tex_data;
             }
-            else { light.cookie.reset(); }
+            else
+            {
+                light.cookie.reset();
+            }
             changed = true;
         }
     }
@@ -1471,26 +1474,30 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
     // animation
     if(!mesh->node_animations.empty() && ImGui::TreeNode("animation") && object->has_component<animation_component_t>())
     {
-        auto &animation_state = object->get_component<animation_component_t>();
+        auto &animation_cmp = object->get_component<animation_component_t>();
 
         // animation index
-        int animation_index = static_cast<int>(animation_state.index);
+        int animation_index = static_cast<int>(animation_cmp.index);
 
         std::vector<const char *> animation_items;
         for(auto &anim: mesh->node_animations) { animation_items.push_back(anim.name.c_str()); }
 
         if(ImGui::Combo("name", &animation_index, animation_items.data(), static_cast<int>(animation_items.size())))
         {
-            animation_state.index = animation_index;
+            animation_cmp.index = animation_index;
+            if(mesh->node_animations.size() > animation_cmp.index)
+            {
+                animation_cmp.interpolation_mode = mesh->node_animations[animation_index].interpolation_mode;
+            }
         }
 
-        auto &animation = mesh->node_animations[animation_state.index];
+        auto &animation = mesh->node_animations[animation_cmp.index];
 
         // animation speed
-        auto speed = static_cast<float>(animation_state.animation_speed);
-        if(ImGui::SliderFloat("speed", &speed, -3.f, 3.f)) { animation_state.animation_speed = speed; }
+        auto speed = static_cast<float>(animation_cmp.animation_speed);
+        if(ImGui::SliderFloat("speed", &speed, -3.f, 3.f)) { animation_cmp.animation_speed = speed; }
         ImGui::SameLine();
-        if(ImGui::Checkbox("play", &animation_state.playing)) {}
+        if(ImGui::Checkbox("play", &animation_cmp.playing)) {}
 
         // interpolation-mode
         const char *interpolation_mode_items[] = {"Linear", "Step", "CubicSpline"};
@@ -1498,25 +1505,24 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
                                                              InterpolationMode::CubicSpline};
         int mode_index = 0;
 
-        for(auto mode: interpolation_modes)
+        for(const auto mode: interpolation_modes)
         {
-            if(animation.interpolation_mode == mode) { break; }
+            if(animation_cmp.interpolation_mode == mode) { break; }
             mode_index++;
         }
 
         if(ImGui::Combo("interpolation", &mode_index, interpolation_mode_items, IM_ARRAYSIZE(interpolation_mode_items)))
         {
-            //            animation.interpolation_mode = interpolation_modes[mode_index];
-            spdlog::error("cannot assign interpolation-mode here -> FIX");
+            animation_cmp.interpolation_mode = interpolation_modes[mode_index];
         }
 
-        float current_time = static_cast<float>(animation_state.current_time) / animation.ticks_per_sec;
+        float current_time = static_cast<float>(animation_cmp.current_time) / animation.ticks_per_sec;
         float duration = animation.duration / animation.ticks_per_sec;
 
         // animation current time / max time
         if(ImGui::SliderFloat(("/ " + crocore::to_string(duration, 2) + " s").c_str(), &current_time, 0.f, duration))
         {
-            animation_state.current_time = current_time * animation.ticks_per_sec;
+            animation_cmp.current_time = current_time * animation.ticks_per_sec;
         }
         ImGui::Separator();
         ImGui::TreePop();
@@ -2170,9 +2176,9 @@ bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::Obj
         else
         {
             const auto &perspective_params = cam_cmp->physical;
-            auto proj = glm::perspectiveRH(perspective_params.fovy(), sz.x / sz.y,
-                                           perspective_params.clipping_distances.x,
-                                           perspective_params.clipping_distances.y);
+            auto proj =
+                    glm::perspectiveRH(perspective_params.fovy(), sz.x / sz.y, perspective_params.clipping_distances.x,
+                                       perspective_params.clipping_distances.y);
             changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
                                            ImGuizmo::OPERATION(current_gizmo), mode, glm::value_ptr(m));
         }

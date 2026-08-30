@@ -55,8 +55,10 @@ std::vector<vierkant::drawable_t> create_mesh_drawables(const vierkant::mesh_com
     if(!mesh_component.library && !mesh->root_bone && params.animation_index < mesh->node_animations.size())
     {
         const auto &animation = mesh->node_animations[params.animation_index];
-        vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation, params.animation_time, node_transforms);
-        vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, params.animation_time, node_morph_weights);
+        vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation, params.animation_time,
+                                                 params.interpolation_mode, node_transforms);
+        vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, params.animation_time,
+                                                 params.interpolation_mode, node_morph_weights);
     }
 
     bool use_meshlets = mesh->meshlets && mesh->meshlet_vertices && mesh->meshlet_triangles;

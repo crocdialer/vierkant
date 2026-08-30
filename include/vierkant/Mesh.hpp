@@ -9,6 +9,7 @@
 #include "vierkant/Geometry.hpp"
 #include "vierkant/Material.hpp"
 #include <vierkant/intersection.hpp>
+#include <vierkant/nodes.hpp>
 #include <vierkant/transform.hpp>
 #include <vierkant/vertex_attrib.hpp>
 

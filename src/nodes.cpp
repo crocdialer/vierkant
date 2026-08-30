@@ -56,17 +56,18 @@ NodeConstPtr node_by_name(const NodeConstPtr &root, const std::string &name)
 }
 
 void build_local_transforms_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
+                                vierkant::InterpolationMode interpolation,
                                 std::vector<vierkant::transform_t> &transforms)
 {
     if(!root) { return; }
     transforms.resize(num_nodes_in_hierarchy(root));
 
-    bfs(root, [&transforms, &animation, time](const NodeConstPtr &node) {
+    bfs(root, [&transforms, &animation, time, interpolation](const NodeConstPtr &node) {
         auto node_transform = node->transform;
 
         if(const auto it = animation.keys.find(node); it != animation.keys.end())
         {
-            create_animation_transform(it->second, time, animation.interpolation_mode, node_transform);
+            create_animation_transform(it->second, time, interpolation, node_transform);
         }
         transforms[node->index] = node_transform;
         return true;
@@ -75,12 +76,12 @@ void build_local_transforms_bfs(const NodeConstPtr &root, const node_animation_t
 
 template<typename T, typename>
 void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
-                             std::vector<std::vector<T>> &morph_weights)
+                             vierkant::InterpolationMode interpolation, std::vector<std::vector<T>> &morph_weights)
 {
     if(!root) { return; }
     morph_weights.resize(num_nodes_in_hierarchy(root));
 
-    bfs(root, [&morph_weights, &animation, time](auto &node) {
+    bfs(root, [&morph_weights, &animation, time, interpolation](auto &node) {
         auto it = animation.keys.find(node);
 
         if(it != animation.keys.end())
@@ -90,7 +91,7 @@ void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &a
             if(!animation_keys.morph_weights.empty())
             {
                 std::vector<double> tmp_weights;
-                create_morph_weights(animation_keys, time, animation.interpolation_mode, tmp_weights);
+                create_morph_weights(animation_keys, time, interpolation, tmp_weights);
                 morph_weights[node->index].resize(tmp_weights.size());
                 std::transform(tmp_weights.begin(), tmp_weights.end(), morph_weights[node->index].begin(),
                                [](double w) -> T { return static_cast<T>(w); });
@@ -102,12 +103,15 @@ void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &a
 
 // explicit template-specializations
 template void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
+                                      vierkant::InterpolationMode interpolation,
                                       std::vector<std::vector<float>> &morph_weights);
 
 template void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
+                                      vierkant::InterpolationMode interpolation,
                                       std::vector<std::vector<double>> &morph_weights);
 
-void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
+void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &animation, const float time,
+                             const vierkant::InterpolationMode interpolation,
                              std::vector<vierkant::transform_t> &transforms)
 {
     if(!root) { return; }
@@ -127,7 +131,7 @@ void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &a
         if(it != animation.keys.end())
         {
             const auto &animation_keys = it->second;
-            create_animation_transform(animation_keys, time, animation.interpolation_mode, node_transform);
+            create_animation_transform(animation_keys, time, interpolation, node_transform);
         }
         global_joint_transform = global_joint_transform * node_transform;
 

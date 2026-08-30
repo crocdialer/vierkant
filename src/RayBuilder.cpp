@@ -478,13 +478,14 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
         if(!(mesh->root_bone || mesh->morph_buffer) && object->has_component<animation_component_t>())
         {
-            vierkant::object_component auto &animation_state = object->get_component<animation_component_t>();
+            vierkant::object_component auto &animation_cmp = object->get_component<animation_component_t>();
 
-            if(animation_state.index < mesh->node_animations.size())
+            if(animation_cmp.index < mesh->node_animations.size())
             {
-                const auto &animation = mesh->node_animations[animation_state.index];
-                vierkant::nodes::build_node_matrices_bfs(
-                        mesh->root_node, animation, static_cast<float>(animation_state.current_time), node_transforms);
+                const auto &animation = mesh->node_animations[animation_cmp.index];
+                vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation,
+                                                         static_cast<float>(animation_cmp.current_time),
+                                                         animation_cmp.interpolation_mode, node_transforms);
             }
         }
         auto obj_global_transform = object->global_transform();
@@ -578,7 +579,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
                     for(const auto &[type_flag, tex_data]: mat->texture_data)
                     {
-                        const auto &tex = params.scene->asset_provider()->texture({tex_data.texture_id, tex_data.sampler_id});
+                        const auto &tex =
+                                params.scene->asset_provider()->texture({tex_data.texture_id, tex_data.sampler_id});
 
                         material.texture_type_flags |= static_cast<uint32_t>(type_flag);
 

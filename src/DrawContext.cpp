@@ -171,6 +171,7 @@ void DrawContext::draw_mesh(vierkant::Rasterizer &renderer, const vierkant::Mesh
 
 void DrawContext::draw_node_hierarchy(vierkant::Rasterizer &renderer, const vierkant::nodes::NodeConstPtr &root_node,
                                       const vierkant::nodes::node_animation_t &animation, float animation_time,
+                                      vierkant::InterpolationMode interpolation,
                                       const vierkant::transform_t &transform, const glm::mat4 &projection)
 {
     if(!root_node) { return; }
@@ -193,7 +194,7 @@ void DrawContext::draw_node_hierarchy(vierkant::Rasterizer &renderer, const vier
         if(it != animation.keys.end())
         {
             const auto &animation_keys = it->second;
-            create_animation_transform(animation_keys, animation_time, animation.interpolation_mode, node_transform);
+            create_animation_transform(animation_keys, animation_time, interpolation, node_transform);
         }
         joint_transform = joint_transform * node_transform;
 

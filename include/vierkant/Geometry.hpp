@@ -6,7 +6,6 @@
 
 #include <vierkant/Device.hpp>
 #include <vierkant/math.hpp>
-#include <vierkant/nodes.hpp>
 
 namespace vierkant
 {

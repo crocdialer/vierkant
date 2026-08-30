@@ -219,6 +219,7 @@ std::hash<vierkant::animation_component_t_<T>>::operator()(vierkant::animation_c
 {
     size_t h = 0;
     vierkant::hash_combine(h, animation_state.index);
+    vierkant::hash_combine(h, animation_state.interpolation_mode);
     vierkant::hash_combine(h, animation_state.current_time);
     vierkant::hash_combine(h, animation_state.animation_speed);
     vierkant::hash_combine(h, animation_state.playing);

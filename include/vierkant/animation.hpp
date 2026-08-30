@@ -77,6 +77,9 @@ struct animation_component_t_
     //! index into an array of animations
     uint32_t index = 0;
 
+    //! interpolation-mode, seeded from the selected animation
+    InterpolationMode interpolation_mode = InterpolationMode::Linear;
+
     //! true if animation is playing
     bool playing = true;
 

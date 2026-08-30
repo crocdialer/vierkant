@@ -50,6 +50,7 @@ public:
                 {
                     const auto &animation_state = object.get_component<animation_component_t>();
                     drawable_params.animation_index = animation_state.index;
+                    drawable_params.interpolation_mode = animation_state.interpolation_mode;
                     drawable_params.animation_time = static_cast<float>(animation_state.current_time);
                 }
                 auto mesh_drawables = vierkant::create_mesh_drawables(*mesh_component, drawable_params);
