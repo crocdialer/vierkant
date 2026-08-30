@@ -64,6 +64,7 @@ vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_com
     {
         auto &anim_cmp = object->add_component<vierkant::animation_component_t>();
         anim_cmp.interpolation_mode = mesh_component.mesh->node_animations[0].interpolation_mode;
+        anim_cmp.current_time = mesh_component.mesh->node_animations[0].start_time;
     }
 
     vierkant::object_component auto &aabb_component = object->add_component<vierkant::aabb_component_t>();

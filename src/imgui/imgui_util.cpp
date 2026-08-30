@@ -1517,10 +1517,12 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
         }
 
         float current_time = static_cast<float>(animation_cmp.current_time) / animation.ticks_per_sec;
+        float start_time = animation.start_time / animation.ticks_per_sec;
         float duration = animation.duration / animation.ticks_per_sec;
 
         // animation current time / max time
-        if(ImGui::SliderFloat(("/ " + crocore::to_string(duration, 2) + " s").c_str(), &current_time, 0.f, duration))
+        if(ImGui::SliderFloat(("/ " + crocore::to_string(duration, 2) + " s").c_str(), &current_time, start_time,
+                              start_time + duration))
         {
             animation_cmp.current_time = current_time * animation.ticks_per_sec;
         }

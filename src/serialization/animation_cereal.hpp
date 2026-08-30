@@ -31,7 +31,8 @@ void serialize(Archive &archive, vierkant::animation_keys_t_<T> &keys)
 template<class Archive, class T>
 void serialize(Archive &archive, vierkant::animation_t<T> &animation)
 {
-    archive(cereal::make_nvp("name", animation.name), cereal::make_nvp("duration", animation.duration),
+    archive(cereal::make_nvp("name", animation.name), cereal::make_nvp("start_time", animation.start_time),
+            cereal::make_nvp("duration", animation.duration),
             cereal::make_nvp("ticks_per_sec", animation.ticks_per_sec), cereal::make_nvp("keys", animation.keys),
             cereal::make_nvp("interpolation_mode", animation.interpolation_mode));
 }
