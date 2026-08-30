@@ -333,10 +333,10 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr
                 flag_cmp.timestamp(flag_component_t::DIRTY_LIGHT) + m_frame_contexts.size() >= frame_thresh;
         if(light_dirty || object->has_component<vierkant::lightsource_component_t>())
         {
-            frame_context.lights_dirty = frame_context.lights_dirty || light_dirty ||
-                                         last_inherited_flag_update(object, flag_component_t::DIRTY_TRANSFORM) +
-                                                         m_frame_contexts.size() >=
-                                                 frame_thresh;
+            frame_context.lights_dirty =
+                    frame_context.lights_dirty || light_dirty ||
+                    last_inherited_flag_update(object, flag_component_t::DIRTY_TRANSFORM) + m_frame_contexts.size() >=
+                            frame_thresh;
         }
 
         const auto *mesh_component = object->get_component_ptr<mesh_component_t>();
@@ -362,10 +362,11 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const Object3DPtr
 
         if(animation_update)
         {
-            const vierkant::object_component auto &animation_state = object->get_component<animation_component_t>();
-            const auto &animation = mesh->node_animations[animation_state.index];
+            const vierkant::object_component auto &animation_cmp = object->get_component<animation_component_t>();
+            const auto &animation = mesh->node_animations[animation_cmp.index];
             vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation,
-                                                     static_cast<float>(animation_state.current_time), node_transforms);
+                                                     static_cast<float>(animation_cmp.current_time),
+                                                     animation_cmp.interpolation_mode, node_transforms);
             flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
         }
 
@@ -1248,8 +1249,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const Object3DPtr &cam, const vierk
 
         const auto &cam_cmp = cam->get_component<camera_component_t>();
 
-        if(cam_cmp.projection == vierkant::camera_component_t::PERSPECTIVE &&
-           !drawable.descriptors[1].buffers.empty())
+        if(cam_cmp.projection == vierkant::camera_component_t::PERSPECTIVE && !drawable.descriptors[1].buffers.empty())
         {
             const auto &cam_params = cam_cmp.physical;
             depth_of_field_params_t dof_params = {};

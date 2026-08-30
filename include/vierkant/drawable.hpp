@@ -129,6 +129,7 @@ struct create_mesh_drawables_params_t
     int32_t lod_index = 0;
 
     uint32_t animation_index = 0;
+    vierkant::InterpolationMode interpolation_mode = vierkant::InterpolationMode::Linear;
     float animation_time = 0.f;
 };
 

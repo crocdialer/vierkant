@@ -544,7 +544,8 @@ vierkant::window_delegate_t::draw_result_t VierkantEd::draw(const vierkant::Wind
                     auto node_transform = mesh->root_bone ? modelview * mesh->skin_transform : modelview;
                     m_draw_context.draw_node_hierarchy(m_renderer_overlay, node, animation,
                                                        static_cast<float>(animation_state.current_time),
-                                                       node_transform, cam_projection);
+                                                       animation_state.interpolation_mode, node_transform,
+                                                       cam_projection);
                 }
             }
         }

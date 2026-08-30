@@ -10,8 +10,6 @@
 
 #include <crocore/Image.hpp>
 #include <crocore/ThreadPoolClassic.hpp>
-
-#include <vierkant/Geometry.hpp>
 #include <vierkant/Material.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/camera_params.hpp>
@@ -48,26 +46,26 @@ struct camera_t
 
 struct omm_gen_params_t
 {
-    int   max_level   = 4;
+    int max_level = 4;
     float target_edge = 0.5f;
-    int   states      = 4;  // 4 = VK_OPACITY_MICROMAP_FORMAT_4_STATE_EXT
+    int states = 4;// 4 = VK_OPACITY_MICROMAP_FORMAT_4_STATE_EXT
 };
 
 struct mesh_omm_entry_t
 {
-    std::vector<uint8_t>               data;
+    std::vector<uint8_t> data;
     std::vector<VkMicromapTriangleEXT> triangles;
-    std::vector<int32_t>               indices;
+    std::vector<int32_t> indices;
 };
 
 //! bundle-relative OMM data: keyed only on {entry_index, color_texture_id} (no runtime mesh_id),
 //! so it can be serialized into the asset-bundle and adopted at load-time.
 struct mesh_omm_data_t
 {
-    uint32_t            entry_index = 0;
+    uint32_t entry_index = 0;
     //! the Color-texture id determines the baked alpha-mask; captured at bake time
     vierkant::TextureId color_texture_id;
-    mesh_omm_entry_t    entry;
+    mesh_omm_entry_t entry;
 };
 
 /**
@@ -115,12 +113,12 @@ struct model_assets_t
 
 //! schema-version folded into the bundle cache-key; bump on any parsing/serialization change that
 //! would make existing bundles decode wrong. layout-sizes are covered by serialized_layout_hash().
-constexpr uint32_t bundle_schema_version = 6;
+constexpr uint32_t bundle_schema_version = 7;
 
 struct mesh_omm_key_t
 {
-    vierkant::MeshId    mesh_id;
-    uint32_t            entry_index = 0;
+    vierkant::MeshId mesh_id;
+    uint32_t entry_index = 0;
     //! the Color-texture id determines the baked alpha-mask; keying on it (rather than material-id)
     //! dedupes materials sharing a texture and invalidates correctly when a material is re-textured
     vierkant::TextureId color_texture_id;

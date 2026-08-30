@@ -825,6 +825,9 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
     vierkant::nodes::node_animation_t animation;
     animation.name = tiny_animation.name;
 
+    // track the key-time span, clips need not start at zero
+    float t_min = std::numeric_limits<float>::max(), t_max = std::numeric_limits<float>::lowest();
+
     for(const auto &channel: tiny_animation.channels)
     {
         auto it = node_map.find(channel.target_node);
@@ -851,8 +854,9 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                 auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
                 auto ptr = reinterpret_cast<const float *>(data);
                 input_times = {ptr, ptr + accessor.count};
-                animation.duration =
-                        std::max(animation.duration, *std::max_element(input_times.begin(), input_times.end()));
+                auto [min_it, max_it] = std::minmax_element(input_times.begin(), input_times.end());
+                t_min = std::min(t_min, *min_it);
+                t_max = std::max(t_max, *max_it);
 
                 animation.interpolation_mode = vierkant::InterpolationMode::Linear;
 
@@ -955,6 +959,12 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                 }
             }
         }
+    }
+
+    if(t_min <= t_max)
+    {
+        animation.start_time = t_min;
+        animation.duration = t_max - t_min;
     }
     return animation;
 }

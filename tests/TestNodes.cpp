@@ -38,7 +38,7 @@ TEST(Nodes, build_local_transforms_bfs_without_animation)
     auto hierarchy = create_test_hierarchy();
 
     std::vector<transform_t> transforms;
-    nodes::build_local_transforms_bfs(hierarchy.root, {}, 0.f, transforms);
+    nodes::build_local_transforms_bfs(hierarchy.root, {}, 0.f, vierkant::InterpolationMode::Linear, transforms);
 
     ASSERT_EQ(transforms.size(), 2);
 
@@ -56,7 +56,7 @@ TEST(Nodes, build_local_transforms_bfs_animated_node_stays_local)
     animation.keys[hierarchy.root].positions[0.f] = {.value = {7.f, 8.f, 9.f}};
 
     std::vector<transform_t> transforms;
-    nodes::build_local_transforms_bfs(hierarchy.root, animation, 0.f, transforms);
+    nodes::build_local_transforms_bfs(hierarchy.root, animation, 0.f, vierkant::InterpolationMode::Linear, transforms);
 
     ASSERT_EQ(transforms.size(), 2);
 
@@ -72,7 +72,7 @@ TEST(Nodes, build_node_matrices_bfs_accumulates_and_applies_offset)
     auto hierarchy = create_test_hierarchy();
 
     std::vector<transform_t> matrices;
-    nodes::build_node_matrices_bfs(hierarchy.root, {}, 0.f, matrices);
+    nodes::build_node_matrices_bfs(hierarchy.root, {}, 0.f, vierkant::InterpolationMode::Linear, matrices);
 
     ASSERT_EQ(matrices.size(), 2);
 

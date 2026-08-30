@@ -15,7 +15,8 @@ static void update_bone_mirror(vierkant::Object3D &mirror_root, const vierkant::
 {
     std::vector<vierkant::transform_t> local_transforms;
     vierkant::nodes::build_local_transforms_bfs(mesh.root_bone, mesh.node_animations[animation_state.index],
-                                                static_cast<float>(animation_state.current_time), local_transforms);
+                                                static_cast<float>(animation_state.current_time),
+                                                animation_state.interpolation_mode, local_transforms);
 
     std::stack<vierkant::Object3D *> object_stack;
     object_stack.push(&mirror_root);
@@ -59,7 +60,12 @@ vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_com
     object->set_transform({});
 
     object->add_component(mesh_component);
-    if(!mesh_component.mesh->node_animations.empty()) { object->add_component<vierkant::animation_component_t>(); }
+    if(!mesh_component.mesh->node_animations.empty())
+    {
+        auto &anim_cmp = object->add_component<vierkant::animation_component_t>();
+        anim_cmp.interpolation_mode = mesh_component.mesh->node_animations[0].interpolation_mode;
+        anim_cmp.current_time = mesh_component.mesh->node_animations[0].start_time;
+    }
 
     vierkant::object_component auto &aabb_component = object->add_component<vierkant::aabb_component_t>();
 

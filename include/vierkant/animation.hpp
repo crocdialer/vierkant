@@ -57,6 +57,10 @@ template<typename T>
 struct animation_t
 {
     std::string name;
+
+    //! time of the first key. clips need not start at zero.
+    float start_time = 0.f;
+
     float duration = 0.f;
     float ticks_per_sec = 1.f;
     std::map<T, animation_keys_t> keys;
@@ -76,6 +80,9 @@ struct animation_component_t_
 
     //! index into an array of animations
     uint32_t index = 0;
+
+    //! interpolation-mode, seeded from the selected animation
+    InterpolationMode interpolation_mode = InterpolationMode::Linear;
 
     //! true if animation is playing
     bool playing = true;
@@ -97,8 +104,9 @@ void update_animation(const animation_t<T> &animation, double time_delta,
     if(animation_state.playing)
     {
         animation_state.current_time += time_delta * animation.ticks_per_sec * animation_state.animation_speed;
-        if(animation_state.current_time > animation.duration) { animation_state.current_time -= animation.duration; }
-        animation_state.current_time += animation_state.current_time < 0.f ? animation.duration : 0.f;
+        const auto end_time = animation.start_time + animation.duration;
+        if(animation_state.current_time > end_time) { animation_state.current_time -= animation.duration; }
+        animation_state.current_time += animation_state.current_time < animation.start_time ? animation.duration : 0.f;
     }
 }
 

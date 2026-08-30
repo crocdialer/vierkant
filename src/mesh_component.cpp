@@ -15,7 +15,8 @@ AABB mesh_aabb(const vierkant::mesh_component_t &cmp, const std::optional<vierka
     {
         const auto &animation = cmp.mesh->node_animations[anim_state->index];
         vierkant::nodes::build_node_matrices_bfs(cmp.mesh->root_node, animation,
-                                                 static_cast<float>(anim_state->current_time), node_transforms);
+                                                 static_cast<float>(anim_state->current_time),
+                                                 anim_state->interpolation_mode, node_transforms);
     }
 
     auto add_entry_to_aabb = [&ret, &node_transforms](const Mesh::entry_t &entry, bool mesh_library) {
@@ -50,7 +51,8 @@ std::vector<vierkant::AABB> mesh_sub_aabbs(const vierkant::mesh_component_t &cmp
     {
         const auto &animation = cmp.mesh->node_animations[anim_state->index];
         vierkant::nodes::build_node_matrices_bfs(cmp.mesh->root_node, animation,
-                                                 static_cast<float>(anim_state->current_time), node_transforms);
+                                                 static_cast<float>(anim_state->current_time),
+                                                 anim_state->interpolation_mode, node_transforms);
     }
 
     auto add_aabb = [&ret, &node_transforms](const Mesh::entry_t &entry, bool mesh_library) {
