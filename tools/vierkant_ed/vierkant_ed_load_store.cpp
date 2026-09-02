@@ -25,6 +25,10 @@ constexpr char g_file_suffix_model[] = "4km";
 //! import-time, so the normal-map/BC5 choice the model-loader makes is not available here.
 constexpr auto g_texture_compression_mode = vierkant::bcn::BC7;
 
+//! environment-cubemaps are baked into a renderable float-format, then stored block-compressed.
+//! BC6H is 8x smaller than RGBA16F and, unlike B10G11R11, does not band on smooth sky-gradients.
+constexpr VkFormat g_environment_storage_format = VK_FORMAT_BC6H_UFLOAT_BLOCK;
+
 std::filesystem::path VierkantEd::material_bundle_path(const std::string &scene_path) const
 {
     auto file_name = std::format(
@@ -42,7 +46,7 @@ std::filesystem::path VierkantEd::texture_bundle_path(const std::string &image_k
 std::filesystem::path VierkantEd::environment_bundle_path(const std::string &image_key) const
 {
     return m_project_root / g_cache_path / g_environment_store_path /
-           vierkant::environment_bundle_filename(image_key, m_hdr_texture_format, s_lambert_size);
+           vierkant::environment_bundle_filename(image_key, g_environment_storage_format, s_lambert_size);
 }
 
 void VierkantEd::establish_project_root(const std::filesystem::path &top_scene_path)
@@ -367,13 +371,19 @@ void VierkantEd::load_environment(const std::string &path)
                 // submit and sync
                 cmd_buf.submit(m_queue_image_loading, true);
 
+                // block-compress on the gpu, where the cubemaps already are: only the blocks are
+                // read back, and rendering from them makes this first run match every cached one.
+                vierkant::environment_assets_t env_assets = {};
+                env_assets.skybox = vierkant::compress_cubemap(skybox, m_queue_image_loading);
+                env_assets.conv_lambert = vierkant::compress_cubemap(conv_lambert, m_queue_image_loading);
+                env_assets.conv_ggx = vierkant::compress_cubemap(conv_ggx, m_queue_image_loading);
+
+                skybox = vierkant::upload_cubemap(m_device, env_assets.skybox, m_queue_image_loading);
+                conv_lambert = vierkant::upload_cubemap(m_device, env_assets.conv_lambert, m_queue_image_loading);
+                conv_ggx = vierkant::upload_cubemap(m_device, env_assets.conv_ggx, m_queue_image_loading);
+
                 if(m_settings.cache_mesh_bundles)
                 {
-                    vierkant::environment_assets_t env_assets = {};
-                    env_assets.skybox = vierkant::download_cubemap(skybox, m_queue_image_loading);
-                    env_assets.conv_lambert = vierkant::download_cubemap(conv_lambert, m_queue_image_loading);
-                    env_assets.conv_ggx = vierkant::download_cubemap(conv_ggx, m_queue_image_loading);
-
                     background_queue().post([this, env_assets = std::move(env_assets), cache_path] {
                         save_environment_bundle(env_assets, cache_path);
                     });

@@ -2,8 +2,8 @@
 
 #include <array>
 
+#include <vierkant/Compute.hpp>
 #include <vierkant/cubemap_data.hpp>
-#include <vierkant/shaders.hpp>
 #include <vierkant/shaders_slang.hpp>
 
 namespace vierkant
@@ -434,6 +434,40 @@ vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue qu
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//! addressing-block of a format: dimensions in texels plus the bytes one block occupies.
+struct format_block_t
+{
+    uint32_t width = 1, height = 1, num_bytes = 0;
+};
+
+static format_block_t format_block(VkFormat format)
+{
+    switch(format)
+    {
+        // every BC format in use here packs a 4x4 block into 128 bit
+        case VK_FORMAT_BC5_UNORM_BLOCK:
+        case VK_FORMAT_BC5_SNORM_BLOCK:
+        case VK_FORMAT_BC6H_UFLOAT_BLOCK:
+        case VK_FORMAT_BC6H_SFLOAT_BLOCK:
+        case VK_FORMAT_BC7_UNORM_BLOCK:
+        case VK_FORMAT_BC7_SRGB_BLOCK: return {4, 4, 16};
+        default: return {1, 1, static_cast<uint32_t>(vierkant::num_bytes(format))};
+    }
+}
+
+size_t cubemap_level_num_bytes(VkFormat format, uint32_t level_size)
+{
+    constexpr uint32_t num_faces = 6;
+    const auto block = format_block(format);
+
+    // a mip-level smaller than the block still occupies one full block
+    const uint32_t blocks_x = (level_size + block.width - 1) / block.width;
+    const uint32_t blocks_y = (level_size + block.height - 1) / block.height;
+    return num_faces * blocks_x * blocks_y * block.num_bytes;
+}
+
 cubemap_data_t download_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue)
 {
     constexpr uint32_t num_faces = 6;
@@ -441,7 +475,6 @@ cubemap_data_t download_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue
 
     const auto &img_fmt = cubemap->format();
     const uint32_t num_mips = cubemap->num_mip_levels();
-    const VkDeviceSize texel_bytes = vierkant::num_bytes(img_fmt.format);
 
     cubemap_data_t ret = {};
     ret.format = img_fmt.format;
@@ -462,9 +495,10 @@ cubemap_data_t download_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue
     for(uint32_t lvl = 0; lvl < num_mips; ++lvl)
     {
         const uint32_t level_size = std::max<uint32_t>(ret.size >> lvl, 1);
-        const VkDeviceSize face_bytes = texel_bytes * level_size * level_size;
+        const VkDeviceSize level_bytes = cubemap_level_num_bytes(img_fmt.format, level_size);
+        const VkDeviceSize face_bytes = level_bytes / num_faces;
 
-        level_buffers[lvl] = vierkant::Buffer::create(device, nullptr, num_faces * face_bytes,
+        level_buffers[lvl] = vierkant::Buffer::create(device, nullptr, level_bytes,
                                                       VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_TO_CPU);
 
         std::array<VkBufferImageCopy2, num_faces> regions = {};
@@ -551,6 +585,140 @@ vierkant::ImagePtr upload_cubemap(const vierkant::DevicePtr &device, const cubem
     }
     ret->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, cmd_buf.handle());
     cmd_buf.submit(queue, true);
+    return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+cubemap_data_t compress_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue)
+{
+    constexpr uint32_t num_faces = 6;
+    constexpr VkFormat bc6h_format = VK_FORMAT_BC6H_UFLOAT_BLOCK;
+
+    if(!cubemap || cubemap->format().num_layers != num_faces) { return {}; }
+
+    //! mirrors bc6h_params_t in compress_bc6h.slang
+    struct bc6h_params_t
+    {
+        uint32_t texture_size[2];
+        uint32_t size_in_blocks[2];
+        uint32_t mip_level;
+    };
+
+    const auto &img_fmt = cubemap->format();
+    const uint32_t num_mips = cubemap->num_mip_levels();
+
+    cubemap_data_t ret = {};
+    ret.format = bc6h_format;
+    ret.size = img_fmt.extent.width;
+    ret.levels.resize(num_mips);
+
+    auto device = cubemap->device();
+
+    // the cube-image is array-compatible, so it can be read per-face through a 2d-array view
+    VkImageViewCreateInfo view_create_info = {};
+    view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view_create_info.image = cubemap->image();
+    view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+    view_create_info.format = img_fmt.format;
+    view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    view_create_info.subresourceRange.baseMipLevel = 0;
+    view_create_info.subresourceRange.levelCount = num_mips;
+    view_create_info.subresourceRange.baseArrayLayer = 0;
+    view_create_info.subresourceRange.layerCount = num_faces;
+
+    VkImageView raw_view = VK_NULL_HANDLE;
+    vkCheck(vkCreateImageView(device->handle(), &view_create_info, nullptr, &raw_view),
+            "compress_cubemap: failed to create array-view");
+    vierkant::VkImageViewPtr array_view(raw_view, [device](VkImageView v) {
+        vkDestroyImageView(device->handle(), v, nullptr);
+    });
+
+    // Compute's default descriptor-pool has no SAMPLED_IMAGE, which is what a Texture2DArray binds as
+    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, num_mips},
+                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, num_mips}};
+    vierkant::Compute::create_info_t compute_info = {};
+    compute_info.descriptor_pool = vierkant::create_descriptor_pool(device, descriptor_counts, num_mips);
+    vierkant::Compute compute(device, compute_info);
+
+    auto shader_stage = vierkant::create_shader_module(vierkant::slang_shaders::slang::compress_bc6h_slang);
+    const auto local_size = *shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT)[0].group_count;
+
+    // the range has to be part of the pipeline-info: it is the key the pipeline is created from
+    VkPushConstantRange push_constant_range = {};
+    push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    push_constant_range.offset = 0;
+    push_constant_range.size = sizeof(bc6h_params_t);
+
+    auto command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
+                                                      VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+    auto cmd_buf = vierkant::CommandBuffer(device, command_pool.get());
+    cmd_buf.begin();
+
+    // the shader samples the cubemap, the descriptor picks up whatever layout it is in
+    const VkImageLayout prev_layout = cubemap->image_layout();
+    cubemap->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, cmd_buf.handle());
+
+    std::vector<vierkant::BufferPtr> block_buffers(num_mips), host_buffers(num_mips);
+    std::vector<vierkant::Compute::computable_t> computables(num_mips);
+
+    for(uint32_t lvl = 0; lvl < num_mips; ++lvl)
+    {
+        const uint32_t level_size = std::max<uint32_t>(ret.size >> lvl, 1);
+        const uint32_t blocks_per_side = (level_size + 3) / 4;
+        const VkDeviceSize level_bytes = cubemap_level_num_bytes(bc6h_format, level_size);
+
+        block_buffers[lvl] =
+                vierkant::Buffer::create(device, nullptr, level_bytes,
+                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                         VMA_MEMORY_USAGE_GPU_ONLY);
+        host_buffers[lvl] = vierkant::Buffer::create(device, nullptr, level_bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                     VMA_MEMORY_USAGE_GPU_TO_CPU);
+
+        bc6h_params_t push_constants = {};
+        push_constants.texture_size[0] = push_constants.texture_size[1] = level_size;
+        push_constants.size_in_blocks[0] = push_constants.size_in_blocks[1] = blocks_per_side;
+        push_constants.mip_level = lvl;
+
+        auto &computable = computables[lvl];
+        computable.pipeline_info.shader_stage = shader_stage;
+        computable.pipeline_info.push_constant_ranges = {push_constant_range};
+        computable.extent = {vierkant::group_count(blocks_per_side, local_size.x),
+                             vierkant::group_count(blocks_per_side, local_size.y), num_faces};
+        computable.push_constants.resize(sizeof(bc6h_params_t));
+        memcpy(computable.push_constants.data(), &push_constants, sizeof(bc6h_params_t));
+
+        auto &desc_src = computable.descriptors[0];
+        desc_src.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        desc_src.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_src.images = {cubemap};
+        desc_src.image_views = {array_view.get()};
+
+        auto &desc_blocks = computable.descriptors[1];
+        desc_blocks.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_blocks.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_blocks.buffers = {block_buffers[lvl]};
+    }
+    compute.dispatch(computables, cmd_buf.handle());
+
+    for(uint32_t lvl = 0; lvl < num_mips; ++lvl)
+    {
+        block_buffers[lvl]->barrier(cmd_buf.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                    VK_ACCESS_2_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_2_COPY_BIT,
+                                    VK_ACCESS_2_TRANSFER_READ_BIT);
+        block_buffers[lvl]->copy_to(host_buffers[lvl], cmd_buf.handle());
+    }
+    cubemap->transition_layout(prev_layout != VK_IMAGE_LAYOUT_UNDEFINED ? prev_layout
+                                                                        : VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+                               cmd_buf.handle());
+    cmd_buf.submit(queue, true);
+
+    for(uint32_t lvl = 0; lvl < num_mips; ++lvl)
+    {
+        const auto *ptr = static_cast<const uint8_t *>(host_buffers[lvl]->map());
+        ret.levels[lvl] = {ptr, ptr + host_buffers[lvl]->num_bytes()};
+        host_buffers[lvl]->unmap();
+    }
     return ret;
 }
 

@@ -69,7 +69,7 @@ constexpr char environment_bundle_file_suffix[] = "4ke";
 
 //! schema-versions folded into the texture-/environment-cache keys; bump on any payload change.
 constexpr uint32_t texture_schema_version = 1;
-constexpr uint32_t environment_schema_version = 1;
+constexpr uint32_t environment_schema_version = 2;
 
 //! compute the canonical bundle-filename for a model (e.g. "model.glb_<hash>.4km"). the hash
 //! covers the filename + bake-parameters + schema-version + serialized layout-identity.

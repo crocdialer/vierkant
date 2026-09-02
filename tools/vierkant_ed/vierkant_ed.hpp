@@ -284,7 +284,8 @@ private:
     // B10G11R11 saves 50% memory but now seeing more&more cases with strong banding-issues
     VkFormat m_hdr_render_format = VK_FORMAT_R16G16B16A16_SFLOAT;//VK_FORMAT_B10G11R11_UFLOAT_PACK32;
 
-    //! format the environment-cubemaps are baked and sampled in
+    //! format the environment-cubemaps are baked in. they are stored and sampled block-compressed,
+    //! so this is the renderable format the convolutions render into, not what ends up resident.
     VkFormat m_hdr_texture_format = VK_FORMAT_R16G16B16A16_SFLOAT;
 
     //! edge-length of the diffuse (lambert) environment-convolution. folded into the environment

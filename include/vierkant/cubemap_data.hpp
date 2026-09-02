@@ -31,10 +31,25 @@ cubemap_data_t download_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue
  * @brief   create a sampled cubemap from host-side contents.
  *
  * @param   device  a provided vierkant::DevicePtr.
- * @param   data    host-side contents, as returned by download_cubemap.
+ * @param   data    host-side contents, as returned by download_cubemap or compress_cubemap.
  * @param   queue   a VkQueue used for the transfer.
  * @return  a cubemap in VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, or nullptr if 'data' is empty.
  */
 vierkant::ImagePtr upload_cubemap(const vierkant::DevicePtr &device, const cubemap_data_t &data, VkQueue queue);
+
+/**
+ * @brief   block-compress a cubemap to BC6H (UFLOAT) with a compute-pass.
+ *
+ *          runs on the GPU where the cubemap already lives, so only the compressed blocks are read
+ *          back. the source has to be a sampleable float-format cubemap, alpha is dropped.
+ *
+ * @param   cubemap a 6-layer image, created with VK_IMAGE_USAGE_SAMPLED_BIT.
+ * @param   queue   a VkQueue used for the dispatch and the readback.
+ * @return  host-side BC6H blocks, empty if 'cubemap' is not a compressible cubemap.
+ */
+cubemap_data_t compress_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue);
+
+//! number of bytes one mip-level of a cubemap occupies (all 6 faces), block-aware.
+size_t cubemap_level_num_bytes(VkFormat format, uint32_t level_size);
 
 }// namespace vierkant
