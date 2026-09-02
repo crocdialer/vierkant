@@ -14,6 +14,8 @@ VkDeviceSize num_bytes(VkFormat format)
     {
         case VK_FORMAT_BC7_UNORM_BLOCK:
         case VK_FORMAT_BC7_SRGB_BLOCK:
+        case VK_FORMAT_BC6H_UFLOAT_BLOCK:
+        case VK_FORMAT_BC6H_SFLOAT_BLOCK:
         case VK_FORMAT_R8_UNORM: return 1;
 
         case VK_FORMAT_R8G8B8A8_UNORM: return 4;

@@ -252,7 +252,7 @@ void VierkantEd::create_graphics_pipeline()
     vierkant::PBRDeferred::create_info_t pbr_render_info = {};
     pbr_render_info.queue = m_queue_render;
     pbr_render_info.num_frames_in_flight = framebuffers.size();
-    pbr_render_info.hdr_format = m_hdr_format;
+    pbr_render_info.hdr_format = m_hdr_render_format;
     pbr_render_info.pipeline_cache = m_pipeline_cache;
     pbr_render_info.settings = m_settings.pbr_settings;
     pbr_render_info.settings.use_ray_queries &= m_settings.enable_ray_query_features;
@@ -270,15 +270,14 @@ void VierkantEd::create_graphics_pipeline()
 
     if(!pbr_render_info.conv_lambert)
     {
-        constexpr uint32_t lambert_size = 128;
-        pbr_render_info.conv_lambert = vierkant::create_convolution_lambert(m_device, fallback_env, lambert_size,
-                                                                            m_hdr_format, m_queue_image_loading);
+        pbr_render_info.conv_lambert = vierkant::create_convolution_lambert(
+                m_device, fallback_env, s_lambert_size, m_hdr_texture_format, m_queue_image_loading);
     }
     if(!pbr_render_info.conv_ggx)
     {
         pbr_render_info.conv_ggx = fallback_env;
         pbr_render_info.conv_ggx = vierkant::create_convolution_ggx(m_device, fallback_env, fallback_env->width(),
-                                                                    m_hdr_format, m_queue_image_loading);
+                                                                    m_hdr_texture_format, m_queue_image_loading);
     }
     pbr_render_info.conv_lambert->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, VK_NULL_HANDLE);
     pbr_render_info.conv_ggx->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, VK_NULL_HANDLE);
@@ -356,7 +355,8 @@ void VierkantEd::create_texture_image()
     fmt.extent = {img->width(), img->height(), 1};
     fmt.use_mipmap = true;
     m_primitive_texture = vierkant::Image::create(m_device, img->data(), fmt);
-    m_environment_texture = vierkant::cubemap_neutral_environment(m_device, 256, m_device->queue(), true, m_hdr_format);
+    m_environment_texture =
+            vierkant::cubemap_neutral_environment(m_device, 256, m_device->queue(), true, m_hdr_texture_format);
     m_scene->set_environment(m_environment_texture);
     m_scene->asset_provider()->add_texture({m_primitive_texture_id, vierkant::SamplerId::nil()}, m_primitive_texture);
 
