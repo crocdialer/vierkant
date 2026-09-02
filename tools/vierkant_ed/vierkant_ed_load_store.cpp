@@ -25,9 +25,6 @@ constexpr char g_file_suffix_model[] = "4km";
 //! import-time, so the normal-map/BC5 choice the model-loader makes is not available here.
 constexpr auto g_texture_compression_mode = vierkant::bcn::BC7;
 
-//! edge-length of the diffuse (lambert) environment-convolution
-constexpr uint32_t g_lambert_size = 128;
-
 std::filesystem::path VierkantEd::material_bundle_path(const std::string &scene_path) const
 {
     auto file_name = std::format(
@@ -45,7 +42,7 @@ std::filesystem::path VierkantEd::texture_bundle_path(const std::string &image_k
 std::filesystem::path VierkantEd::environment_bundle_path(const std::string &image_key) const
 {
     return m_project_root / g_cache_path / g_environment_store_path /
-           vierkant::environment_bundle_filename(image_key, m_hdr_format, g_lambert_size);
+           vierkant::environment_bundle_filename(image_key, m_hdr_texture_format, s_lambert_size);
 }
 
 void VierkantEd::establish_project_root(const std::filesystem::path &top_scene_path)
@@ -350,15 +347,15 @@ void VierkantEd::load_environment(const std::string &path)
                     // derive sane resolution for cube from panorama-width
                     uint32_t res = crocore::next_pow_2(std::max(img->width(), img->height()) / 4);
                     skybox = vierkant::cubemap_from_panorama(m_device, panorama, m_queue_image_loading, res, true,
-                                                             m_hdr_format);
+                                                             m_hdr_texture_format);
                 }
             }
 
             if(skybox)
             {
-                conv_lambert = vierkant::create_convolution_lambert(m_device, skybox, g_lambert_size, m_hdr_format,
-                                                                    m_queue_image_loading);
-                conv_ggx = vierkant::create_convolution_ggx(m_device, skybox, skybox->width(), m_hdr_format,
+                conv_lambert = vierkant::create_convolution_lambert(m_device, skybox, s_lambert_size,
+                                                                    m_hdr_texture_format, m_queue_image_loading);
+                conv_ggx = vierkant::create_convolution_ggx(m_device, skybox, skybox->width(), m_hdr_texture_format,
                                                             m_queue_image_loading);
 
                 auto cmd_buf = vierkant::CommandBuffer(m_device, command_pool.get());

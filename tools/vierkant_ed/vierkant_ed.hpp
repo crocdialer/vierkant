@@ -280,8 +280,16 @@ private:
     VkQueue m_queue_model_loading = VK_NULL_HANDLE, m_queue_image_loading = VK_NULL_HANDLE,
             m_queue_render = VK_NULL_HANDLE;
 
+    //! format for HDR render-targets (deferred lighting + post-fx). has to stay renderable.
     // B10G11R11 saves 50% memory but now seeing more&more cases with strong banding-issues
-    VkFormat m_hdr_format = VK_FORMAT_R16G16B16A16_SFLOAT;//VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+    VkFormat m_hdr_render_format = VK_FORMAT_R16G16B16A16_SFLOAT;//VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+
+    //! format the environment-cubemaps are baked and sampled in
+    VkFormat m_hdr_texture_format = VK_FORMAT_R16G16B16A16_SFLOAT;
+
+    //! edge-length of the diffuse (lambert) environment-convolution. folded into the environment
+    //! cache-key, so changing it re-bakes.
+    static constexpr uint32_t s_lambert_size = 128;
 
     VkBufferUsageFlags m_mesh_buffer_flags = 0;
 
