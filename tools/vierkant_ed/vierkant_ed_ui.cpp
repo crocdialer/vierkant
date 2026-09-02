@@ -722,11 +722,10 @@ void VierkantEd::create_ui()
             {
                 m_settings.playback_speed = std::max(0.f, m_settings.playback_speed);
             }
-            ImGui::SameLine();
+            ImGui::BulletText("%s", std::format("frame: {}", m_scene->current_frame()).c_str());
             ImGui::Checkbox("playing", &m_settings.animation_playback);
             ImGui::SameLine();
             ImGui::Checkbox("simulate", &m_settings.physics_playback);
-            ImGui::BulletText("%s", std::format("frame: {}", m_scene->current_frame()).c_str());
             ImGui::Spacing();
 
             vierkant::gui::draw_scene_ui(m_scene, m_render_camera, &m_selected_objects);
