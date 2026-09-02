@@ -123,18 +123,21 @@ constexpr char ext_light[] = "light";
 constexpr char ext_light_spot[] = "spot";
 constexpr char ext_light_directional[] = "directional";
 
+namespace
+{
 struct node_helper_t
 {
     size_t index;
     vierkant::transform_t world_transform;
     vierkant::nodes::NodePtr node;
 };
+}// namespace
 
 using node_map_t = std::unordered_map<uint32_t, vierkant::nodes::NodePtr>;
 
 using joint_map_t = std::unordered_map<uint32_t, uint32_t>;
 
-vierkant::transform_t node_transform(const tinygltf::Node &tiny_node)
+static vierkant::transform_t node_transform(const tinygltf::Node &tiny_node)
 {
     if(tiny_node.matrix.size() == 16)
     {
@@ -160,7 +163,7 @@ vierkant::transform_t node_transform(const tinygltf::Node &tiny_node)
     return ret;
 }
 
-std::optional<glm::mat4> texture_transform(const tinygltf::TextureInfo &texture_info)
+static std::optional<glm::mat4> texture_transform(const tinygltf::TextureInfo &texture_info)
 {
     std::optional<glm::mat4> ret;
     auto ext_transform_it = texture_info.extensions.find(KHR_texture_transform);
@@ -196,8 +199,8 @@ std::optional<glm::mat4> texture_transform(const tinygltf::TextureInfo &texture_
     return ret;
 }
 
-vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, const tinygltf::Model &model,
-                                      const std::map<std::string, int> &attributes, bool morph_target)
+static vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, const tinygltf::Model &model,
+                                             const std::map<std::string, int> &attributes, bool morph_target)
 {
     auto geometry = vierkant::Geometry::create();
 
@@ -248,7 +251,7 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, cons
         // an optional tag-value names a narrower source-type to convert from, default is a plain copy
         auto insert = [&accessor, &buffer_view]<typename src_t = std::nullptr_t>(const tinygltf::Buffer &input,
                                                                                  auto &array, src_t = {}) {
-            using elem_t = typename std::decay_t<decltype(array)>::value_type;
+            using elem_t = std::decay_t<decltype(array)>::value_type;
 
             // data with offset
             const uint8_t *data = input.data.data() + buffer_view.byteOffset + accessor.byteOffset;
@@ -336,10 +339,10 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, cons
     return geometry;
 }
 
-vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const tinygltf::Model &model,
-                                      const std::map<uint32_t, crocore::ImagePtr> &image_cache,
-                                      const std::unordered_map<uint32_t, TextureId> &tex_id_cache,
-                                      const std::unordered_map<uint32_t, SamplerId> &sampler_id_cache)
+static vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const tinygltf::Model &model,
+                                             const std::map<uint32_t, crocore::ImagePtr> &image_cache,
+                                             const std::unordered_map<uint32_t, TextureId> &tex_id_cache,
+                                             const std::unordered_map<uint32_t, SamplerId> &sampler_id_cache)
 {
     vierkant::material_t ret;
     ret.name = tiny_mat.name;
@@ -685,7 +688,7 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
     return ret;
 }
 
-vierkant::texture_sampler_t convert_sampler(const tinygltf::Sampler &tiny_sampler)
+static vierkant::texture_sampler_t convert_sampler(const tinygltf::Sampler &tiny_sampler)
 {
     vierkant::texture_sampler_t ret = {};
 
@@ -716,8 +719,8 @@ vierkant::texture_sampler_t convert_sampler(const tinygltf::Sampler &tiny_sample
     return ret;
 }
 
-vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, const tinygltf::Model &model,
-                                                   node_map_t &node_map)
+static vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, const tinygltf::Model &model,
+                                                          node_map_t &node_map)
 {
     vierkant::nodes::NodePtr root_bone;
 
@@ -817,10 +820,10 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, c
     return root_bone;
 }
 
-vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animation &tiny_animation,
-                                                        const tinygltf::Model &model, const node_map_t &node_map)
+static vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animation &tiny_animation,
+                                                               const tinygltf::Model &model, const node_map_t &node_map)
 {
-    spdlog::debug("animation: {}", tiny_animation.name);
+    spdlog::trace("{}: {}", __func__, tiny_animation.name);
 
     vierkant::nodes::node_animation_t animation;
     animation.name = tiny_animation.name;

@@ -21,8 +21,7 @@ namespace vierkant
 static std::shared_mutex g_bundle_rw_mutex;
 
 //! archive-relative entry-name for a bundle-path, keeping machine-local absolute paths out of archives.
-static std::filesystem::path zip_entry_path(const std::filesystem::path &path,
-                                            const std::filesystem::path &zip_archive)
+static std::filesystem::path zip_entry_path(const std::filesystem::path &path, const std::filesystem::path &zip_archive)
 {
     auto rel = path.lexically_relative(zip_archive.parent_path());
     if(rel.empty() || *rel.begin() == "..") { return path.generic_string(); }
@@ -39,7 +38,7 @@ static std::optional<T> load_from_stream(const std::filesystem::path &path,
         {
             try
             {
-                spdlog::debug("loading bundle '{}'", path.string());
+                spdlog::debug("cache-hit: '{}'", path.string());
                 std::shared_lock lock(g_bundle_rw_mutex);
                 return reader(f);
             } catch(std::exception &e) { spdlog::error(e.what()); }
@@ -53,13 +52,14 @@ static std::optional<T> load_from_stream(const std::filesystem::path &path,
         {
             try
             {
-                spdlog::debug("loading bundle '{}' from archive '{}'", entry_path.string(), zip_archive->string());
+                spdlog::debug("cache-hit: '{}' - archive: '{}'", entry_path.string(), zip_archive->string());
                 std::shared_lock lock(g_bundle_rw_mutex);
                 auto zipstream = zip.open_file(entry_path);
                 return reader(zipstream);
             } catch(std::exception &e) { spdlog::error(e.what()); }
         }
     }
+    spdlog::debug("cache-miss: '{}'", path.string());
     return {};
 }
 
@@ -196,8 +196,7 @@ std::string texture_bundle_filename(const std::filesystem::path &image_key, bool
     return std::format("{}_{}.{}", image_key.filename().string(), hash_val, texture_bundle_file_suffix);
 }
 
-std::string environment_bundle_filename(const std::filesystem::path &image_key, VkFormat format,
-                                        uint32_t lambert_size)
+std::string environment_bundle_filename(const std::filesystem::path &image_key, VkFormat format, uint32_t lambert_size)
 {
     size_t hash_val = std::hash<std::string>()(image_key.generic_string());
     vierkant::hash_combine(hash_val, environment_schema_version);
@@ -293,8 +292,8 @@ void save_bundle_file(const vierkant::environment_assets_t &assets, const std::f
 std::optional<vierkant::environment_assets_t>
 load_environment_bundle_file(const std::filesystem::path &path, const std::optional<std::filesystem::path> &zip_archive)
 {
-    return load_from_stream<vierkant::environment_assets_t>(path, zip_archive,
-                                                            [](std::istream &is) { return load_environment_assets(is); });
+    return load_from_stream<vierkant::environment_assets_t>(
+            path, zip_archive, [](std::istream &is) { return load_environment_assets(is); });
 }
 
 }// namespace vierkant
