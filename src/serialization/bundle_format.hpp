@@ -31,6 +31,7 @@
 #include "optional_nvp_cereal.hpp"
 
 #include "vierkant/model/model_loading.hpp"
+#include <vierkant/bundle.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/texture_block_compression.hpp>
 
@@ -108,6 +109,20 @@ void serialize(Archive &ar, material_data_t &material_data)
 {
     ar(cereal::make_nvp("materials", material_data.materials), cereal::make_nvp("textures", material_data.textures),
        cereal::make_nvp("texture_samplers", material_data.texture_samplers));
+}
+
+template<class Archive>
+void serialize(Archive &ar, cubemap_data_t &cubemap_data)
+{
+    ar(cereal::make_nvp("format", cubemap_data.format), cereal::make_nvp("size", cubemap_data.size),
+       cereal::make_nvp("levels", cubemap_data.levels));
+}
+
+template<class Archive>
+void serialize(Archive &ar, environment_assets_t &assets)
+{
+    ar(cereal::make_nvp("skybox", assets.skybox), cereal::make_nvp("conv_lambert", assets.conv_lambert),
+       cereal::make_nvp("conv_ggx", assets.conv_ggx));
 }
 
 template<class Archive>

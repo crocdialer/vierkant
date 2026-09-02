@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <spdlog/spdlog.h>
 #include <vierkant/CameraControl.hpp>
+#include <vierkant/bundle.hpp>
 #include <vierkant/PBRDeferred.hpp>
 #include <vierkant/PBRPathTracer.hpp>
 #include <vierkant/imgui/imgui_util.h>
@@ -178,6 +179,16 @@ private:
     };
     void load_model(const load_model_params_t &params);
 
+    //! result of a cached image-load: the id derived from the source-key, plus the gpu-texture
+    struct load_texture_result_t
+    {
+        vierkant::TextureId texture_id = vierkant::TextureId::nil();
+        vierkant::ImagePtr gpu_texture;
+    };
+
+    //! load an image from a project-key, via the texture-cache. bakes and caches on a miss.
+    load_texture_result_t load_texture_asset(const std::string &key);
+
     void load_texture(const std::string &path);
 
     void load_environment(const std::string &path);
@@ -194,6 +205,14 @@ private:
 
     std::optional<vierkant::material_data_t> load_material_bundle(const std::filesystem::path &path) const;
 
+    void save_texture_bundle(const vierkant::texture_variant_t &texture, const std::filesystem::path &path) const;
+
+    std::optional<vierkant::texture_variant_t> load_texture_bundle(const std::filesystem::path &path) const;
+
+    void save_environment_bundle(const vierkant::environment_assets_t &assets, const std::filesystem::path &path) const;
+
+    std::optional<vierkant::environment_assets_t> load_environment_bundle(const std::filesystem::path &path) const;
+
     //! project-root helpers (P1). establish the root once from the top-scene (or --project-root).
     void establish_project_root(const std::filesystem::path &top_scene_path);
 
@@ -207,6 +226,12 @@ private:
 
     //! derived (texture-)bundle path for a scene, under the project-root cache.
     std::filesystem::path material_bundle_path(const std::string &scene_path) const;
+
+    //! derived cache-path for an imported image, under the project-root cache.
+    std::filesystem::path texture_bundle_path(const std::string &image_key) const;
+
+    //! derived cache-path for an environment-map's cubemaps, under the project-root cache.
+    std::filesystem::path environment_bundle_path(const std::string &image_key) const;
 
     //! optional zip-archive path under the project-root, depending on the cache_zip_archive setting.
     std::optional<std::filesystem::path> zip_archive_path() const;
@@ -342,9 +367,10 @@ private:
     std::filesystem::path m_project_root = std::filesystem::current_path();
     bool m_project_root_explicit = false;
 
-    // track of scene/model-paths (stored as root-relative asset-keys, see project_key/resolve)
+    // track of scene/model/image-paths (stored as root-relative asset-keys, see project_key/resolve)
     std::map<vierkant::MeshId, std::filesystem::path> m_model_paths;
     std::map<vierkant::SceneId, std::filesystem::path> m_scene_paths;
+    std::map<vierkant::TextureId, std::filesystem::path> m_texture_paths;
     vierkant::SceneId m_scene_id;
 };
 

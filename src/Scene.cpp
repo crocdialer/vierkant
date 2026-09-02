@@ -185,9 +185,15 @@ void Scene::clear()
 }
 
 void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_live_materials,
-                         const std::unordered_set<vierkant::LightId> &extra_live_lights)
+                         const std::unordered_set<vierkant::LightId> &extra_live_lights,
+                         const std::unordered_set<vierkant::texture_key_t> &extra_live_textures)
 {
     vierkant::asset_live_set_t live;
+    live.textures = extra_live_textures;
+    for(const auto &key: extra_live_textures)
+    {
+        if(key.sampler_id) { live.samplers.insert(key.sampler_id); }
+    }
 
     // mark a material live, along with the textures/samplers it references
     auto mark_material = [this, &live](const vierkant::MaterialId &mat_id) {

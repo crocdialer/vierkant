@@ -128,6 +128,40 @@ std::optional<vierkant::material_data_t> load_material_data(std::istream &is)
     } catch(const std::exception &) { return {}; }
 }
 
+void save(std::ostream &os, const vierkant::texture_variant_t &texture)
+{
+    cereal::BinaryOutputArchive archive(os);
+    archive(texture);
+}
+
+std::optional<vierkant::texture_variant_t> load_texture_variant(std::istream &is)
+{
+    try
+    {
+        vierkant::texture_variant_t ret;
+        cereal::BinaryInputArchive archive(is);
+        archive(ret);
+        return ret;
+    } catch(const std::exception &) { return {}; }
+}
+
+void save(std::ostream &os, const vierkant::environment_assets_t &assets)
+{
+    cereal::BinaryOutputArchive archive(os);
+    archive(assets);
+}
+
+std::optional<vierkant::environment_assets_t> load_environment_assets(std::istream &is)
+{
+    try
+    {
+        vierkant::environment_assets_t ret;
+        cereal::BinaryInputArchive archive(is);
+        archive(ret);
+        return ret;
+    } catch(const std::exception &) { return {}; }
+}
+
 
 std::string model_bundle_filename(const std::filesystem::path &model_path,
                                   const vierkant::mesh_buffer_params_t &mesh_buffer_params, bool compress_textures,
@@ -148,6 +182,28 @@ std::string model_bundle_filename(const std::filesystem::path &model_path,
         vierkant::hash_combine(hash_val, omm_params->states);
     }
     return std::format("{}_{}.{}", model_path.filename().string(), hash_val, bundle_file_suffix);
+}
+
+std::string texture_bundle_filename(const std::filesystem::path &image_key, bool compress_texture,
+                                    vierkant::bcn::CompressionMode mode)
+{
+    // unlike model-bundles the whole key is hashed: same-named images in different directories are
+    // the common case for textures and must not collide in the cache
+    size_t hash_val = std::hash<std::string>()(image_key.generic_string());
+    vierkant::hash_combine(hash_val, texture_schema_version);
+    vierkant::hash_combine(hash_val, compress_texture);
+    vierkant::hash_combine(hash_val, static_cast<uint32_t>(mode));
+    return std::format("{}_{}.{}", image_key.filename().string(), hash_val, texture_bundle_file_suffix);
+}
+
+std::string environment_bundle_filename(const std::filesystem::path &image_key, VkFormat format,
+                                        uint32_t lambert_size)
+{
+    size_t hash_val = std::hash<std::string>()(image_key.generic_string());
+    vierkant::hash_combine(hash_val, environment_schema_version);
+    vierkant::hash_combine(hash_val, static_cast<uint32_t>(format));
+    vierkant::hash_combine(hash_val, lambert_size);
+    return std::format("{}_{}.{}", image_key.filename().string(), hash_val, environment_bundle_file_suffix);
 }
 
 std::optional<vierkant::model::model_assets_t> create_model_bundle(const std::filesystem::path &model_path,
@@ -213,6 +269,32 @@ load_material_bundle_file(const std::filesystem::path &path, const std::optional
 {
     return load_from_stream<vierkant::material_data_t>(path, zip_archive,
                                                        [](std::istream &is) { return load_material_data(is); });
+}
+
+void save_bundle_file(const vierkant::texture_variant_t &texture, const std::filesystem::path &path,
+                      const std::optional<std::filesystem::path> &zip_archive)
+{
+    save_to_stream(path, zip_archive, [&texture](std::ostream &os) { save(os, texture); });
+}
+
+std::optional<vierkant::texture_variant_t>
+load_texture_bundle_file(const std::filesystem::path &path, const std::optional<std::filesystem::path> &zip_archive)
+{
+    return load_from_stream<vierkant::texture_variant_t>(path, zip_archive,
+                                                         [](std::istream &is) { return load_texture_variant(is); });
+}
+
+void save_bundle_file(const vierkant::environment_assets_t &assets, const std::filesystem::path &path,
+                      const std::optional<std::filesystem::path> &zip_archive)
+{
+    save_to_stream(path, zip_archive, [&assets](std::ostream &os) { save(os, assets); });
+}
+
+std::optional<vierkant::environment_assets_t>
+load_environment_bundle_file(const std::filesystem::path &path, const std::optional<std::filesystem::path> &zip_archive)
+{
+    return load_from_stream<vierkant::environment_assets_t>(path, zip_archive,
+                                                            [](std::istream &is) { return load_environment_assets(is); });
 }
 
 }// namespace vierkant

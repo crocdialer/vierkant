@@ -127,9 +127,12 @@ public:
      *                                  references (e.g. a user-authored material-library) - their
      *                                  textures/samplers are kept as well.
      * @param   extra_live_lights       additional light-ids to keep alive regardless of scene-graph references.
+     * @param   extra_live_textures     additional texture-keys to keep alive regardless of scene-graph
+     *                                  references (e.g. imported images not yet bound to a material).
      */
     void prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_live_materials = {},
-                      const std::unordered_set<vierkant::LightId> &extra_live_lights = {});
+                      const std::unordered_set<vierkant::LightId> &extra_live_lights = {},
+                      const std::unordered_set<vierkant::texture_key_t> &extra_live_textures = {});
 
 protected:
     explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store,

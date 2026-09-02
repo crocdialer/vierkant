@@ -1,4 +1,8 @@
 #include "vierkant/cubemap_utils.hpp"
+
+#include <array>
+
+#include <vierkant/cubemap_data.hpp>
 #include <vierkant/shaders.hpp>
 #include <vierkant/shaders_slang.hpp>
 
@@ -159,7 +163,7 @@ vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const Ima
     auto command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
     auto cube = vierkant::create_cube_pipeline(device, command_pool, size, format, queue, false,
-                                               VK_IMAGE_USAGE_SAMPLED_BIT);
+                                               VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
     cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
             vierkant::create_shader_module(vierkant::slang_shaders::unlit::convolve_lambert_slang);
@@ -191,7 +195,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
 
     vierkant::Image::Format ret_fmt = {};
     ret_fmt.format = format;
-    ret_fmt.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ret_fmt.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     ret_fmt.view_type = VK_IMAGE_VIEW_TYPE_CUBE;
     ret_fmt.num_layers = 6;
     ret_fmt.use_mipmap = true;
@@ -426,6 +430,128 @@ vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue qu
     vkWaitForFences(device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
 
     return framebuffer.color_attachment(0);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+cubemap_data_t download_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue)
+{
+    constexpr uint32_t num_faces = 6;
+    if(!cubemap || cubemap->format().num_layers != num_faces) { return {}; }
+
+    const auto &img_fmt = cubemap->format();
+    const uint32_t num_mips = cubemap->num_mip_levels();
+    const VkDeviceSize texel_bytes = vierkant::num_bytes(img_fmt.format);
+
+    cubemap_data_t ret = {};
+    ret.format = img_fmt.format;
+    ret.size = img_fmt.extent.width;
+    ret.levels.resize(num_mips);
+
+    auto device = cubemap->device();
+    auto command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
+                                                      VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+    auto cmd_buf = vierkant::CommandBuffer(device, command_pool.get());
+    cmd_buf.begin();
+
+    const VkImageLayout prev_layout = cubemap->image_layout();
+    cubemap->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, cmd_buf.handle());
+
+    std::vector<vierkant::BufferPtr> level_buffers(num_mips);
+
+    for(uint32_t lvl = 0; lvl < num_mips; ++lvl)
+    {
+        const uint32_t level_size = std::max<uint32_t>(ret.size >> lvl, 1);
+        const VkDeviceSize face_bytes = texel_bytes * level_size * level_size;
+
+        level_buffers[lvl] = vierkant::Buffer::create(device, nullptr, num_faces * face_bytes,
+                                                      VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_TO_CPU);
+
+        std::array<VkBufferImageCopy2, num_faces> regions = {};
+
+        for(uint32_t face = 0; face < num_faces; ++face)
+        {
+            auto &region = regions[face];
+            region.sType = VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2;
+            region.bufferOffset = face * face_bytes;
+            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            region.imageSubresource.mipLevel = lvl;
+            region.imageSubresource.baseArrayLayer = face;
+            region.imageSubresource.layerCount = 1;
+            region.imageExtent = {level_size, level_size, 1};
+        }
+
+        VkCopyImageToBufferInfo2 copy_info = {};
+        copy_info.sType = VK_STRUCTURE_TYPE_COPY_IMAGE_TO_BUFFER_INFO_2;
+        copy_info.regionCount = static_cast<uint32_t>(regions.size());
+        copy_info.pRegions = regions.data();
+        copy_info.srcImage = cubemap->image();
+        copy_info.srcImageLayout = cubemap->image_layout();
+        copy_info.dstBuffer = level_buffers[lvl]->handle();
+        vkCmdCopyImageToBuffer2(cmd_buf.handle(), &copy_info);
+    }
+
+    // leave the image in the layout it was handed over in. an undefined layout carries no contract,
+    // but the caller is about to sample it -> settle on read-only.
+    cubemap->transition_layout(prev_layout != VK_IMAGE_LAYOUT_UNDEFINED ? prev_layout
+                                                                        : VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+                               cmd_buf.handle());
+    cmd_buf.submit(queue, true);
+
+    for(uint32_t lvl = 0; lvl < num_mips; ++lvl)
+    {
+        const auto *ptr = static_cast<const uint8_t *>(level_buffers[lvl]->map());
+        ret.levels[lvl] = {ptr, ptr + level_buffers[lvl]->num_bytes()};
+        level_buffers[lvl]->unmap();
+    }
+    return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+vierkant::ImagePtr upload_cubemap(const vierkant::DevicePtr &device, const cubemap_data_t &data, VkQueue queue)
+{
+    constexpr uint32_t num_faces = 6;
+    if(!device || data.levels.empty() || !data.size || data.format == VK_FORMAT_UNDEFINED) { return nullptr; }
+
+    vierkant::Image::Format fmt = {};
+    fmt.format = data.format;
+    fmt.extent = {data.size, data.size, 1};
+    fmt.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    fmt.view_type = VK_IMAGE_VIEW_TYPE_CUBE;
+    fmt.num_layers = num_faces;
+    fmt.use_mipmap = data.levels.size() > 1;
+    fmt.autogenerate_mipmaps = false;
+    fmt.initial_layout_transition = false;
+
+    auto ret = vierkant::Image::create(device, fmt);
+
+    auto command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
+                                                      VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+    auto cmd_buf = vierkant::CommandBuffer(device, command_pool.get());
+    cmd_buf.begin();
+    ret->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, cmd_buf.handle());
+
+    const auto num_levels = std::min<uint32_t>(static_cast<uint32_t>(data.levels.size()), ret->num_mip_levels());
+    std::vector<vierkant::BufferPtr> level_buffers(num_levels);
+
+    for(uint32_t lvl = 0; lvl < num_levels; ++lvl)
+    {
+        const uint32_t level_size = std::max<uint32_t>(data.size >> lvl, 1);
+        const VkDeviceSize face_bytes = data.levels[lvl].size() / num_faces;
+
+        level_buffers[lvl] = vierkant::Buffer::create(device, data.levels[lvl], VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                      VMA_MEMORY_USAGE_CPU_ONLY);
+
+        for(uint32_t face = 0; face < num_faces; ++face)
+        {
+            ret->copy_from(level_buffers[lvl], cmd_buf.handle(), face * face_bytes, {},
+                           {level_size, level_size, 1}, face, lvl);
+        }
+    }
+    ret->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, cmd_buf.handle());
+    cmd_buf.submit(queue, true);
+    return ret;
 }
 
 }// namespace vierkant

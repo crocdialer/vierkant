@@ -16,8 +16,17 @@ using double_second = std::chrono::duration<double>;
 constexpr char g_cache_path[] = "cache";
 constexpr char g_model_store_path[] = "models";
 constexpr char g_material_store_path[] = "materials";
+constexpr char g_texture_store_path[] = "textures";
+constexpr char g_environment_store_path[] = "environments";
 constexpr char g_zip_path[] = "cache.zip";
 constexpr char g_file_suffix_model[] = "4km";
+
+//! block-compression mode used for imported images. an image is not bound to a material-slot at
+//! import-time, so the normal-map/BC5 choice the model-loader makes is not available here.
+constexpr auto g_texture_compression_mode = vierkant::bcn::BC7;
+
+//! edge-length of the diffuse (lambert) environment-convolution
+constexpr uint32_t g_lambert_size = 128;
 
 std::filesystem::path VierkantEd::material_bundle_path(const std::string &scene_path) const
 {
@@ -25,6 +34,18 @@ std::filesystem::path VierkantEd::material_bundle_path(const std::string &scene_
             "{}.{}", crocore::filesystem::remove_extension(crocore::filesystem::get_filename_part(scene_path)),
             g_file_suffix_model);
     return m_project_root / g_cache_path / g_material_store_path / file_name;
+}
+
+std::filesystem::path VierkantEd::texture_bundle_path(const std::string &image_key) const
+{
+    return m_project_root / g_cache_path / g_texture_store_path /
+           vierkant::texture_bundle_filename(image_key, m_settings.texture_compression, g_texture_compression_mode);
+}
+
+std::filesystem::path VierkantEd::environment_bundle_path(const std::string &image_key) const
+{
+    return m_project_root / g_cache_path / g_environment_store_path /
+           vierkant::environment_bundle_filename(image_key, m_hdr_format, g_lambert_size);
 }
 
 void VierkantEd::establish_project_root(const std::filesystem::path &top_scene_path)
@@ -177,55 +198,121 @@ void VierkantEd::load_model(const load_model_params_t &params)
     background_queue().post(load_task);
 }
 
-void VierkantEd::load_texture(const std::string &path)
+VierkantEd::load_texture_result_t VierkantEd::load_texture_asset(const std::string &key)
 {
-    auto load_img_fn = [this, path] {
-        spdlog::debug("load image: {}", path);
-        auto img = crocore::create_image_from_file(resolve(path).string(), m_settings.texture_compression ? 0 : 4);
-        vierkant::TextureId texture_id;
+    load_texture_result_t ret = {};
+    ret.texture_id = vierkant::TextureId::from_name(key);
 
-        // TODO: check when/if this makes sense
-        m_material_data.textures[texture_id] = img;
+    const bool compress = m_settings.texture_compression;
+    const auto cache_path = texture_bundle_path(key);
 
-        vierkant::ImagePtr texture;
-        vierkant::Image::Format fmt;
-        fmt.sampler_state.max_anisotropy = m_device->properties().core.limits.maxSamplerAnisotropy;
+    auto texture = load_texture_bundle(cache_path);
+    bool cache_created = false;
 
-        if(m_settings.texture_compression)
+    if(!texture)
+    {
+        spdlog::debug("loading image '{}'", key);
+        auto img = crocore::create_image_from_file(resolve(key).string(), compress ? 0 : 4);
+
+        if(!img)
+        {
+            spdlog::warn("could not load image: {}", key);
+            return {};
+        }
+
+        if(compress)
         {
             vierkant::bcn::compress_info_t compress_info = {};
             compress_info.image = img;
-            compress_info.mode = vierkant::bcn::BC7;
+            compress_info.mode = g_texture_compression_mode;
             compress_info.generate_mipmaps = true;
             compress_info.delegate_fn = [this](const auto &fn) { return background_queue().post(fn); };
-            auto compressed_img = vierkant::bcn::compress(compress_info);
-            texture = vierkant::model::create_compressed_texture(m_device, compressed_img, fmt, m_queue_image_loading);
-
-            // TODO: check when/if this makes sense
-            m_material_data.textures[texture_id] = std::move(compressed_img);
+            texture = vierkant::bcn::compress(compress_info);
         }
-        else
+        else { texture = img; }
+        cache_created = true;
+    }
+
+    vierkant::Image::Format fmt;
+    fmt.sampler_state.max_anisotropy = m_device->properties().core.limits.maxSamplerAnisotropy;
+
+    ret.gpu_texture = std::visit(
+            [this, fmt](auto &&img) -> vierkant::ImagePtr {
+                using T = std::decay_t<decltype(img)>;
+
+                if constexpr(std::is_same_v<T, crocore::ImagePtr>)
+                {
+                    return vierkant::model::create_texture(m_device, img, fmt, m_queue_image_loading);
+                }
+                if constexpr(std::is_same_v<T, vierkant::bcn::compress_result_t>)
+                {
+                    return vierkant::model::create_compressed_texture(m_device, img, fmt, m_queue_image_loading);
+                }
+                return nullptr;
+            },
+            *texture);
+
+    if(cache_created && m_settings.cache_mesh_bundles)
+    {
+        background_queue().post([this, texture = std::move(*texture), cache_path] {
+            save_texture_bundle(texture, cache_path);
+        });
+    }
+    return ret;
+}
+
+void VierkantEd::load_texture(const std::string &path)
+{
+    auto key = project_key(path);
+
+    auto load_img_fn = [this, key] {
+        ++m_num_loading;
+        auto start_time = std::chrono::steady_clock::now();
+        auto result = load_texture_asset(key);
+
+        if(!result.gpu_texture)
         {
-            texture = vierkant::model::create_texture(m_device, img, fmt, m_queue_image_loading);
+            --m_num_loading;
+            return;
         }
 
-        // store gpu-texture
-        m_scene->asset_provider()->add_texture({texture_id, vierkant::SamplerId::nil()}, texture);
+        main_queue().post([this, key, result = std::move(result), start_time] {
+            // an imported image is a project-asset: it is referenced by path and kept alive by the
+            // texture-roots handed to prune_assets, even while no material binds it yet.
+            m_texture_paths[result.texture_id] = key;
+            m_scene->asset_provider()->add_texture({result.texture_id, vierkant::SamplerId::nil()},
+                                                  result.gpu_texture);
+
+            auto dur = double_second(std::chrono::steady_clock::now() - start_time);
+            spdlog::debug("loaded image '{}' ({}) -- ({:03.2f})", key, result.texture_id.str(), dur.count());
+            --m_num_loading;
+        });
     };
     background_queue().post(load_img_fn);
 }
 
 void VierkantEd::load_environment(const std::string &path)
 {
-    auto load_task = [&, path]() {
+    auto key = project_key(path);
+
+    auto load_task = [this, key]() {
         ++m_num_loading;
 
         auto start_time = std::chrono::steady_clock::now();
 
         vierkant::ImagePtr skybox, conv_lambert, conv_ggx;
-        auto img = crocore::create_image_from_file(resolve(path).string(), 4);
+        const auto cache_path = environment_bundle_path(key);
 
-        if(img)
+        // the ggx roughness-cascade takes 1024 importance-samples per texel, so a cache-hit here
+        // skips by far the most expensive part of opening a scene.
+        if(auto env_assets = load_environment_bundle(cache_path))
+        {
+            auto lock = std::lock_guard(*m_device->queue_asset(m_queue_image_loading)->mutex);
+            skybox = vierkant::upload_cubemap(m_device, env_assets->skybox, m_queue_image_loading);
+            conv_lambert = vierkant::upload_cubemap(m_device, env_assets->conv_lambert, m_queue_image_loading);
+            conv_ggx = vierkant::upload_cubemap(m_device, env_assets->conv_ggx, m_queue_image_loading);
+        }
+        else if(auto img = crocore::create_image_from_file(resolve(key).string(), 4))
         {
             // acquire lock for image-queue // TODO: a bit more fine-grained!?
             auto lock = std::lock_guard(*m_device->queue_asset(m_queue_image_loading)->mutex);
@@ -269,8 +356,7 @@ void VierkantEd::load_environment(const std::string &path)
 
             if(skybox)
             {
-                constexpr uint32_t lambert_size = 128;
-                conv_lambert = vierkant::create_convolution_lambert(m_device, skybox, lambert_size, m_hdr_format,
+                conv_lambert = vierkant::create_convolution_lambert(m_device, skybox, g_lambert_size, m_hdr_format,
                                                                     m_queue_image_loading);
                 conv_ggx = vierkant::create_convolution_ggx(m_device, skybox, skybox->width(), m_hdr_format,
                                                             m_queue_image_loading);
@@ -283,19 +369,32 @@ void VierkantEd::load_environment(const std::string &path)
 
                 // submit and sync
                 cmd_buf.submit(m_queue_image_loading, true);
+
+                if(m_settings.cache_mesh_bundles)
+                {
+                    vierkant::environment_assets_t env_assets = {};
+                    env_assets.skybox = vierkant::download_cubemap(skybox, m_queue_image_loading);
+                    env_assets.conv_lambert = vierkant::download_cubemap(conv_lambert, m_queue_image_loading);
+                    env_assets.conv_ggx = vierkant::download_cubemap(conv_ggx, m_queue_image_loading);
+
+                    background_queue().post([this, env_assets = std::move(env_assets), cache_path] {
+                        save_environment_bundle(env_assets, cache_path);
+                    });
+                }
             }
         }
+        else { spdlog::warn("could not load environment: {}", key); }
 
-        main_queue().post([this, path, skybox, conv_lambert, conv_ggx, start_time]() {
+        main_queue().post([this, key, skybox, conv_lambert, conv_ggx, start_time]() {
             m_scene->set_environment(skybox);
 
             m_pbr_renderer->set_environment(conv_lambert, conv_ggx);
 
             if(m_path_tracer) { m_path_tracer->reset_accumulator(); }
 
-            m_scene_data.environment_path = project_key(path);
+            m_scene_data.environment_path = key;
             auto dur = double_second(std::chrono::steady_clock::now() - start_time);
-            spdlog::debug("loaded '{}' -- ({:03.2f})", path, dur.count());
+            spdlog::debug("loaded '{}' -- ({:03.2f})", key, dur.count());
             --m_num_loading;
         });
     };
@@ -440,6 +539,9 @@ void VierkantEd::save_scene(std::filesystem::path path)
     // material- and sampler-assets stored in scene-JSON (like lights).
     data.materials = m_scene->asset_provider()->materials();
     data.texture_samplers = m_material_data.texture_samplers;
+
+    // imported images, referenced by their source-path (their pixels live in the texture-cache)
+    for(const auto &[tex_id, key]: m_texture_paths) { data.texture_paths[tex_id] = key.generic_string(); }
 
     // set of mesh-ids
     std::unordered_set<vierkant::MeshId> mesh_ids;
@@ -596,9 +698,13 @@ void VierkantEd::save_scene(std::filesystem::path path)
         vierkant_ed::save_scene_data(ofs, data);
     } catch(std::exception &e) { spdlog::error(e.what()); }
 
-    // store scene-textures only (materials/samplers now live inline in the scene-JSON above)
+    // path-backed images are reloadable from their source via the texture-cache, so the scene-bundle
+    // keeps only textures that have no source-file (e.g. procedural ones).
     vierkant::material_data_t texture_bundle;
-    texture_bundle.textures = m_material_data.textures;
+    for(const auto &[tex_id, texture]: m_material_data.textures)
+    {
+        if(!m_texture_paths.contains(tex_id)) { texture_bundle.textures[tex_id] = texture; }
+    }
     save_material_bundle(texture_bundle, material_path);
 }
 
@@ -622,6 +728,7 @@ void VierkantEd::build_scene(const std::optional<scene_data_t> &scene_data_in, b
             std::string scene_key;
             vierkant::material_data_t material_data;
             std::unordered_map<vierkant::texture_key_t, vierkant::ImagePtr> gpu_textures;
+            std::map<vierkant::TextureId, std::filesystem::path> texture_paths;
             std::unordered_map<vierkant::MeshId, vierkant::MeshPtr> meshes;
             std::vector<vierkant::Object3DPtr> objects;
         };
@@ -711,6 +818,21 @@ void VierkantEd::build_scene(const std::optional<scene_data_t> &scene_data_in, b
                                 },
                                 tex_variant);
                     }
+                }
+
+                // imported images: re-created from their source-file via the texture-cache. the
+                // stored id is the identity this scene's materials reference, so key on it.
+                for(const auto &[tex_id, key]: asset.scene_data.texture_paths)
+                {
+                    auto result = load_texture_asset(key);
+
+                    if(!result.gpu_texture)
+                    {
+                        spdlog::warn("skipping missing image: {}", key);
+                        continue;
+                    }
+                    asset.gpu_textures[{tex_id, vierkant::SamplerId::nil()}] = result.gpu_texture;
+                    asset.texture_paths[tex_id] = key;
                 }
             }
 
@@ -933,6 +1055,7 @@ void VierkantEd::build_scene(const std::optional<scene_data_t> &scene_data_in, b
 
                     // reset host-side store; the GPU store is pruned below once the new scene is assembled
                     m_material_data = {};
+                    m_texture_paths.clear();
                 }
                 else
                 {
@@ -947,6 +1070,9 @@ void VierkantEd::build_scene(const std::optional<scene_data_t> &scene_data_in, b
 
                 // same for lightsource-assets from the scene-file(s)
                 std::unordered_set<vierkant::LightId> library_lights;
+
+                // ...and for imported images, which no material has to reference to stay in the project
+                std::unordered_set<vierkant::texture_key_t> library_textures;
 
                 for(const auto &scene_asset: scene_assets)
                 {
@@ -974,6 +1100,12 @@ void VierkantEd::build_scene(const std::optional<scene_data_t> &scene_data_in, b
                     }
                     for(const auto &[key, tex]: scene_asset.gpu_textures) { provider->add_texture(key, tex); }
 
+                    for(const auto &[tex_id, path]: scene_asset.texture_paths)
+                    {
+                        m_texture_paths[tex_id] = path;
+                        library_textures.insert({tex_id, vierkant::SamplerId::nil()});
+                    }
+
                     for(const auto &l: scene_asset.scene_data.lights | std::views::values)
                     {
                         provider->add_light(l);
@@ -985,7 +1117,7 @@ void VierkantEd::build_scene(const std::optional<scene_data_t> &scene_data_in, b
                 {
                     // drop assets from the previous scene (keeping the material-library roots), then
                     // re-assert the always-present primitives
-                    m_scene->prune_assets(library_materials, library_lights);
+                    m_scene->prune_assets(library_materials, library_lights, library_textures);
                     provider->add_material(m_primitive_material);
                     provider->add_texture({m_primitive_texture_id, vierkant::SamplerId::nil()}, m_primitive_texture);
                     provider->add_texture({m_noise_texture_id, vierkant::SamplerId::nil()}, m_noise_texture);
@@ -1200,6 +1332,21 @@ void VierkantEd::save_material_bundle(const vierkant::material_data_t &material_
 
 std::optional<vierkant::material_data_t> VierkantEd::load_material_bundle(const std::filesystem::path &path) const
 { return vierkant::load_material_bundle_file(path, m_project_root / g_zip_path); }
+
+void VierkantEd::save_texture_bundle(const vierkant::texture_variant_t &texture,
+                                     const std::filesystem::path &path) const
+{ vierkant::save_bundle_file(texture, path, zip_archive_path()); }
+
+std::optional<vierkant::texture_variant_t> VierkantEd::load_texture_bundle(const std::filesystem::path &path) const
+{ return vierkant::load_texture_bundle_file(path, m_project_root / g_zip_path); }
+
+void VierkantEd::save_environment_bundle(const vierkant::environment_assets_t &assets,
+                                         const std::filesystem::path &path) const
+{ vierkant::save_bundle_file(assets, path, zip_archive_path()); }
+
+std::optional<vierkant::environment_assets_t>
+VierkantEd::load_environment_bundle(const std::filesystem::path &path) const
+{ return vierkant::load_environment_bundle_file(path, m_project_root / g_zip_path); }
 
 bool VierkantEd::parse_override_settings(int argc, char *argv[])
 {
