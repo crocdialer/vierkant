@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <unordered_set>
 
 #include <crocore/ThreadPool.hpp>
@@ -1707,94 +1708,133 @@ void PhysicsScene::update(double time_delta)
     for(auto *obj: visitor.objects)
     {
         auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>();
-        auto *constraint_cmp = obj->get_component_ptr<vierkant::constraint_component_t>();
 
-        if(phys_cmp && constraint_cmp && phys_cmp->mode == physics_component_t::CONSTRAINT_UPDATE)
+        if(const auto *constraint_cmp = obj->get_component_ptr<vierkant::constraint_component_t>();
+           phys_cmp && constraint_cmp && phys_cmp->mode == physics_component_t::CONSTRAINT_UPDATE)
         {
             phys_cmp->mode = physics_component_t::ACTIVE;
             m_context.add_constraints(obj->id(), *constraint_cmp);
         }
     }
 
-    // character-input -> forces. must run before the step, jolt clears accumulated forces after each step
-    for(auto *obj: visitor.objects)
-    {
-        auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>();
-        if(!phys_cmp || !phys_cmp->character || phys_cmp->mode != physics_component_t::ACTIVE) { continue; }
-        auto &character = *phys_cmp->character;
-
-        // yaw-only basis, engine is -z forward. pitch must not tilt the movement
-        const glm::vec3 forward(-std::sin(character.yaw), 0.f, -std::cos(character.yaw));
-        const glm::vec3 right(std::cos(character.yaw), 0.f, -std::sin(character.yaw));
-
-        // clamp, not normalize: preserves analog fine-control
-        glm::vec2 move = character.move;
-        if(float move_length = glm::length(move); move_length > 1.f) { move /= move_length; }
-        glm::vec3 v_des = (right * move.x + forward * move.y) * character.max_speed;
-
-        bool on_ground = character.ground_state == GroundState::OnGround;
-        float t_accel = on_ground ? character.t_accel_ground : character.t_accel_air;
-        float max_accel = on_ground ? character.max_accel_ground : character.max_accel_air;
-
-        glm::vec3 velocity = m_context.body_interface().velocity(obj->id());
-
-        // on ground too steep to walk on the tracker is silent, so gravity slides the character
-        // back down. driving it there would let it walk up walls.
-        if(character.ground_state != GroundState::OnSteepGround)
+    // character-input -> forces. must run before every step, jolt clears accumulated forces after each step
+    auto apply_character_forces = [&](float dt) {
+        for(auto *obj: visitor.objects)
         {
-            // critically-damped velocity-tracker. vertical velocity is excluded, otherwise we'd fight gravity
-            glm::vec3 accel = (v_des - glm::vec3(velocity.x, 0.f, velocity.z)) / t_accel;
-            if(float accel_length = glm::length(accel); accel_length > max_accel) { accel *= max_accel / accel_length; }
+            auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>();
+            if(!phys_cmp || !phys_cmp->character || phys_cmp->mode != physics_component_t::ACTIVE) { continue; }
+            auto &character = *phys_cmp->character;
 
-            // the body has no friction, so nothing holds the character on a walkable slope.
-            // cancelling the gravity-component along the ground-plane does, and is a no-op on the flat.
-            // deliberately outside the clamp above: this is compensation, not locomotion.
-            if(on_ground)
+            // yaw-only basis, engine is -z forward. pitch must not tilt the movement
+            const glm::vec3 forward(-std::sin(character.yaw), 0.f, -std::cos(character.yaw));
+            const glm::vec3 right(std::cos(character.yaw), 0.f, -std::sin(character.yaw));
+
+            // clamp, not normalize: preserves analog fine-control
+            glm::vec2 move = character.move;
+            if(const float move_length = glm::length(move); move_length > 1.f) { move /= move_length; }
+            glm::vec3 v_des = (right * move.x + forward * move.y) * character.max_speed;
+
+            bool on_ground = character.ground_state == GroundState::OnGround;
+            float t_accel = on_ground ? character.t_accel_ground : character.t_accel_air;
+            float max_accel = on_ground ? character.max_accel_ground : character.max_accel_air;
+
+            glm::vec3 velocity = m_context.body_interface().velocity(obj->id());
+
+            // on ground too steep to walk on the tracker is silent, so gravity slides the character
+            // back down. driving it there would let it walk up walls.
+            if(character.ground_state != GroundState::OnSteepGround)
             {
-                const glm::vec3 &n = character.ground_normal;
-                accel -= m_context.gravity() - n * glm::dot(m_context.gravity(), n);
+                // critically-damped velocity-tracker. vertical velocity is excluded, otherwise we'd fight gravity
+                glm::vec3 accel = (v_des - glm::vec3(velocity.x, 0.f, velocity.z)) / t_accel;
+                if(const float accel_length = glm::length(accel); accel_length > max_accel)
+                {
+                    accel *= max_accel / accel_length;
+                }
+
+                // the body has no friction, so nothing holds the character on a walkable slope.
+                // cancelling the gravity-component along the ground-plane does, and is a no-op on the flat.
+                // deliberately outside the clamp above: this is compensation, not locomotion.
+                if(on_ground)
+                {
+                    const glm::vec3 &n = character.ground_normal;
+                    accel -= m_context.gravity() - n * glm::dot(m_context.gravity(), n);
+                }
+                m_context.body_interface().add_force(obj->id(), phys_cmp->mass * accel);
             }
-            m_context.body_interface().add_force(obj->id(), phys_cmp->mass * accel);
+
+            // jump is an edge and is consumed here, whether or not it can be acted on
+            const bool jump = character.jump;
+            character.jump = false;
+            character.time_since_grounded = on_ground ? 0.f : character.time_since_grounded + dt;
+
+            if(const float gravity = -m_context.gravity().y;
+               jump && gravity > 0.f && character.time_since_grounded <= character.coyote_time)
+            {
+                // a descending platform must not eat the jump
+                if(velocity.y < 0.f)
+                {
+                    m_context.body_interface().set_velocity(obj->id(), {velocity.x, 0.f, velocity.z});
+                }
+
+                float v_jump = std::sqrt(2.f * gravity * character.jump_height);
+                m_context.body_interface().add_impulse(obj->id(), phys_cmp->mass * v_jump * glm::vec3(0.f, 1.f, 0.f));
+
+                // close the coyote-window, the ground-state lags a step behind and would re-open it
+                character.time_since_grounded = character.coyote_time + 1.f;
+            }
         }
+    };
 
-        // jump is an edge and is consumed here, whether or not it can be acted on
-        bool jump = character.jump;
-        character.jump = false;
-        character.time_since_grounded =
-                on_ground ? 0.f : character.time_since_grounded + static_cast<float>(time_delta);
-
-        if(float gravity = -m_context.gravity().y;
-           jump && gravity > 0.f && character.time_since_grounded <= character.coyote_time)
+    // simulation -> character. the ground-state feeds the next step's forces, so it refreshes per step
+    auto read_character_states = [&] {
+        for(auto *obj: visitor.objects)
         {
-            // a descending platform must not eat the jump
-            if(velocity.y < 0.f) { m_context.body_interface().set_velocity(obj->id(), {velocity.x, 0.f, velocity.z}); }
+            if(auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>();
+               phys_cmp && phys_cmp->character)
+            {
+                m_context.read_character_state(obj->id(), *phys_cmp->character);
+            }
+        }
+    };
 
-            float v_jump = std::sqrt(2.f * gravity * character.jump_height);
-            m_context.body_interface().add_impulse(obj->id(), phys_cmp->mass * v_jump * glm::vec3(0.f, 1.f, 0.f));
+    // advance simulation in fixed steps. a variable step degrades jolt's warm-starting and unsettles stacks,
+    // the clamp drops stalls (loading, shader-compilation) instead of simulating them.
+    // the 2 collision-steps below subdivide each fixed step, they do not bound it -> the solver runs at 120hz
+    m_accumulator += simulation_playback ? std::min(time_delta, max_frame_time) : 0.0;
+    auto num_steps = static_cast<uint32_t>(m_accumulator / fixed_timestep);
+    m_accumulator -= num_steps * fixed_timestep;
 
-            // close the coyote-window, the ground-state lags a step behind and would re-open it
-            character.time_since_grounded = character.coyote_time + 1.f;
+    if(num_steps)
+    {
+        for(uint32_t i = 0; i < num_steps; ++i)
+        {
+            apply_character_forces(static_cast<float>(fixed_timestep));
+            m_context.step_simulation(static_cast<float>(fixed_timestep), 2);
+            read_character_states();
         }
     }
-
-    // advance simulation
-    m_context.step_simulation(simulation_playback ? static_cast<float>(time_delta) : 0.f, 2);
+    else
+    {
+        // a zero-delta step is not a no-op: it refreshes the broadphase and the character ground-states
+        m_context.step_simulation(0.f, 1);
+        read_character_states();
+    }
 
     for(auto *obj: visitor.objects)
     {
-        if(auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>())
+        if(const auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>())
         {
-            // simulation -> character
-            if(phys_cmp->character) { m_context.read_character_state(obj->id(), *phys_cmp->character); }
-
             // manually update non-moving/kinematic objects
             if(!is_movable(*phys_cmp))
             {
                 // physics -> object. translation/rotation are absolute channels for a simulation-driven
                 // body, so jolt's world-pose goes straight in. get_transform leaves the scale alone,
                 // seeding from the stored transform keeps the authored one.
-                vierkant::transform_t transform = obj->transform() ? *obj->transform() : vierkant::transform_t{};
-                if(m_context.body_interface().get_transform(obj->id(), transform)) { obj->set_transform(transform); }
+                if(vierkant::transform_t transform = obj->transform() ? *obj->transform() : vierkant::transform_t{};
+                   m_context.body_interface().get_transform(obj->id(), transform))
+                {
+                    obj->set_transform(transform);
+                }
             }
         }
     }
