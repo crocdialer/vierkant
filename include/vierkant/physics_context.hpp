@@ -460,6 +460,12 @@ public:
     //! pause/resume the simulation. independent of Scene::animation_speed
     bool simulation_playback = true;
 
+    //! fixed simulation-step. the solver is not timestep-invariant, a stable step keeps stacks settled
+    double fixed_timestep = 1.0 / 60.0;
+
+    //! upper bound for a frame's delta. discards stalls (loading, shader-compilation) instead of simulating them
+    double max_frame_time = 0.25;
+
     vierkant::PhysicsContext &physics_context() { return m_context; };
     [[nodiscard]] const vierkant::PhysicsContext &physics_context() const { return m_context; };
 
@@ -469,6 +475,9 @@ private:
 
     crocore::ThreadPool m_thread_pool{std::thread::hardware_concurrency() - 1};
     vierkant::PhysicsContext m_context{&m_thread_pool};
+
+    //! leftover time not yet consumed by a fixed step
+    double m_accumulator = 0.0;
 };
 
 }//namespace vierkant

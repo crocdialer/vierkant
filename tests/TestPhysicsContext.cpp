@@ -583,3 +583,77 @@ TEST(PhysicsContext, simulation)
     //    EXPECT_FALSE(debug_lines->positions.empty());
     //    EXPECT_EQ(debug_lines->positions.size(), debug_lines->colors.size());
 }
+
+TEST(PhysicsContext, fixed_timestep_survives_large_delta)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    scene->physics_context().set_gravity({0.f, -9.81f, 0.f});
+    create_ground(object_store, scene, {5.f, .5f, 5.f});
+
+    // a stack of boxes, each resting on the one below
+    constexpr float half_extent = .5f;
+    constexpr uint32_t num_boxes = 8;
+    std::vector<vierkant::Object3DPtr> boxes;
+
+    for(uint32_t i = 0; i < num_boxes; ++i)
+    {
+        auto box = object_store->create_object();
+        // small lateral offsets: a perfectly aligned stack survives a large step, a real-world one does not
+        const float x = .05f * static_cast<float>(i % 2), z = -.05f * static_cast<float>(i % 3);
+        box->set_transform({.translation = {x, half_extent + static_cast<float>(i) * 2.f * half_extent, z}});
+        vierkant::physics_component_t cmp = {};
+        cmp.shape = collision::box_t{.half_extents = glm::vec3(half_extent)};
+        cmp.mass = 1.f;
+        box->add_component(cmp);
+        scene->add_object(box);
+        boxes.push_back(box);
+    }
+
+    // short settle. the bodies must still be awake when the stall hits, a sleeping stack is not simulated at all
+    constexpr float dt = 1.f / 60.f;
+    for(uint32_t i = 0; i < 20; ++i) { scene->update(dt); }
+
+    std::vector<glm::vec3> settled;
+    for(const auto &box: boxes) { settled.push_back(box->transform()->translation); }
+
+    // a stall (scene-load, shader-compilation) shows up as one huge frame-delta.
+    // it must be dropped, not handed to the solver as a single step, which collapses the stack
+    scene->update(3.0);
+
+    for(uint32_t i = 0; i < num_boxes; ++i)
+    {
+        const auto &translation = boxes[i]->transform()->translation;
+        EXPECT_NEAR(translation.x, settled[i].x, .05f);
+        EXPECT_NEAR(translation.y, settled[i].y, .05f);
+        EXPECT_NEAR(translation.z, settled[i].z, .05f);
+    }
+}
+
+TEST(PhysicsContext, fixed_timestep_is_framerate_independent)
+{
+    // binary-exact, so both runs consume the accumulator without drift
+    constexpr double fixed_timestep = 1.0 / 64.0;
+
+    // free-falling box, no ground. returns its height after num_frames * frame_delta seconds
+    auto drop_box = [](double frame_delta, uint32_t num_frames) -> float {
+        std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+        auto scene = vierkant::PhysicsScene::create(object_store);
+        scene->physics_context().set_gravity({0.f, -9.81f, 0.f});
+        scene->fixed_timestep = fixed_timestep;
+
+        auto box = object_store->create_object();
+        box->set_transform({.translation = {0.f, 10.f, 0.f}});
+        vierkant::physics_component_t cmp = {};
+        cmp.shape = collision::box_t{.half_extents = glm::vec3(.5f)};
+        cmp.mass = 1.f;
+        box->add_component(cmp);
+        scene->add_object(box);
+
+        for(uint32_t i = 0; i < num_frames; ++i) { scene->update(frame_delta); }
+        return box->transform()->translation.y;
+    };
+
+    // same second of simulated time, delivered at 64hz and at 16hz
+    EXPECT_NEAR(drop_box(fixed_timestep, 64), drop_box(4.0 * fixed_timestep, 16), 1.e-4f);
+}
