@@ -498,8 +498,8 @@ cubemap_data_t download_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue
         const VkDeviceSize level_bytes = cubemap_level_num_bytes(img_fmt.format, level_size);
         const VkDeviceSize face_bytes = level_bytes / num_faces;
 
-        level_buffers[lvl] = vierkant::Buffer::create(device, nullptr, level_bytes,
-                                                      VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_TO_CPU);
+        level_buffers[lvl] = vierkant::Buffer::create(device, nullptr, level_bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                      VMA_MEMORY_USAGE_GPU_TO_CPU);
 
         std::array<VkBufferImageCopy2, num_faces> regions = {};
 
@@ -579,8 +579,8 @@ vierkant::ImagePtr upload_cubemap(const vierkant::DevicePtr &device, const cubem
 
         for(uint32_t face = 0; face < num_faces; ++face)
         {
-            ret->copy_from(level_buffers[lvl], cmd_buf.handle(), face * face_bytes, {},
-                           {level_size, level_size, 1}, face, lvl);
+            ret->copy_from(level_buffers[lvl], cmd_buf.handle(), face * face_bytes, {}, {level_size, level_size, 1},
+                           face, lvl);
         }
     }
     ret->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, cmd_buf.handle());
@@ -630,9 +630,8 @@ cubemap_data_t compress_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue
     VkImageView raw_view = VK_NULL_HANDLE;
     vkCheck(vkCreateImageView(device->handle(), &view_create_info, nullptr, &raw_view),
             "compress_cubemap: failed to create array-view");
-    vierkant::VkImageViewPtr array_view(raw_view, [device](VkImageView v) {
-        vkDestroyImageView(device->handle(), v, nullptr);
-    });
+    vierkant::VkImageViewPtr array_view(raw_view,
+                                        [device](VkImageView v) { vkDestroyImageView(device->handle(), v, nullptr); });
 
     // Compute's default descriptor-pool has no SAMPLED_IMAGE, which is what a Texture2DArray binds as
     vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, num_mips},
@@ -668,10 +667,9 @@ cubemap_data_t compress_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue
         const uint32_t blocks_per_side = (level_size + 3) / 4;
         const VkDeviceSize level_bytes = cubemap_level_num_bytes(bc6h_format, level_size);
 
-        block_buffers[lvl] =
-                vierkant::Buffer::create(device, nullptr, level_bytes,
-                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                         VMA_MEMORY_USAGE_GPU_ONLY);
+        block_buffers[lvl] = vierkant::Buffer::create(
+                device, nullptr, level_bytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                VMA_MEMORY_USAGE_GPU_ONLY);
         host_buffers[lvl] = vierkant::Buffer::create(device, nullptr, level_bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                      VMA_MEMORY_USAGE_GPU_TO_CPU);
 
@@ -700,14 +698,8 @@ cubemap_data_t compress_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue
         desc_blocks.buffers = {block_buffers[lvl]};
     }
     compute.dispatch(computables, cmd_buf.handle());
-
-    for(uint32_t lvl = 0; lvl < num_mips; ++lvl)
-    {
-        block_buffers[lvl]->barrier(cmd_buf.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                    VK_ACCESS_2_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_2_COPY_BIT,
-                                    VK_ACCESS_2_TRANSFER_READ_BIT);
-        block_buffers[lvl]->copy_to(host_buffers[lvl], cmd_buf.handle());
-    }
+    stage_barrier(cmd_buf.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_2_COPY_BIT);
+    for(uint32_t lvl = 0; lvl < num_mips; ++lvl) { block_buffers[lvl]->copy_to(host_buffers[lvl], cmd_buf.handle()); }
     cubemap->transition_layout(prev_layout != VK_IMAGE_LAYOUT_UNDEFINED ? prev_layout
                                                                         : VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
                                cmd_buf.handle());
