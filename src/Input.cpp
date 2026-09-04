@@ -110,11 +110,23 @@ glm::vec2 Joystick::dpad() const
             val_fn(GLFW_GAMEPAD_BUTTON_DPAD_UP) - val_fn(GLFW_GAMEPAD_BUTTON_DPAD_DOWN)};
 }
 
+//! inverse of g_button_inputs: Input -> button-index, or 0xff for non-button inputs.
+constexpr auto g_button_indices = [] {
+    std::array<uint8_t, static_cast<uint32_t>(Joystick::Input::BUTTON_GUIDE) + 1> ret{};
+    ret.fill(0xff);
+    for(uint8_t i = 0; i < g_button_inputs.size(); ++i) { ret[static_cast<uint32_t>(g_button_inputs[i])] = i; }
+    return ret;
+}();
+
+bool Joystick::is_down(Input input) const
+{
+    const uint8_t idx = g_button_indices[static_cast<uint32_t>(input)];
+    return idx < m_buttons.size() && m_buttons[idx];
+}
+
 const std::unordered_map<Joystick::Input, Joystick::Event> &Joystick::input_events() const { return m_input_events; }
 
 bool Joystick::rumble(float strong, float weak, uint32_t duration_ms) const
-{
-    return m_rumble_fn && m_rumble_fn(strong, weak, duration_ms);
-}
+{ return m_rumble_fn && m_rumble_fn(strong, weak, duration_ms); }
 
 }// namespace vierkant

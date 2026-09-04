@@ -253,6 +253,8 @@ public:
 
     glm::vec2 dpad() const;
 
+    bool is_down(Input input) const;
+
     const std::unordered_map<Input, Event> &input_events() const;
 
     /**

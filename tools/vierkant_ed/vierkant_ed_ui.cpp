@@ -266,7 +266,7 @@ void VierkantEd::create_ui()
                                     !m_pbr_renderer->settings.use_meshlet_pipeline;
                             break;
 
-                        case vierkant::Joystick::Input::BUTTON_BUMPER_RIGHT: toggle_ortho_camera(); break;
+                        case vierkant::Joystick::Input::DPAD_RIGHT: toggle_ortho_camera(); break;
 
                         case vierkant::Joystick::Input::BUTTON_STICK_LEFT: center_selected_objects(); break;
 

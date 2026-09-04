@@ -180,17 +180,13 @@ void FlyCamera::update(double time_delta)
         }
 
         // joystick-controls
-        auto joystick_states = std::move(m_last_joystick_states);
-
-        if(!joystick_states.empty())
+        if(const auto joystick_states = std::move(m_last_joystick_states); !joystick_states.empty())
         {
             const auto &state = joystick_states[0];
-
-            auto dpad = state.dpad();
-
             move_mask.x += state.analog_left().x;
             move_mask.z += state.analog_left().y;
-            move_mask.y += dpad.y;
+            move_mask.y += (state.is_down(Joystick::Input::BUTTON_BUMPER_RIGHT) ? 1.f : 0.f) -
+                           (state.is_down(Joystick::Input::BUTTON_BUMPER_LEFT) ? 1.f : 0.f);
 
             // raw diff
             glm::vec2 diff = -state.analog_right() * static_cast<float>(time_delta);
