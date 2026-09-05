@@ -2,8 +2,6 @@ import "../renderer/types.slang";
 import "../utils/transform.slang";
 import "../utils/procedural_environment.slang";
 
-[[vk::push_constant]] renderer::push_constants_t push_constants;
-
 [[vk::binding(renderer::ResourceBinding::RenderData, 0)]]
 ConstantBuffer<renderer::render_data_t> render_data;
 

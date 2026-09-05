@@ -6,9 +6,6 @@ enum TextureIndex { COLOR = 0, DEPTH = 1 };
 [[vk::binding(0, 0)]] Sampler2D u_textures[2];
 [[vk::binding(1, 0)]] ConstantBuffer<utils::dof_params_t> u_dof_params;
 
-[[vk::push_constant]]
-renderer::push_constants_t push_constants;
-
 struct FragOutput
 {
     float4 color : SV_Target;
