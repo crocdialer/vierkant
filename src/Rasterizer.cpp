@@ -314,6 +314,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     auto &desc_all_textures = bindless_texture_desc[BINDING_TEXTURES];
     desc_all_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_all_textures.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    desc_all_textures.variable_count = true;
     desc_all_textures.images = textures;
 
     auto bindless_texture_layout = vierkant::find_or_create_set_layout(
@@ -537,7 +538,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                     frame_assets.descriptor_sets, next_descriptor_sets, false);
             auto bindless_texture_set = vierkant::find_or_create_descriptor_set(
                     m_device, bindless_texture_layout.get(), bindless_texture_desc, m_descriptor_pool,
-                    frame_assets.descriptor_sets, next_descriptor_sets, false);
+                    frame_assets.descriptor_sets, next_descriptor_sets, true);
 
             draw_asset.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
         }

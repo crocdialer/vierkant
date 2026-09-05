@@ -73,6 +73,15 @@ using descriptor_map_t = std::map<uint32_t, descriptor_t>;
 using descriptor_set_map_t = std::unordered_map<vierkant::descriptor_map_t, vierkant::DescriptorSetPtr>;
 
 /**
+ * @brief   descriptor-count used for a binding with 'descriptor_t::variable_count', clamped against device-limits.
+ *          useful to size descriptor-pools, which must reserve this many descriptors per variable-count set.
+ *
+ * @param   device  handle for a vierkant::Device
+ * @return  the maximum number of descriptors in a variable-count binding
+ */
+uint32_t max_bindless_resources(const vierkant::DevicePtr &device);
+
+/**
  * @brief   Create a shared VkDescriptorPool (DescriptorPoolPtr)
  *
  * @param   device  handle for the vierkant::Device to create the DescriptorPool
@@ -95,13 +104,14 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
 /**
  * @brief   Create a shared VkDescriptorSet (DescriptorSetPtr) for a provided set-layout.
  *
- * @param   device      handle for the vierkant::Device to create the DescriptorSet
- * @param   pool        handle for a shared VkDescriptorPool to allocate the DescriptorSet from
- * @param   set_layout  handle for a VkDescriptorSetLayout
+ * @param   device          handle for the vierkant::Device to create the DescriptorSet
+ * @param   pool            handle for a shared VkDescriptorPool to allocate the DescriptorSet from
+ * @param   set_layout      handle for a VkDescriptorSetLayout
+ * @param   variable_count  number of descriptors to allocate for a variable-count binding. 0: no such binding.
  * @return  the newly created DescriptorSetPtr
  */
 DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device, const DescriptorPoolPtr &pool,
-                                       VkDescriptorSetLayout set_layout, bool variable_count);
+                                       VkDescriptorSetLayout set_layout, uint32_t variable_count);
 
 /**
  * @brief   Update an existing shared VkDescriptorSet with a provided array of vierkant::descriptor_t.
