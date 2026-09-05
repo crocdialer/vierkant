@@ -394,6 +394,9 @@ private:
     std::default_random_engine m_random_engine;
 
     uint32_t m_mesh_task_count = 0;
+
+    //! 1x1 placeholder for BINDING_DEPTH_PYRAMID
+    vierkant::ImagePtr m_placeholder_image;
 };
 
 }//namespace vierkant

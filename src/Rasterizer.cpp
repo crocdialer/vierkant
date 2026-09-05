@@ -97,6 +97,14 @@ Rasterizer::Rasterizer(DevicePtr device, const create_info_t &create_info)
     debug_label = create_info.debug_label;
     use_gpu_timestamps = create_info.use_gpu_timestamps;
 
+    // 1x1 stand-in for an absent depth-pyramid
+    uint32_t v = 0xFFFFFFFF;
+    vierkant::Image::Format placeholder_fmt = {};
+    placeholder_fmt.extent = {1, 1, 1};
+    placeholder_fmt.format = VK_FORMAT_R8G8B8A8_UNORM;
+    placeholder_fmt.name = "Rasterizer: placeholder_image";
+    m_placeholder_image = vierkant::Image::create(m_device, &v, placeholder_fmt);
+
     // push constant range
     m_push_constant_range.offset = 0;
     m_push_constant_range.size = sizeof(push_constants_t);
@@ -147,6 +155,7 @@ void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept
     std::swap(lhs.use_mesh_shader, rhs.use_mesh_shader);
     std::swap(lhs.use_gpu_timestamps, rhs.use_gpu_timestamps);
     std::swap(lhs.m_mesh_task_count, rhs.m_mesh_task_count);
+    std::swap(lhs.m_placeholder_image, rhs.m_placeholder_image);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -357,9 +366,15 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         if(!drawable.use_own_buffers)
         {
             // all frame-global buffers arrive as device-addresses in one uniform-buffer
-            auto &desc_render_context = drawable.descriptors[Rasterizer::BINDING_RENDER_DATA];
-            desc_render_context.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            desc_render_context.stage_flags = VK_SHADER_STAGE_ALL;
+            auto &desc_render_data = drawable.descriptors[Rasterizer::BINDING_RENDER_DATA];
+            desc_render_data.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            desc_render_data.stage_flags = VK_SHADER_STAGE_ALL;
+
+            // always declared, so the set-0 layout does not depend on gpu-culling being on
+            auto &desc_depth_pyramid = drawable.descriptors[Rasterizer::BINDING_DEPTH_PYRAMID];
+            desc_depth_pyramid.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            desc_depth_pyramid.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
+            if(desc_depth_pyramid.images.empty()) { desc_depth_pyramid.images = {m_placeholder_image}; }
         }
 
         indexed_drawable.descriptor_set_layout = vierkant::find_or_create_set_layout(

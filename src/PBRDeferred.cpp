@@ -688,10 +688,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 pipeline_specialization.set(2, VkBool32(use_gpu_culling && !drawable.vertex_buffer));
                 drawable.pipeline_format.specialization = std::move(pipeline_specialization);
 
-                auto &desc_depth_pyramid = drawable.descriptors[Rasterizer::BINDING_DEPTH_PYRAMID];
-                desc_depth_pyramid.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                desc_depth_pyramid.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
-                desc_depth_pyramid.images = {vierkant::get_depth_pyramid(frame_context.gpu_cull_context)};
+                // only the image, the rasterizer declares type and stage-flags for every drawable
+                drawable.descriptors[Rasterizer::BINDING_DEPTH_PYRAMID].images = {
+                        vierkant::get_depth_pyramid(frame_context.gpu_cull_context)};
             }
 
             // select shader-stages from cache
