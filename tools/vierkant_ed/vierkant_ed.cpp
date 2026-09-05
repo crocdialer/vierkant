@@ -16,6 +16,8 @@
 using log_delegate_fn_t = std::function<void(const std::string &msg, spdlog::level::level_enum log_level,
                                              const std::string &logger_name)>;
 
+namespace
+{
 class delegate_sink_t : public spdlog::sinks::base_sink<std::mutex>
 {
 public:
@@ -32,7 +34,7 @@ protected:
         spdlog::sinks::base_sink<std::mutex>::formatter_->format(msg, formatted);
 
         // bounce out via delegates
-        for(const auto &[name, delegate]: log_delegates)
+        for(const auto &delegate: log_delegates | std::views::values)
         {
             if(delegate)
             {
@@ -44,6 +46,7 @@ protected:
 
     void flush_() override {}
 };
+}// namespace
 
 // gcc15 acting up weirdly here
 #if defined(__GNUC__)
@@ -422,7 +425,7 @@ void VierkantEd::update_player_input(double time_delta)
         if(m_settings.body_use_view_yaw)
         {
             // the physics-readback owns the object-transform, so the body has to be rotated
-            auto &body_interface = m_scene->physics_context().body_interface();
+            const auto &body_interface = m_scene->physics_context().body_interface();
             if(vierkant::transform_t transform; body_interface.get_transform(obj->id(), transform))
             {
                 transform.rotation = yaw_rotation;
@@ -481,8 +484,8 @@ vierkant::window_delegate_t::draw_result_t VierkantEd::draw(const vierkant::Wind
     auto render_scene = [this, &framebuffer, &semaphore_infos, &overlay_assets]() -> VkCommandBuffer {
         auto render_result =
                 m_scene_renderer->render_scene(m_renderer, m_scene, m_render_camera, ~vierkant::LAYER_EDITOR);
-        auto overlay_submit_info = generate_overlay(overlay_assets, render_result.object_ids);
         {
+            const auto overlay_submit_info = generate_overlay(overlay_assets, render_result.object_ids);
             std::unique_lock lock(m_mutex_semaphore_submit);
             semaphore_infos.insert(semaphore_infos.end(), render_result.semaphore_infos.begin(),
                                    render_result.semaphore_infos.end());
@@ -529,23 +532,20 @@ vierkant::window_delegate_t::draw_result_t VierkantEd::draw(const vierkant::Wind
 
             if(m_settings.draw_node_hierarchy)
             {
-                vierkant::nodes::node_animation_t animation = {};
 
                 if(obj->has_component<vierkant::animation_component_t>())
                 {
                     const auto &mesh = obj->get_component<vierkant::mesh_component_t>().mesh;
-
-                    auto &animation_state = obj->get_component<vierkant::animation_component_t>();
-                    animation = mesh->node_animations[animation_state.index];
                     auto node = mesh->root_bone ? mesh->root_bone : mesh->root_node;
+                    auto &animation_state = obj->get_component<vierkant::animation_component_t>();
+                    const auto &animation = mesh->node_animations[animation_state.index];
 
-                    // bone-transforms are relative to the skinned node, the node-hierarchy already
-                    // carries model-space transforms
+                    // bone-transforms are relative to the skinned node,
+                    // node-hierarchy already carries model-space transforms
                     auto node_transform = mesh->root_bone ? modelview * mesh->skin_transform : modelview;
                     m_draw_context.draw_node_hierarchy(m_renderer_overlay, node, animation,
-                                                       static_cast<float>(animation_state.current_time),
-                                                       animation_state.interpolation_mode, node_transform,
-                                                       cam_projection);
+                                                       animation_state.current_time, animation_state.interpolation_mode,
+                                                       node_transform, cam_projection);
                 }
             }
         }
@@ -563,7 +563,6 @@ vierkant::window_delegate_t::draw_result_t VierkantEd::draw(const vierkant::Wind
         {
             m_draw_context.draw_rect(m_renderer_overlay, *m_selection_area, glm::vec4(.3f, 0.25f, .8f, 0.3f));
         }
-
         return m_renderer_overlay.render(framebuffer);
     };
 
@@ -587,8 +586,7 @@ vierkant::window_delegate_t::draw_result_t VierkantEd::draw(const vierkant::Wind
     // get values from completed futures
     for(auto &f: cmd_futures)
     {
-        VkCommandBuffer commandbuffer = f.get();
-        if(commandbuffer) { ret.command_buffers.push_back(commandbuffer); }
+        if(VkCommandBuffer commandbuffer = f.get()) { ret.command_buffers.push_back(commandbuffer); }
     }
 
     // get semaphore infos
@@ -597,7 +595,7 @@ vierkant::window_delegate_t::draw_result_t VierkantEd::draw(const vierkant::Wind
 }
 
 vierkant::semaphore_submit_info_t VierkantEd::generate_overlay(VierkantEd::overlay_assets_t &overlay_asset,
-                                                              const vierkant::ImagePtr &id_img)
+                                                               const vierkant::ImagePtr &id_img)
 {
     constexpr uint64_t overlay_semaphore_done = 1;
     overlay_asset.semaphore.wait(overlay_asset.semaphore_value);
@@ -655,24 +653,27 @@ void VierkantEd::init_logger()
         try
         {
             file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(m_settings.log_file);
-        } catch(spdlog::spdlog_ex &e) {}
+        } catch(spdlog::spdlog_ex &e)
+        {
+            spdlog::error("could not open log-file: {} -> {}", m_settings.log_file, e.what());
+        }
     }
 
-    auto scroll_log_sink = std::make_shared<delegate_sink_t>();
+    const auto scroll_log_sink = std::make_shared<delegate_sink_t>();
     scroll_log_sink->log_delegates[name()] = [this](const std::string &msg, spdlog::level::level_enum log_level,
                                                     const std::string & /*logger_name*/) {
         std::unique_lock lock(m_log_queue_mutex);
         m_log_queue.emplace_back(msg, log_level);
         while(m_log_queue.size() > m_max_log_queue_size) { m_log_queue.pop_front(); }
     };
-    for(auto &logger: _loggers | std::views::values)
+    for(const auto &logger: _loggers | std::views::values)
     {
         logger->sinks().push_back(scroll_log_sink);
         if(file_sink) { logger->sinks().push_back(file_sink); }
     }
 }
 
-int main(int argc, char *argv[])
+int main(const int argc, char *argv[])
 {
     crocore::Application::create_info_t create_info = {};
     create_info.arguments = {argv, argv + argc};
