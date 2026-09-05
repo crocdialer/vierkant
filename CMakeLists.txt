@@ -69,7 +69,7 @@ endif ()
 
 option(BUILD_SHARED_LIBS "Build Shared Libraries" OFF)
 option(BUILD_TESTS "Build Tests" ON)
-option(BUILD_EXAMPLES "Build Examples" ON)
+option(BUILD_VIERKANT_EXAMPLES "Build Examples" ON)
 option(BUILD_VIERKANT_TOOLS "Build Tools (vierkant_ed, cache_4km, pbr_thumbnailer)" ON)
 option(BUILD_SPIRV_DEBUG_SYMBOLS "Build SPIRV debug symbols" OFF)
 
@@ -242,9 +242,9 @@ set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME}
         CACHE INTERNAL "${PROJECT_NAME}: Libraries" FORCE)
 
 #examples
-if (BUILD_EXAMPLES)
+if (BUILD_VIERKANT_EXAMPLES)
     add_subdirectory(samples)
-endif (BUILD_EXAMPLES)
+endif (BUILD_VIERKANT_EXAMPLES)
 
 if (BUILD_TESTS)
     enable_testing()
