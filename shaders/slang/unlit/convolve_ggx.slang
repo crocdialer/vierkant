@@ -2,10 +2,8 @@ import "../renderer/types.slang";
 import "../renderer/importance_sampling.slang";
 import "../utils/transform.slang";
 
-[[vk::push_constant]] renderer::context_t context;
-
-[[vk::binding(renderer::ResourceBinding::MeshDraws, 0)]]
-StructuredBuffer<renderer::mesh_draw_t> draws;
+[[vk::binding(renderer::ResourceBinding::RenderData, 0)]]
+ConstantBuffer<renderer::render_data_t> render_data;
 
 struct ubo_t { float u_roughness; };
 [[vk::binding(1, 0)]] ConstantBuffer<ubo_t> ubo;
@@ -16,7 +14,7 @@ struct ubo_t { float u_roughness; };
 void vertex_main(float3 a_position: Position, uint instanceID: SV_StartInstanceLocation,
                  out float3 eye_vec, out float4 sv_position: SV_Position)
 {
-    renderer::matrix_struct_t m = draws[instanceID].current_matrices;
+    renderer::matrix_struct_t m = render_data.mesh_draws[instanceID].current_matrices;
     eye_vec = a_position.xyz;
     sv_position = mul(m.projection, float4(utils::apply_transform(m.transform, a_position), 1.0));
 }

@@ -63,7 +63,11 @@ struct alignas(16) material_struct_t
     uint32_t texture_type_flags = 0;
 
     uint32_t base_texture_index = 0;
+
+    //! explicit tail-padding, see renderer::material_t. keeps the array-stride at 128 on both sides
+    uint32_t pad[3] = {};
 };
+static_assert(sizeof(material_struct_t) == 128, "unexpected material_struct_t size");
 
 //! define a strong id-type for drawables
 DEFINE_NAMED_ID(DrawableId);
@@ -95,8 +99,8 @@ struct drawable_t
     //! a descriptormap
     descriptor_map_t descriptors;
 
-    //! optional descriptor-set-layout
-    DescriptorSetLayoutPtr descriptor_set_layout;
+    //! material-textures, gathered into the bindless texture-array. indexed via material_struct_t::base_texture_index
+    std::vector<vierkant::ImagePtr> textures;
 
     //! binary blob for push-constants
     std::vector<uint8_t> push_constants;
@@ -136,7 +140,8 @@ struct create_mesh_drawables_params_t
 /**
  * @brief   Factory to create drawables from a provided mesh.
  *
- * @param   params  a struct containing a mesh and other params for drawable-creation.
+ * @param   mesh_component  a mesh-component
+ * @param   params          a struct containing a mesh and other params for drawable-creation.
  * @return  an array of drawables for the mesh-entries.
  */
 std::vector<vierkant::drawable_t> create_mesh_drawables(const vierkant::mesh_component_t &mesh_component,

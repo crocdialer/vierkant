@@ -114,7 +114,7 @@ TEST(Mesh, basic)
 
     // use the pool to allocate the actual descriptor-set
     auto descriptor_set =
-            vierkant::create_descriptor_set(test_context.device, pool, descriptor_set_layout.get(), false);
+            vierkant::create_descriptor_set(test_context.device, pool, descriptor_set_layout.get(), 0);
 
     // update the descriptor set
     vierkant::update_descriptor_set(test_context.device, descriptors, descriptor_set);

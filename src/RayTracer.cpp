@@ -1,3 +1,4 @@
+#include <ranges>
 #include <vierkant/RayTracer.hpp>
 
 namespace vierkant
@@ -74,6 +75,9 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
             m_device, tracable.descriptors, trace_asset.descriptor_layout_cache, next_layout_cache);
     tracable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
 
+    bool variable_count = std::ranges::any_of(tracable.descriptors,
+                                              [](const auto &pair) { return pair.second.variable_count; });
+
     // push constant range
     if(!tracable.push_constants.empty())
     {
@@ -103,7 +107,7 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     // fetch descriptor set
     auto descriptor_set = vierkant::find_or_create_descriptor_set(
             m_device, descriptor_set_layout.get(), tracable.descriptors, m_descriptor_pool,
-            trace_asset.descriptor_set_cache, next_descriptor_set_cache, false, true);
+            trace_asset.descriptor_set_cache, next_descriptor_set_cache, variable_count, true);
 
     // update descriptor-set with actual descriptors
     vierkant::update_descriptor_set(m_device, tracable.descriptors, descriptor_set);

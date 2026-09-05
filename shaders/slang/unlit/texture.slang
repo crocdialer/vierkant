@@ -1,14 +1,8 @@
 import "../renderer/types.slang";
 import "../utils/transform.slang";
 
-[[vk::push_constant]]
-renderer::context_t context;
-
-[[vk::binding(renderer::ResourceBinding::MeshDraws, 0)]]
-StructuredBuffer<renderer::mesh_draw_t> draws;
-
-[[vk::binding(renderer::ResourceBinding::Material, 0)]]
-StructuredBuffer<renderer::material_t> materials;
+[[vk::binding(renderer::ResourceBinding::RenderData, 0)]]
+ConstantBuffer<renderer::render_data_t> render_data;
 
 [[vk::binding(renderer::ResourceBinding::Textures, 1)]]
 Sampler2D textures[];
@@ -27,9 +21,9 @@ VertexData vertex_main(
 {
     VertexData vertex_out;
     indices.mesh_draw_index = instanceID;
-    indices.material_index = draws[instanceID].material_index;
+    indices.material_index = render_data.mesh_draws[instanceID].material_index;
 
-    renderer::matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
+    renderer::matrix_struct_t m = render_data.mesh_draws[indices.mesh_draw_index].current_matrices;
     float3 world_pos = utils::apply_transform(m.transform, a_position);
     sv_position = mul(m.projection, float4(world_pos, 1.0));
     vertex_out.color = a_color;
@@ -43,7 +37,7 @@ float4 fragment_main(nointerpolation in renderer::index_bundle_t indices,
 {
     uint material_index = indices.material_index;
 
-    uint texture_index = materials[material_index].base_texture_index;
+    uint texture_index = render_data.materials[material_index].base_texture_index;
     float4 tex_color = textures[NonUniformResourceIndex(texture_index)].Sample(vertex_in.tex_coord);
-    return tex_color * materials[material_index].color * vertex_in.color;
+    return tex_color * render_data.materials[material_index].color * vertex_in.color;
 }

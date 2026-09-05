@@ -1,4 +1,6 @@
 import "../utils/transform.slang";
+import "../utils/packed_vertex.slang";
+import "../utils/camera.slang";
 
 module renderer;
 
@@ -21,7 +23,7 @@ public struct mesh_draw_t
     public matrix_struct_t last_matrices;
     public uint mesh_index;
     public uint material_index;
-    public uint vertex_buffer_index;
+    public uint mesh_buffer_index;
     public uint16_t lod_index;
     public uint16_t lod_count;
 };
@@ -134,6 +136,10 @@ public struct material_t
     public bool two_sided;
     public uint texture_type_flags;
     public uint base_texture_index;
+
+    //! explicit tail-padding: slang lays out buffer-reference structs naturally and does not round
+    //! up to the struct-alignment, the host does. keeps the array-stride at 128 on both sides.
+    private uint pad[3];
 };
 
 public enum DebugFlagBits
@@ -143,8 +149,8 @@ public enum DebugFlagBits
     LOD = 0x2
 };
 
-// Render-time context (e.g. passed via push constants)
-public struct context_t
+// push-constant payload, mirrors vierkant::Rasterizer::push_constants_t
+public struct push_constants_t
 {
     public float2 size;
     public float time;
@@ -157,23 +163,8 @@ public struct context_t
 // Shader resource bindings
 public enum ResourceBinding : uint
 {
-    Vertices = 0,
-    Indices = 1,
-    DrawCommands = 2,
-    MeshDraws = 3,
-    Material = 4,
+    RenderData = 0,
     Textures = 5,
-    BoneVertexData = 6,
-    Bones = 7,
-    PreviousBones = 8,
-    JitterOffset = 9,
-    MorphTargets = 10,
-    MorphParams = 11,
-    PreviousMorphParams = 12,
-    Meshlets = 13,
-    MeshletVertices = 14,
-    MeshletTriangles = 15,
-    MeshletVisibility = 16,
     DepthPyramid = 17
 };
 
@@ -247,6 +238,35 @@ public struct mesh_task_payload_t
     public uint    meshlet_base_index;
     public uint8_t meshlet_delta_indices[MAX_MESH_WORKGROUP_SIZE];
     public uint    object_index;
+};
+
+// per-drawable buffer-addresses, indexed with mesh_draw_t::mesh_buffer_index
+public struct mesh_buffers_t
+{
+    public Ptr<utils::packed_vertex_t, Access.Read> vertices;
+    public Ptr<meshlet_t, Access.Read> meshlets;
+    public Ptr<uint, Access.Read> meshlet_vertices;
+    public Ptr<uint8_t, Access.Read> meshlet_triangles;
+};
+
+// current and previous camera, uploaded as one pair
+public struct camera_data_t
+{
+    public utils::camera_t camera;
+    public utils::camera_t last_camera;
+};
+
+// frame-global buffers, provided as device-addresses in a single UBO (set 0, binding 0)
+public struct render_data_t
+{
+    public Ptr<camera_data_t, Access.Read> cameras;
+    public Ptr<mesh_draw_t, Access.Read> mesh_draws;
+    public Ptr<material_t, Access.Read> materials;
+    public Ptr<mesh_buffers_t, Access.Read> mesh_buffers;
+    public Ptr<indexed_draw_command_t, Access.Read> draw_commands;
+
+    //! meshlet-visibility bitfield, written from the task-shader
+    public uint *meshlet_visibilities;
 };
 
 }// namespace renderer

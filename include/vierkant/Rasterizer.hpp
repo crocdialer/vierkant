@@ -36,25 +36,9 @@ class Rasterizer
 public:
     enum DescriptorBinding
     {
-        BINDING_VERTICES = 0,
-        BINDING_INDICES = 1,
-        BINDING_DRAW_COMMANDS = 2,
-        BINDING_MESH_DRAWS = 3,
-        BINDING_MATERIAL = 4,
+        BINDING_RENDER_DATA = 0,
         BINDING_TEXTURES = 5,
-        BINDING_BONE_VERTEX_DATA = 6,
-        BINDING_BONES = 7,
-        BINDING_PREVIOUS_BONES = 8,
-        BINDING_JITTER_OFFSET = 9,
-        BINDING_MORPH_TARGETS = 10,
-        BINDING_MORPH_PARAMS = 11,
-        BINDING_PREVIOUS_MORPH_PARAMS = 12,
-        BINDING_MESHLETS = 13,
-        BINDING_MESHLET_VERTICES = 14,
-        BINDING_MESHLET_TRIANGLES = 15,
-        BINDING_MESHLET_VISIBILITY = 16,
         BINDING_DEPTH_PYRAMID = 17,
-        BINDING_MAX_RANGE
     };
 
     struct mesh_draw_t
@@ -63,10 +47,35 @@ public:
         matrix_struct_t last_matrices = {};
         uint32_t mesh_index = 0;
         uint32_t material_index = 0;
-        uint32_t vertex_buffer_index = 0;
+        uint32_t mesh_buffer_index = 0;
         uint16_t lod_index = 0;
         uint16_t lod_count = 1;
     };
+
+    //! per-drawable buffer-addresses, indexed with mesh_draw_t::mesh_buffer_index
+    struct mesh_buffers_t
+    {
+        VkDeviceAddress vertices = 0;
+        VkDeviceAddress meshlets = 0;
+        VkDeviceAddress meshlet_vertices = 0;
+        VkDeviceAddress meshlet_triangles = 0;
+    };
+
+    static_assert(sizeof(mesh_buffers_t) == 32, "unexpected mesh_buffers_t size");
+
+    //! frame-global buffers, provided as device-addresses in a single UBO (set 0, binding 0)
+    struct render_data_t
+    {
+        //! address of a pair of camera_params_t: current and previous frame
+        VkDeviceAddress cameras = 0;
+
+        VkDeviceAddress mesh_draws = 0;
+        VkDeviceAddress materials = 0;
+        VkDeviceAddress mesh_buffers = 0;
+        VkDeviceAddress draw_commands = 0;
+        VkDeviceAddress meshlet_visibilities = 0;
+    };
+    static_assert(sizeof(render_data_t) == 48, "unexpected render_data_t size");
 
     struct mesh_entry_t
     {
@@ -117,8 +126,8 @@ public:
         //! host-memory array of mesh_draw_t
         const mesh_draw_t *mesh_draws_host = nullptr;
 
-        //! device array containing an array of vertex-buffer device-addresses
-        vierkant::BufferPtr vertex_buffer_addresses;
+        //! device array containing an array of mesh_buffers_t
+        vierkant::BufferPtr mesh_buffers;
 
         //! device array containing an array of mesh_entry_t
         vierkant::BufferPtr mesh_entries;
@@ -212,6 +221,9 @@ public:
 
     //! optional cull-delegate
     indirect_draw_delegate_t draw_indirect_delegate;
+
+    //! address of a pair of camera-params (current/previous). provided by the caller, per frame.
+    VkDeviceAddress camera_buffer_address = 0;
 
     Rasterizer() = default;
 
@@ -319,11 +331,14 @@ private:
         descriptor_set_map_t descriptor_sets;
 
         // SSBOs containing everything (using gpu-mem iff a queue was provided)
-        vierkant::BufferPtr vertex_buffer_refs;
+        vierkant::BufferPtr mesh_buffers;
         vierkant::BufferPtr mesh_draw_buffer;
         vierkant::BufferPtr mesh_entry_buffer;
         vierkant::BufferPtr material_buffer;
         vierkant::BufferPtr meshlet_visibility_buffer;
+
+        //! uniform-buffer holding a render_data_t
+        vierkant::BufferPtr render_data_ubo;
 
         // host visible keep-alive staging-buffer
         vierkant::BufferPtr staging_buffer;
@@ -379,6 +394,9 @@ private:
     std::default_random_engine m_random_engine;
 
     uint32_t m_mesh_task_count = 0;
+
+    //! 1x1 placeholder for BINDING_DEPTH_PYRAMID
+    vierkant::ImagePtr m_placeholder_image;
 };
 
 }//namespace vierkant

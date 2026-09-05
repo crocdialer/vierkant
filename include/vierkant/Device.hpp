@@ -99,6 +99,7 @@ public:
     struct properties_t
     {
         VkPhysicalDeviceProperties core;
+        VkPhysicalDeviceVulkan12Properties vulkan12;
         VkPhysicalDeviceVulkan13Properties vulkan13;
         VkPhysicalDeviceAccelerationStructurePropertiesKHR acceleration_structure;
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_pipeline;

@@ -20,7 +20,7 @@ struct params_t
 [[vk::binding(1, 0)]] Sampler2D u_textures[2];
 
 [[vk::push_constant]]
-renderer::context_t context;
+renderer::push_constants_t push_constants;
 
 float screenspace_occlusion(float2 coord, float3 eye_normal, float ssao_radius, uint rng_state)
 {
@@ -58,7 +58,7 @@ float screenspace_occlusion(float2 coord, float3 eye_normal, float ssao_radius, 
 float fragment_main(float2 tex_coord : TexCoord0, float4 sv_position : SV_Position) : SV_Target
 {
     uint rng_state = utils::xxhash32(ubo[0].random_seed,
-                                     uint(context.size.x * sv_position.y + sv_position.x));
+                                     uint(push_constants.size.x * sv_position.y + sv_position.x));
 
     float3 eye_normal = u_textures[TextureIndex::NORMAL].Sample(tex_coord).xyz;
     eye_normal = utils::apply_rotation(ubo[0].view_transform, eye_normal);

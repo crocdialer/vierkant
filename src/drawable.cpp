@@ -61,8 +61,6 @@ std::vector<vierkant::drawable_t> create_mesh_drawables(const vierkant::mesh_com
                                                  params.interpolation_mode, node_morph_weights);
     }
 
-    bool use_meshlets = mesh->meshlets && mesh->meshlet_vertices && mesh->meshlet_triangles;
-
     for(uint32_t i = 0; i < mesh->entries.size(); ++i)
     {
         if(mesh_component.entry_indices && !mesh_component.entry_indices->contains(i)) { continue; }
@@ -125,27 +123,6 @@ std::vector<vierkant::drawable_t> create_mesh_drawables(const vierkant::mesh_com
                 material && material->blend_mode == vierkant::BlendMode::Blend;
         drawable.pipeline_format.cull_mode = material && material->twosided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
 
-        if(!drawable.use_own_buffers)
-        {
-            if(use_meshlets)
-            {
-                auto &desc_meshlets = drawable.descriptors[Rasterizer::BINDING_MESHLETS];
-                desc_meshlets.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_meshlets.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
-                desc_meshlets.buffers = {mesh->meshlets};
-
-                auto &desc_meshlet_vertices = drawable.descriptors[Rasterizer::BINDING_MESHLET_VERTICES];
-                desc_meshlet_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_meshlet_vertices.stage_flags = VK_SHADER_STAGE_MESH_BIT_EXT;
-                desc_meshlet_vertices.buffers = {mesh->meshlet_vertices};
-
-                auto &desc_meshlet_triangles = drawable.descriptors[Rasterizer::BINDING_MESHLET_TRIANGLES];
-                desc_meshlet_triangles.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_meshlet_triangles.stage_flags = VK_SHADER_STAGE_MESH_BIT_EXT;
-                desc_meshlet_triangles.buffers = {mesh->meshlet_triangles};
-            }
-        }
-
         // NOTE: not used anymore by most pipelines
         drawable.pipeline_format.binding_descriptions = binding_descriptions;
         drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
@@ -153,16 +130,12 @@ std::vector<vierkant::drawable_t> create_mesh_drawables(const vierkant::mesh_com
         // textures
         if(material && !material->texture_data.empty())
         {
-            vierkant::descriptor_t &desc_texture = drawable.descriptors[Rasterizer::BINDING_TEXTURES];
-            desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
             for(auto &[type_flag, tex_data]: material->texture_data)
             {
                 if(auto tex = params.assets->texture({tex_data.texture_id, tex_data.sampler_id}))
                 {
                     drawable.material.texture_type_flags |= static_cast<uint32_t>(type_flag);
-                    desc_texture.images.push_back(tex);
+                    drawable.textures.push_back(tex);
                 }
             }
         }

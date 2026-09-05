@@ -32,10 +32,11 @@ RaytracingAccelerationStructure topLevelAS;
 ConstantBuffer<ray::trace_data_t> trace_data;
 
 [[vk::binding(2, 0)]]
-Sampler2D u_textures[];
-
-[[vk::binding(3, 0)]]
 SamplerCube u_sampler_cube;
+
+// variable-count binding: must stay the highest binding-number in this set
+[[vk::binding(3, 0)]]
+Sampler2D u_textures[];
 
 //-----------------------------------------------------------------------------
 // ray-generation

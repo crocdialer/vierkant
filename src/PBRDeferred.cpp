@@ -77,8 +77,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         resize_storage(frame_context, create_info.settings.resolution, create_info.settings.output_resolution);
 
-        frame_context.g_buffer_camera_ubo = vierkant::Buffer::create(
-                m_device, nullptr, sizeof(glm::vec2), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        // must match renderer::camera_data_t, which the g-buffer shaders read via device-address
+        static_assert(sizeof(camera_params_t) == 176, "unexpected camera_params_t size");
+
+        // sized for the current/previous pair up front, so the device-address never moves
+        frame_context.g_buffer_camera_ubo =
+                vierkant::Buffer::create(m_device, nullptr, 2 * sizeof(camera_params_t),
+                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         frame_context.lighting_param_ubo =
                 vierkant::Buffer::create(device, nullptr, sizeof(environment_lighting_ubo_t),
@@ -479,10 +485,10 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
 
     // create g-buffer
     auto &g_buffer = geometry_pass(frame_context.cull_result);
-    auto albedo_map = g_buffer.color_attachment(G_BUFFER_ALBEDO);
+    auto albedo_img = g_buffer.color_attachment(G_BUFFER_ALBEDO);
 
     // default to color image
-    auto out_img = albedo_map;
+    auto out_img = albedo_img;
     auto depth_img = frame_context.g_buffer_main.depth_attachment();
 
     // lighting-pass
@@ -496,7 +502,8 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
     out_img = post_fx_pass(cam, out_img, depth_img);
 
     // draw final color+depth with provided renderer
-    m_draw_context.draw_image_fullscreen(renderer, out_img, depth_img, true);
+    m_draw_context.draw_image_fullscreen(renderer, frame_context.settings.debug_draw_flags ? albedo_img : out_img,
+                                         depth_img, true);
 
     // end debug label
     {
@@ -657,11 +664,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     if(!frame_context.recycle_commands)
     {
-        vierkant::descriptor_t camera_desc = {};
-        camera_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        camera_desc.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        camera_desc.buffers = {frame_context.g_buffer_camera_ubo};
-
         // draw all geometry
         for(auto &drawable: cull_result.drawables)
         {
@@ -675,7 +677,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             if(drawable.mesh->meshlets && frame_context.settings.use_meshlet_pipeline)
             {
                 shader_flags |= PROP_MESHLETS;
-                camera_desc.stage_flags |= VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
 
                 auto &mesh_shader_props = m_device->properties().mesh_shader;
                 vierkant::pipeline_specialization pipeline_specialization;
@@ -687,10 +688,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 pipeline_specialization.set(2, VkBool32(use_gpu_culling && !drawable.vertex_buffer));
                 drawable.pipeline_format.specialization = std::move(pipeline_specialization);
 
-                auto &desc_depth_pyramid = drawable.descriptors[Rasterizer::BINDING_DEPTH_PYRAMID];
-                desc_depth_pyramid.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                desc_depth_pyramid.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
-                desc_depth_pyramid.images = {vierkant::get_depth_pyramid(frame_context.gpu_cull_context)};
+                // only the image, the rasterizer declares type and stage-flags for every drawable
+                drawable.descriptors[Rasterizer::BINDING_DEPTH_PYRAMID].images = {
+                        vierkant::get_depth_pyramid(frame_context.gpu_cull_context)};
             }
 
             // select shader-stages from cache
@@ -718,9 +718,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             drawable.pipeline_format.polygon_mode =
                     frame_context.settings.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
 
-            // add descriptor for a jitter-offset
-            drawable.descriptors[Rasterizer::BINDING_JITTER_OFFSET] = camera_desc;
-
             // stage drawables
             m_g_renderer_main.stage_drawable(drawable);
             if(use_gpu_culling)
@@ -740,6 +737,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_main.disable_material = m_g_renderer_post.disable_material = frame_context.settings.disable_material;
     m_g_renderer_main.debug_draw_flags = m_g_renderer_post.debug_draw_flags = frame_context.settings.debug_draw_flags;
     m_g_renderer_main.indirect_draw = m_g_renderer_post.indirect_draw = frame_context.settings.indirect_draw;
+    m_g_renderer_main.camera_buffer_address = m_g_renderer_post.camera_buffer_address =
+            frame_context.g_buffer_camera_ubo->device_address();
     m_g_renderer_main.use_mesh_shader = m_g_renderer_post.use_mesh_shader = frame_context.settings.use_meshlet_pipeline;
 
     // draw last visible objects
@@ -755,7 +754,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frame_context.indirect_draw_params_main.draws_out = params.draws_out;
         frame_context.indirect_draw_params_main.mesh_draws = params.mesh_draws;
         frame_context.indirect_draw_params_main.materials = params.materials;
-        frame_context.indirect_draw_params_main.vertex_buffer_addresses = params.vertex_buffer_addresses;
+        frame_context.indirect_draw_params_main.mesh_buffers = params.mesh_buffers;
         frame_context.indirect_draw_params_main.mesh_entries = params.mesh_entries;
         frame_context.indirect_draw_params_main.meshlet_visibilities = params.meshlet_visibilities;
 
@@ -857,19 +856,22 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
                     for(uint32_t idx: frame_context.cull_result.object_id_to_drawable_indices[obj_id])
                     {
-                        uint32_t vertex_buffer_index = params.mesh_draws_host[idx].vertex_buffer_index;
+                        uint32_t mesh_buffer_index = params.mesh_draws_host[idx].mesh_buffer_index;
 
-                        if(!mesh_indices.contains(vertex_buffer_index))
+                        if(!mesh_indices.contains(mesh_buffer_index))
                         {
+                            // patch only the 'vertices' member of the addressed mesh_buffers_t
                             vierkant::staging_copy_info_t copy_vertex_address = {};
                             copy_vertex_address.num_bytes = sizeof(VkDeviceAddress);
                             copy_vertex_address.data = &address;
-                            copy_vertex_address.dst_buffer = params.vertex_buffer_addresses;
-                            copy_vertex_address.dst_offset = sizeof(VkDeviceAddress) * vertex_buffer_index;
+                            copy_vertex_address.dst_buffer = params.mesh_buffers;
+                            copy_vertex_address.dst_offset =
+                                    sizeof(vierkant::Rasterizer::mesh_buffers_t) * mesh_buffer_index +
+                                    offsetof(vierkant::Rasterizer::mesh_buffers_t, vertices);
                             copy_vertex_address.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
                             copy_vertex_address.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
                             staging_copies.push_back(copy_vertex_address);
-                            mesh_indices.insert(vertex_buffer_index);
+                            mesh_indices.insert(mesh_buffer_index);
                         }
                     }
                 }
@@ -930,7 +932,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             // re-use mesh-draws/vertex-buffers/transforms/visibilities from main-pass
             params.mesh_draws = frame_context.indirect_draw_params_main.mesh_draws;
             params.materials = frame_context.indirect_draw_params_main.materials;
-            params.vertex_buffer_addresses = frame_context.indirect_draw_params_main.vertex_buffer_addresses;
+            params.mesh_buffers = frame_context.indirect_draw_params_main.mesh_buffers;
             params.mesh_entries = frame_context.indirect_draw_params_main.mesh_entries;
             params.meshlet_visibilities = frame_context.indirect_draw_params_main.meshlet_visibilities;
 

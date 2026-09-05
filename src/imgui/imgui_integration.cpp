@@ -327,7 +327,7 @@ void Context::draw_gui(vierkant::Rasterizer &renderer)
                 auto drawable = m_imgui_assets.drawable;
                 drawable.mesh = mesh_assets[n].mesh;
                 drawable.matrices = matrices;
-                drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES].images = {tex};
+                drawable.textures = {tex};
                 drawable.vertex_offset = static_cast<int32_t>(pcmd->VtxOffset);
                 drawable.base_index = base_index;
                 drawable.num_indices = pcmd->ElemCount;

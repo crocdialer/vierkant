@@ -562,18 +562,20 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     desc_trace_data.stage_flags = VK_SHADER_STAGE_ALL;
     desc_trace_data.buffers = {frame_context.trace_data_ubo};
 
-    // images are assigned during the light-gather below: scene-textures plus any projector-cookies
-    vierkant::descriptor_t &desc_textures = frame_context.tracable.descriptors[2];
-    desc_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
-
     if(m_environment)
     {
-        vierkant::descriptor_t &desc_environment = frame_context.tracable.descriptors[3];
+        vierkant::descriptor_t &desc_environment = frame_context.tracable.descriptors[2];
         desc_environment.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_environment.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
         desc_environment.images = {m_environment};
     }
+
+    // images are assigned during the light-gather below: scene-textures plus any projector-cookies.
+    // variable-count -> must stay the highest binding in this set
+    vierkant::descriptor_t &desc_textures = frame_context.tracable.descriptors[3];
+    desc_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+    desc_textures.variable_count = true;
 
     camera_params_t camera_params = {};
     camera_params.projection_view = projection_view(cam);

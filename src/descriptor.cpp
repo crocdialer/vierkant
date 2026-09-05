@@ -5,6 +5,14 @@ namespace vierkant
 {
 
 constexpr uint32_t g_max_bindless_resources = 512;
+
+uint32_t max_bindless_resources(const vierkant::DevicePtr &device)
+{
+    const auto &limits = device->properties().vulkan12;
+    return std::min({g_max_bindless_resources, limits.maxDescriptorSetUpdateAfterBindSampledImages,
+                     limits.maxPerStageDescriptorUpdateAfterBindSampledImages});
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, const descriptor_count_t &counts,
@@ -62,7 +70,7 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
         layout_binding.descriptorCount = std::max<uint32_t>(layout_binding.descriptorCount,
                                                             static_cast<uint32_t>(desc.inline_uniform_block.size()));
         layout_binding.descriptorCount =
-                desc.variable_count ? g_max_bindless_resources : layout_binding.descriptorCount;
+                desc.variable_count ? max_bindless_resources(device) : layout_binding.descriptorCount;
         layout_binding.descriptorType = desc.type;
         layout_binding.pImmutableSamplers = nullptr;
         layout_binding.stageFlags = desc.stage_flags;
@@ -93,17 +101,17 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device, const DescriptorPoolPtr &pool,
-                                       VkDescriptorSetLayout set_layout, bool variable_count)
+                                       VkDescriptorSetLayout set_layout, uint32_t variable_count)
 {
     VkDescriptorSet descriptor_set;
 
-    // max allocatable count
-    uint32_t max_binding = g_max_bindless_resources - 1;
+    // only allocate what is actually in use, the layout still declares max_bindless_resources
+    uint32_t num_descriptors = std::min(variable_count, max_bindless_resources(device));
 
     VkDescriptorSetVariableDescriptorCountAllocateInfo descriptor_count_allocate_info = {};
     descriptor_count_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
     descriptor_count_allocate_info.descriptorSetCount = 1;
-    descriptor_count_allocate_info.pDescriptorCounts = &max_binding;
+    descriptor_count_allocate_info.pDescriptorCounts = &num_descriptors;
 
     VkDescriptorSetAllocateInfo alloc_info = {};
     alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -278,6 +286,14 @@ DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &devi
     // clean descriptor-map to enable sharing
     for(auto &[binding, descriptor]: descriptors)
     {
+        // a variable-count binding is sized by device-limits, not by the array -> drop it from the key
+        if(descriptor.variable_count)
+        {
+            descriptor.images.clear();
+            descriptor.buffers.clear();
+            descriptor.acceleration_structures.clear();
+            continue;
+        }
         for(auto &img: descriptor.images) { img.reset(); }
         for(auto &buf: descriptor.buffers) { buf.reset(); }
         for(auto &as: descriptor.acceleration_structures) { as.reset(); }
@@ -316,6 +332,22 @@ DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device
 {
     auto descriptors_copy = descriptors;
 
+    // number of descriptors to allocate for a variable-count binding. the set-cache keys on array-sizes,
+    // so a set is only ever reused for an identical count.
+    uint32_t num_variable_descriptors = 0;
+
+    if(variable_count)
+    {
+        for(const auto &[binding, descriptor]: descriptors)
+        {
+            if(descriptor.variable_count)
+            {
+                num_variable_descriptors = std::max<uint32_t>(descriptor.images.size(), descriptor.buffers.size());
+            }
+        }
+        num_variable_descriptors = std::max(1u, num_variable_descriptors);
+    }
+
     if(relax_reuse)
     {
         // clean descriptor-map to enable sharing
@@ -346,7 +378,7 @@ DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device
         if(current_assets_it == last.end())
         {
             // create a new descriptor set
-            ret = vierkant::create_descriptor_set(device, pool, set_layout, variable_count);
+            ret = vierkant::create_descriptor_set(device, pool, set_layout, num_variable_descriptors);
         }
         else
         {
