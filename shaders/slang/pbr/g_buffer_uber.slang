@@ -4,10 +4,10 @@ import "../utils/constants.slang";
 import "../utils/color.slang";
 
 [[vk::push_constant]]
-renderer::context_t context;
+renderer::push_constants_t push_constants;
 
-[[vk::binding(renderer::ResourceBinding::Material, 0)]]
-StructuredBuffer<renderer::material_t> materials;
+[[vk::binding(renderer::ResourceBinding::RenderData, 0)]]
+ConstantBuffer<renderer::render_data_t> render_data;
 
 [[vk::binding(renderer::ResourceBinding::Textures, 1)]]
 Sampler2D textures[];
@@ -33,9 +33,9 @@ FragOutput fragment_main(nointerpolation in renderer::index_bundle_t indices,
 
     result.object_id = utils::MAX_UINT16 - indices.mesh_draw_index;
 
-    uint rng_state = utils::tea(context.random_seed, uint(context.size.x * sv_position.y + sv_position.x));
+    uint rng_state = utils::tea(push_constants.random_seed, uint(push_constants.size.x * sv_position.y + sv_position.x));
 
-    renderer::material_t material = materials[indices.material_index];
+    renderer::material_t material = render_data.materials[indices.material_index];
 
     float3 normal = (material.two_sided && !is_front_face) ? -vertex_in.normal : vertex_in.normal;
     result.normal = float4(normal, 1);
@@ -47,16 +47,16 @@ FragOutput fragment_main(nointerpolation in renderer::index_bundle_t indices,
     result.motion = 0.5 * (vertex_in.current_position.xy / vertex_in.current_position.w -
                            vertex_in.last_position.xy / vertex_in.last_position.w);
 
-    if(context.debug_flags != 0)
+    if(push_constants.debug_flags != 0)
     {
-        if(renderer::has_flag(context.debug_flags, (uint) renderer::DebugFlagBits::DRAW_ID))
+        if(renderer::has_flag(push_constants.debug_flags, (uint) renderer::DebugFlagBits::DRAW_ID))
         {
             uint obj_hash = utils::tea(indices.mesh_draw_index, indices.meshlet_index);
             result.color.rgb =
                     float3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
         }
 
-        if(renderer::has_flag(context.debug_flags, (uint) renderer::DebugFlagBits::LOD))
+        if(renderer::has_flag(push_constants.debug_flags, (uint) renderer::DebugFlagBits::LOD))
         {
             float lod_factor = 1.0 - (indices.lod_index / float(indices.lod_count));
             result.color.rgb = utils::jet(lod_factor);
@@ -71,7 +71,7 @@ FragOutput fragment_main(nointerpolation in renderer::index_bundle_t indices,
         return result;
     }
 
-    if(!context.disable_material)
+    if(!push_constants.disable_material)
     {
         result.color = material.color;
 

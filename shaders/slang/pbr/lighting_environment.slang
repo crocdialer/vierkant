@@ -3,7 +3,7 @@ import "../renderer/point_light.slang";
 import "../utils/bsdf.slang";
 import "../utils/constants.slang";
 
-[[vk::push_constant]] ConstantBuffer<renderer::context_t> context;
+[[vk::push_constant]] ConstantBuffer<renderer::push_constants_t> push_constants;
 
 struct ubo_t
 {
@@ -54,7 +54,7 @@ float4 fragment_main(float2 tex_coord : TexCoord0, float4 sv_position : SV_Posit
 {
     float depth = u_sampler_2D[GBufferIndex::DEPTH].Sample(tex_coord).x;
 
-    float3 clip_pos = float3(sv_position.xy / context.size, depth);
+    float3 clip_pos = float3(sv_position.xy / push_constants.size, depth);
     float4 viewspace_pos = mul(ubo.inverse_projection, float4(2.0 * clip_pos.xy - 1, clip_pos.z, 1));
     float3 position = mul(ubo.camera_transform, viewspace_pos / viewspace_pos.w).xyz;
 

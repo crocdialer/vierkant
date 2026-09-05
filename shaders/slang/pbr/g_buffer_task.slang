@@ -12,19 +12,10 @@ const bool use_culling = false;
 const bool post_pass = false;
 
 [[vk::push_constant]]
-renderer::context_t context;
+renderer::push_constants_t push_constants;
 
-[[vk::binding(renderer::ResourceBinding::DrawCommands, 0)]]
-StructuredBuffer<renderer::indexed_draw_command_t> draw_commands;
-
-[[vk::binding(renderer::ResourceBinding::Meshlets, 0)]]
-StructuredBuffer<renderer::meshlet_t> meshlets;
-
-[[vk::binding(renderer::ResourceBinding::MeshDraws, 0)]]
-StructuredBuffer<renderer::mesh_draw_t> draws;
-
-[[vk::binding(renderer::ResourceBinding::MeshletVisibility, 0)]]
-RWStructuredBuffer<uint> meshlet_visibilities;
+[[vk::binding(renderer::ResourceBinding::RenderData, 0)]]
+ConstantBuffer<renderer::render_data_t> render_data;
 
 struct camera_ubo_t
 {
@@ -35,9 +26,6 @@ struct camera_ubo_t
 ConstantBuffer<camera_ubo_t> camera_ubo;
 
 // task-shader-only bindings
-[[vk::binding(renderer::ResourceBinding::Material, 0)]]
-StructuredBuffer<renderer::material_t> materials;
-
 [[vk::binding(renderer::ResourceBinding::DepthPyramid, 0)]]
 Sampler2D u_depth_pyramid;
 
@@ -47,17 +35,17 @@ bool cone_cull(float3 center, float radius, float3 cone_axis, float cone_cutoff,
 { return dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius; }
 
 bool is_visible(uint visibility_base_index, uint meshlet_index)
-{ return (meshlet_visibilities[visibility_base_index + (meshlet_index >> 5u)] & (1u << (meshlet_index & 31u))) != 0; }
+{ return (render_data.meshlet_visibilities[visibility_base_index + (meshlet_index >> 5u)] & (1u << (meshlet_index & 31u))) != 0; }
 
 void set_visible(uint base, uint meshlet_index, bool visible)
 {
     uint bit = 1u << (meshlet_index & 31u);
     uint slot = base + (meshlet_index >> 5u);
 
-    if(visible) { InterlockedOr(meshlet_visibilities[slot], bit); }
+    if(visible) { InterlockedOr(render_data.meshlet_visibilities[slot], bit); }
     else
     {
-        InterlockedAnd(meshlet_visibilities[slot], ~bit);
+        InterlockedAnd(render_data.meshlet_visibilities[slot], ~bit);
     }
 }
 
@@ -77,7 +65,7 @@ void task_main(uint3 dispatchThreadID: SV_DispatchThreadID, uint ti: SV_GroupThr
     if(ti == 0) { visible_meshlets_count = 0; }
     GroupMemoryBarrierWithGroupSync();
 
-    renderer::indexed_draw_command_t draw_command = draw_commands[context.base_draw_index + draw_id];
+    renderer::indexed_draw_command_t draw_command = render_data.draw_commands[push_constants.base_draw_index + draw_id];
     bool valid = gid < draw_command.num_meshlets;
 
     uint meshlet_base_index = wg_id * WorkgroupSize().x + draw_command.base_meshlet;
@@ -98,19 +86,21 @@ void task_main(uint3 dispatchThreadID: SV_DispatchThreadID, uint ti: SV_GroupThr
 
         if(post_pass && valid)
         {
-            renderer::mesh_draw_t draw = draws[draw_command.object_index];
+            renderer::mesh_draw_t draw = render_data.mesh_draws[draw_command.object_index];
+            renderer::mesh_buffers_t mesh_buffers = render_data.mesh_buffers[draw.mesh_buffer_index];
             float4x4 m = mul(camera_ubo.camera.view, utils::mat4_cast(draw.current_matrices.transform));
 
-            float3 cone_axis_raw =
-                    float3(meshlets[mi].cone_axis[0], meshlets[mi].cone_axis[1], meshlets[mi].cone_axis[2]) / 127.0;
+            float3 cone_axis_raw = float3(mesh_buffers.meshlets[mi].cone_axis[0], mesh_buffers.meshlets[mi].cone_axis[1],
+                                          mesh_buffers.meshlets[mi].cone_axis[2]) /
+                                   127.0;
             cone_axis_raw = normalize(mul((float3x3) m, cone_axis_raw));
-            float cone_cutoff = float(meshlets[mi].cone_cutoff) / 127.0;
+            float cone_cutoff = float(mesh_buffers.meshlets[mi].cone_cutoff) / 127.0;
 
-            float3 center = mul(m, float4(meshlets[mi].sphere_center, 1.0)).xyz;
+            float3 center = mul(m, float4(mesh_buffers.meshlets[mi].sphere_center, 1.0)).xyz;
             float3 s = draw.current_matrices.transform.scale();
-            float radius = meshlets[mi].sphere_radius * max(max(abs(s.x), abs(s.y)), abs(s.z));
+            float radius = mesh_buffers.meshlets[mi].sphere_radius * max(max(abs(s.x), abs(s.y)), abs(s.z));
 
-            visible = materials[draw.material_index].two_sided ||
+            visible = render_data.materials[draw.material_index].two_sided ||
                       !cone_cull(center, radius, cone_axis_raw, cone_cutoff, float3(0));
 
             bool inside_frustum = camera_ubo.camera.ortho

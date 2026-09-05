@@ -4,13 +4,10 @@ import "../utils/packed_vertex.slang";
 import "../utils/camera.slang";
 
 [[vk::push_constant]]
-renderer::context_t context;
+renderer::push_constants_t push_constants;
 
-[[vk::binding(renderer::ResourceBinding::Vertices, 0)]]
-StructuredBuffer<Ptr<utils::packed_vertex_t, Access.Read>> vertex_buffers;
-
-[[vk::binding(renderer::ResourceBinding::MeshDraws, 0)]]
-StructuredBuffer<renderer::mesh_draw_t> draws;
+[[vk::binding(renderer::ResourceBinding::RenderData, 0)]]
+ConstantBuffer<renderer::render_data_t> render_data;
 
 struct camera_ubo_t
 {
@@ -27,16 +24,17 @@ renderer::g_buffer_vertex_data_t vertex_main(uint vertex_id: SV_VertexID, uint b
                                              out float4 sv_position: SV_Position)
 {
     indices.mesh_draw_index = instance_id;
-    indices.material_index = draws[instance_id].material_index;
+    indices.material_index = render_data.mesh_draws[instance_id].material_index;
     indices.meshlet_index = 0;
-    indices.lod_index = draws[instance_id].lod_index;
-    indices.lod_count = draws[instance_id].lod_count;
+    indices.lod_index = render_data.mesh_draws[instance_id].lod_index;
+    indices.lod_count = render_data.mesh_draws[instance_id].lod_count;
 
-    renderer::matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
-    renderer::matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
+    renderer::matrix_struct_t m = render_data.mesh_draws[indices.mesh_draw_index].current_matrices;
+    renderer::matrix_struct_t m_last = render_data.mesh_draws[indices.mesh_draw_index].last_matrices;
 
     utils::Vertex v =
-            utils::unpack(vertex_buffers[draws[indices.mesh_draw_index].vertex_buffer_index][vertex_id + base_vertex]);
+            utils::unpack(render_data.mesh_buffers[render_data.mesh_draws[indices.mesh_draw_index].mesh_buffer_index]
+                                  .vertices[vertex_id + base_vertex]);
 
     renderer::g_buffer_vertex_data_t vertex_out;
     float3 world_pos = utils::apply_transform(m.transform, v.position);

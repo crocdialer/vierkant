@@ -20,11 +20,11 @@ struct grid_params_t
 [[vk::binding(0, 0)]] ConstantBuffer<grid_params_t> grid_params;
 
 [[vk::push_constant]]
-renderer::context_t context;
+renderer::push_constants_t push_constants;
 
 void camera_ray(float2 frag_coord, out float3 ray_origin, out float3 ray_direction)
 {
-    float2 uv = frag_coord / context.size;
+    float2 uv = frag_coord / push_constants.size;
     float2 d = uv * 2.0 - 1.0;
 
     if(grid_params.ortho)

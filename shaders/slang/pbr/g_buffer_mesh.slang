@@ -11,19 +11,10 @@ const uint mesh_workgroup_x = renderer::MAX_MESH_WORKGROUP_SIZE;
 // ---- shared bindings (set 0) -----------------------------------------------
 
 [[vk::push_constant]]
-renderer::context_t context;
+renderer::push_constants_t push_constants;
 
-[[vk::binding(renderer::ResourceBinding::DrawCommands, 0)]]
-StructuredBuffer<renderer::indexed_draw_command_t> draw_commands;
-
-[[vk::binding(renderer::ResourceBinding::Meshlets, 0)]]
-StructuredBuffer<renderer::meshlet_t> meshlets;
-
-[[vk::binding(renderer::ResourceBinding::MeshDraws, 0)]]
-StructuredBuffer<renderer::mesh_draw_t> draws;
-
-[[vk::binding(renderer::ResourceBinding::MeshletVisibility, 0)]]
-RWStructuredBuffer<uint> meshlet_visibilities;
+[[vk::binding(renderer::ResourceBinding::RenderData, 0)]]
+ConstantBuffer<renderer::render_data_t> render_data;
 
 struct camera_ubo_t
 {
@@ -34,15 +25,6 @@ struct camera_ubo_t
 ConstantBuffer<camera_ubo_t> camera_ubo;
 
 // mesh-shader-only bindings
-[[vk::binding(renderer::ResourceBinding::Vertices, 0)]]
-StructuredBuffer<Ptr<utils::packed_vertex_t, Access.Read>> vertex_buffers;
-
-[[vk::binding(renderer::ResourceBinding::MeshletVertices, 0)]]
-StructuredBuffer<uint> meshlet_vertices;
-
-[[vk::binding(renderer::ResourceBinding::MeshletTriangles, 0)]]
-StructuredBuffer<uint8_t> meshlet_triangles;
-
 // TODO: not really worth it? not sure ...
 #define CULLING 0
 
@@ -86,17 +68,20 @@ void mesh_main(uint ti: SV_GroupThreadID, uint wg_id: SV_GroupID, in payload ren
 {
     uint mi = task_payload.meshlet_base_index + uint(task_payload.meshlet_delta_indices[wg_id]);
 
-    uint vertex_count = uint(meshlets[mi].vertex_count);
-    uint primitive_count = uint(meshlets[mi].triangle_count);
+    renderer::mesh_draw_t draw = render_data.mesh_draws[task_payload.object_index];
+    renderer::mesh_buffers_t mesh_buffers = render_data.mesh_buffers[draw.mesh_buffer_index];
+
+    uint vertex_count = uint(mesh_buffers.meshlets[mi].vertex_count);
+    uint primitive_count = uint(mesh_buffers.meshlets[mi].triangle_count);
     SetMeshOutputCounts(vertex_count, primitive_count);
 
-    renderer::matrix_struct_t m = draws[task_payload.object_index].current_matrices;
-    renderer::matrix_struct_t m_last = draws[task_payload.object_index].last_matrices;
+    renderer::matrix_struct_t m = render_data.mesh_draws[task_payload.object_index].current_matrices;
+    renderer::matrix_struct_t m_last = render_data.mesh_draws[task_payload.object_index].last_matrices;
 
     for(uint i = ti; i < vertex_count; i += mesh_workgroup_x)
     {
-        uint vi = meshlet_vertices[meshlets[mi].vertex_offset + i];
-        utils::Vertex v = utils::unpack(vertex_buffers[draws[task_payload.object_index].vertex_buffer_index][vi]);
+        uint vi = mesh_buffers.meshlet_vertices[mesh_buffers.meshlets[mi].vertex_offset + i];
+        utils::Vertex v = utils::unpack(mesh_buffers.vertices[vi]);
 
         float3 world_pos = utils::apply_transform(m.transform, v.position);
         float4 cur_pos = mul(camera_ubo.camera.projection, mul(camera_ubo.camera.view, float4(world_pos, 1.0)));
@@ -109,10 +94,10 @@ void mesh_main(uint ti: SV_GroupThreadID, uint wg_id: SV_GroupID, in payload ren
         out_vertices[i].position = jittered_position;
 
         out_vertices[i].indices.mesh_draw_index = task_payload.object_index;
-        out_vertices[i].indices.material_index = draws[task_payload.object_index].material_index;
+        out_vertices[i].indices.material_index = render_data.mesh_draws[task_payload.object_index].material_index;
         out_vertices[i].indices.meshlet_index = mi;
-        out_vertices[i].indices.lod_index = uint(draws[task_payload.object_index].lod_index);
-        out_vertices[i].indices.lod_count = uint(draws[task_payload.object_index].lod_count);
+        out_vertices[i].indices.lod_index = uint(render_data.mesh_draws[task_payload.object_index].lod_index);
+        out_vertices[i].indices.lod_count = uint(render_data.mesh_draws[task_payload.object_index].lod_count);
 
         out_vertices[i].g_buffer_data.current_position = cur_pos;
         out_vertices[i].g_buffer_data.last_position = last_pos;
@@ -122,7 +107,7 @@ void mesh_main(uint ti: SV_GroupThreadID, uint wg_id: SV_GroupID, in payload ren
                 float4(utils::apply_rotation(m.transform, v.tangent.xyz), v.tangent.w);
 
 #if CULLING
-        vertex_clip[i] = float3((jittered_position.xy / jittered_position.w * 0.5 + float2(0.5)) * context.size,
+        vertex_clip[i] = float3((jittered_position.xy / jittered_position.w * 0.5 + float2(0.5)) * push_constants.size,
                                 jittered_position.w);
 #endif
     }
@@ -133,9 +118,10 @@ void mesh_main(uint ti: SV_GroupThreadID, uint wg_id: SV_GroupID, in payload ren
 
     for(uint i = ti; i < primitive_count; i += mesh_workgroup_x)
     {
-        uint base_index = meshlets[mi].triangle_offset + 3 * i;
-        uint a = uint(meshlet_triangles[base_index]), b = uint(meshlet_triangles[base_index + 1]),
-             c = uint(meshlet_triangles[base_index + 2]);
+        uint base_index = mesh_buffers.meshlets[mi].triangle_offset + 3 * i;
+        uint a = uint(mesh_buffers.meshlet_triangles[base_index]),
+             b = uint(mesh_buffers.meshlet_triangles[base_index + 1]),
+             c = uint(mesh_buffers.meshlet_triangles[base_index + 2]);
         out_indices[i] = uint3(a, b, c);
 
 #if CULLING

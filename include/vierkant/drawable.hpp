@@ -63,7 +63,11 @@ struct alignas(16) material_struct_t
     uint32_t texture_type_flags = 0;
 
     uint32_t base_texture_index = 0;
+
+    //! explicit tail-padding, see renderer::material_t. keeps the array-stride at 128 on both sides
+    uint32_t pad[3] = {};
 };
+static_assert(sizeof(material_struct_t) == 128, "unexpected material_struct_t size");
 
 //! define a strong id-type for drawables
 DEFINE_NAMED_ID(DrawableId);

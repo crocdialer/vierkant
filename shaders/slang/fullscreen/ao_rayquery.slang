@@ -20,7 +20,7 @@ struct params_t
 [[vk::binding(2, 0)]] StructuredBuffer<params_t> ubo;
 
 [[vk::push_constant]]
-renderer::context_t context;
+renderer::push_constants_t push_constants;
 
 float raytraced_occlusion(float3 position, float3 world_normal, float max_distance, uint num_rays, uint rng_state)
 {
@@ -57,9 +57,9 @@ float fragment_main(float2 tex_coord : TexCoord0, float4 sv_position : SV_Positi
     float depth = u_textures[TextureIndex::DEPTH].Sample(tex_coord).x;
     float3 normal = u_textures[TextureIndex::NORMAL].Sample(tex_coord).xyz;
 
-    float3 clip_pos = float3(sv_position.xy / context.size, depth);
+    float3 clip_pos = float3(sv_position.xy / push_constants.size, depth);
     float4 viewspace_pos = mul(ubo[0].inverse_projection, float4(2.0 * clip_pos.xy - 1.0, clip_pos.z, 1.0));
     float3 position = utils::apply_transform(ubo[0].camera_transform, viewspace_pos.xyz / viewspace_pos.w);
 
-    return raytraced_occlusion(position, normal, ubo[0].max_distance, ubo[0].num_rays, context.random_seed);
+    return raytraced_occlusion(position, normal, ubo[0].max_distance, ubo[0].num_rays, push_constants.random_seed);
 }

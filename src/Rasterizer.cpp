@@ -355,31 +355,10 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
         if(!drawable.use_own_buffers)
         {
-            // descriptors
-            auto &desc_vertices = drawable.descriptors[Rasterizer::BINDING_VERTICES];
-            desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
-
-            auto &desc_draws = drawable.descriptors[Rasterizer::BINDING_DRAW_COMMANDS];
-            desc_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_draws.stage_flags =
-                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
-
-            auto &desc_mesh_draws = drawable.descriptors[Rasterizer::BINDING_MESH_DRAWS];
-            desc_mesh_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_mesh_draws.stage_flags =
-                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
-
-            auto &desc_material = drawable.descriptors[Rasterizer::BINDING_MATERIAL];
-            desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_TASK_BIT_EXT;
-
-            if(vkCmdDrawMeshTasksEXT && use_mesh_shader && drawable.mesh && drawable.mesh->meshlets)
-            {
-                auto &desc_meshlet_vis = drawable.descriptors[Rasterizer::BINDING_MESHLET_VISIBILITY];
-                desc_meshlet_vis.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_meshlet_vis.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
-            }
+            // all frame-global buffers arrive as device-addresses in one uniform-buffer
+            auto &desc_render_context = drawable.descriptors[Rasterizer::BINDING_RENDER_DATA];
+            desc_render_context.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            desc_render_context.stage_flags = VK_SHADER_STAGE_ALL;
         }
 
         indexed_drawable.descriptor_set_layout = vierkant::find_or_create_set_layout(
@@ -490,6 +469,30 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         draw_buffer_indexed = frame_assets.indirect_indexed_bundle.draws_out;
     }
 
+    // the draw-command buffer is only known after the delegate -> fill the render-data here
+    {
+        const auto &bundle = frame_assets.indirect_indexed_bundle;
+        render_data_t render_data = {};
+        render_data.mesh_draws = bundle.mesh_draws ? bundle.mesh_draws->device_address() : 0;
+        render_data.materials = bundle.materials ? bundle.materials->device_address() : 0;
+        render_data.mesh_buffers = bundle.mesh_buffers ? bundle.mesh_buffers->device_address() : 0;
+        render_data.draw_commands = draw_buffer_indexed ? draw_buffer_indexed->device_address() : 0;
+        render_data.meshlet_visibilities =
+                bundle.meshlet_visibilities ? bundle.meshlet_visibilities->device_address() : 0;
+
+        if(!frame_assets.render_data_ubo)
+        {
+            vierkant::Buffer::create_info_t buffer_info = {};
+            buffer_info.device = m_device;
+            buffer_info.num_bytes = sizeof(render_data_t);
+            buffer_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+            buffer_info.name = "Rasterizer: render_data_ubo";
+            frame_assets.render_data_ubo = vierkant::Buffer::create(buffer_info);
+        }
+        frame_assets.render_data_ubo->set_data(&render_data, sizeof(render_data_t));
+    }
+
     // set buffer-descriptors after delegate
     for(const auto &[pipe_fmt, indexed_drawables]: pipeline_drawables)
     {
@@ -503,16 +506,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             // predefined buffers
             if(!draw_asset.drawable->use_own_buffers)
             {
-                descriptors[BINDING_VERTICES].buffers = {frame_assets.indirect_indexed_bundle.vertex_buffer_addresses};
-                descriptors[BINDING_MESH_DRAWS].buffers = {frame_assets.indirect_indexed_bundle.mesh_draws};
-                descriptors[BINDING_MATERIAL].buffers = {frame_assets.indirect_indexed_bundle.materials};
-                descriptors[BINDING_DRAW_COMMANDS].buffers = {draw_buffer_indexed};
-
-                if(descriptors.contains(BINDING_MESHLET_VISIBILITY))
-                {
-                    descriptors[BINDING_MESHLET_VISIBILITY].buffers = {
-                            frame_assets.indirect_indexed_bundle.meshlet_visibilities};
-                }
+                descriptors[BINDING_RENDER_DATA].buffers = {frame_assets.render_data_ubo};
             }
 
             auto descriptor_set = vierkant::find_or_create_descriptor_set(
@@ -713,7 +707,7 @@ void Rasterizer::reset()
 
 void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset)
 {
-    std::vector<VkDeviceAddress> vertex_buffer_refs;
+    std::vector<mesh_buffers_t> mesh_buffers;
     std::vector<mesh_entry_t> mesh_entries;
     std::map<std::pair<const vierkant::Mesh *, uint32_t>, uint32_t> mesh_entry_map;
 
@@ -731,7 +725,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
     {
         const auto &drawable = drawables[i];
         uint32_t mesh_index = 0;
-        uint32_t vertex_buffer_index = vertex_buffer_refs.size();
+        uint32_t mesh_buffer_index = mesh_buffers.size();
         uint32_t material_index = material_data.size();
 
         if(drawable.mesh && !drawable.mesh->entries.empty())
@@ -758,9 +752,13 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
                 mesh_index = mesh_entry_it->second;
             }
 
-            VkDeviceAddress vertex_buffer_address =
-                    drawable.vertex_buffer ? drawable.vertex_buffer : drawable.mesh->vertex_buffer->device_address();
-            vertex_buffer_refs.push_back(vertex_buffer_address);
+            const auto &mesh = drawable.mesh;
+            mesh_buffers_t buffers = {};
+            buffers.vertices = drawable.vertex_buffer ? drawable.vertex_buffer : mesh->vertex_buffer->device_address();
+            if(mesh->meshlets) { buffers.meshlets = mesh->meshlets->device_address(); }
+            if(mesh->meshlet_vertices) { buffers.meshlet_vertices = mesh->meshlet_vertices->device_address(); }
+            if(mesh->meshlet_triangles) { buffers.meshlet_triangles = mesh->meshlet_triangles->device_address(); }
+            mesh_buffers.push_back(buffers);
 
             // only dedup materials that are shared via a valid material-id
             bool share_material = drawable.share_material && drawable.material_id;
@@ -786,7 +784,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
         frame_asset.mesh_draws[i].current_matrices = drawable.matrices;
         frame_asset.mesh_draws[i].mesh_index = mesh_index;
         frame_asset.mesh_draws[i].material_index = material_index;
-        frame_asset.mesh_draws[i].vertex_buffer_index = vertex_buffer_index;
+        frame_asset.mesh_draws[i].mesh_buffer_index = mesh_buffer_index;
 
         if(drawable.last_matrices) { frame_asset.mesh_draws[i].last_matrices = *drawable.last_matrices; }
         else
@@ -800,7 +798,9 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
         if(!out_buffer)
         {
             out_buffer = vierkant::Buffer::create(device, array,
-                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                          VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                                                          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
         }
         else
@@ -861,8 +861,9 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
         frame_asset.staging_command_buffer.begin();
         if(debug_label) { vierkant::begin_label(frame_asset.staging_command_buffer.handle(), *debug_label); }
 
-        add_staging_copy(vertex_buffer_refs, frame_asset.vertex_buffer_refs, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                         VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: vertex_buffer_refs");
+        add_staging_copy(mesh_buffers, frame_asset.mesh_buffers,
+                         VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                         VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: mesh_buffers");
         add_staging_copy(mesh_entries, frame_asset.mesh_entry_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                          VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: mesh_entries");
         add_staging_copy(frame_asset.mesh_draws, frame_asset.mesh_draw_buffer,
@@ -884,7 +885,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
     else
     {
         // create/upload joined buffers
-        copy_to_buffer(vertex_buffer_refs, frame_asset.vertex_buffer_refs);
+        copy_to_buffer(mesh_buffers, frame_asset.mesh_buffers);
         copy_to_buffer(mesh_entries, frame_asset.mesh_entry_buffer);
         copy_to_buffer(frame_asset.mesh_draws, frame_asset.mesh_draw_buffer);
         copy_to_buffer(material_data, frame_asset.material_buffer);
@@ -893,7 +894,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
 
     frame_asset.indirect_indexed_bundle.mesh_draws = frame_asset.mesh_draw_buffer;
     frame_asset.indirect_indexed_bundle.mesh_draws_host = frame_asset.mesh_draws.data();
-    frame_asset.indirect_indexed_bundle.vertex_buffer_addresses = frame_asset.vertex_buffer_refs;
+    frame_asset.indirect_indexed_bundle.mesh_buffers = frame_asset.mesh_buffers;
     frame_asset.indirect_indexed_bundle.mesh_entries = frame_asset.mesh_entry_buffer;
     frame_asset.indirect_indexed_bundle.materials = frame_asset.material_buffer;
     frame_asset.indirect_indexed_bundle.meshlet_visibilities = frame_asset.meshlet_visibility_buffer;

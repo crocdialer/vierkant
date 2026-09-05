@@ -755,7 +755,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frame_context.indirect_draw_params_main.draws_out = params.draws_out;
         frame_context.indirect_draw_params_main.mesh_draws = params.mesh_draws;
         frame_context.indirect_draw_params_main.materials = params.materials;
-        frame_context.indirect_draw_params_main.vertex_buffer_addresses = params.vertex_buffer_addresses;
+        frame_context.indirect_draw_params_main.mesh_buffers = params.mesh_buffers;
         frame_context.indirect_draw_params_main.mesh_entries = params.mesh_entries;
         frame_context.indirect_draw_params_main.meshlet_visibilities = params.meshlet_visibilities;
 
@@ -857,19 +857,22 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
                     for(uint32_t idx: frame_context.cull_result.object_id_to_drawable_indices[obj_id])
                     {
-                        uint32_t vertex_buffer_index = params.mesh_draws_host[idx].vertex_buffer_index;
+                        uint32_t mesh_buffer_index = params.mesh_draws_host[idx].mesh_buffer_index;
 
-                        if(!mesh_indices.contains(vertex_buffer_index))
+                        if(!mesh_indices.contains(mesh_buffer_index))
                         {
+                            // patch only the 'vertices' member of the addressed mesh_buffers_t
                             vierkant::staging_copy_info_t copy_vertex_address = {};
                             copy_vertex_address.num_bytes = sizeof(VkDeviceAddress);
                             copy_vertex_address.data = &address;
-                            copy_vertex_address.dst_buffer = params.vertex_buffer_addresses;
-                            copy_vertex_address.dst_offset = sizeof(VkDeviceAddress) * vertex_buffer_index;
+                            copy_vertex_address.dst_buffer = params.mesh_buffers;
+                            copy_vertex_address.dst_offset =
+                                    sizeof(vierkant::Rasterizer::mesh_buffers_t) * mesh_buffer_index +
+                                    offsetof(vierkant::Rasterizer::mesh_buffers_t, vertices);
                             copy_vertex_address.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
                             copy_vertex_address.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
                             staging_copies.push_back(copy_vertex_address);
-                            mesh_indices.insert(vertex_buffer_index);
+                            mesh_indices.insert(mesh_buffer_index);
                         }
                     }
                 }
@@ -930,7 +933,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             // re-use mesh-draws/vertex-buffers/transforms/visibilities from main-pass
             params.mesh_draws = frame_context.indirect_draw_params_main.mesh_draws;
             params.materials = frame_context.indirect_draw_params_main.materials;
-            params.vertex_buffer_addresses = frame_context.indirect_draw_params_main.vertex_buffer_addresses;
+            params.mesh_buffers = frame_context.indirect_draw_params_main.mesh_buffers;
             params.mesh_entries = frame_context.indirect_draw_params_main.mesh_entries;
             params.meshlet_visibilities = frame_context.indirect_draw_params_main.meshlet_visibilities;
 

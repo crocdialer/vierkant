@@ -38,17 +38,6 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         fmt.attribute_descriptions = vierkant::create_attribute_descriptions(mesh->vertex_attribs);
         fmt.primitive_topology = entry.primitive_type;
 
-        // descriptors
-        vierkant::descriptor_t desc_matrix = {};
-        desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        m_drawable_rect.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS] = desc_matrix;
-
-        vierkant::descriptor_t desc_material = {};
-        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        m_drawable_rect.descriptors[vierkant::Rasterizer::BINDING_MATERIAL] = desc_material;
-
         m_drawable_rect.mesh = mesh;
         m_drawable_rect.share_material = false;
         m_drawable_rect.num_indices = lod.num_indices;
@@ -324,17 +313,6 @@ void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<g
         fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT);
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 
-        // descriptors
-        vierkant::descriptor_t desc_matrix = {};
-        desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        drawable.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS] = desc_matrix;
-
-        vierkant::descriptor_t desc_material = {};
-        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        drawable.descriptors[vierkant::Rasterizer::BINDING_MATERIAL] = desc_material;
-
         auto mesh = vierkant::Mesh::create();
 
         // vertex attrib -> position
@@ -393,17 +371,6 @@ void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<g
         fmt.depth_write = false;
         fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_COLOR);
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-
-        // descriptors
-        vierkant::descriptor_t desc_matrix = {};
-        desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        drawable.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS] = desc_matrix;
-
-        vierkant::descriptor_t desc_material = {};
-        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        drawable.descriptors[vierkant::Rasterizer::BINDING_MATERIAL] = desc_material;
 
         auto mesh = vierkant::Mesh::create();
 
