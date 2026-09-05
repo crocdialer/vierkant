@@ -158,18 +158,11 @@ public struct context_t
 public enum ResourceBinding : uint
 {
     Vertices = 0,
-    Indices = 1,
     DrawCommands = 2,
     MeshDraws = 3,
     Material = 4,
     Textures = 5,
-    BoneVertexData = 6,
-    Bones = 7,
-    PreviousBones = 8,
     JitterOffset = 9,
-    MorphTargets = 10,
-    MorphParams = 11,
-    PreviousMorphParams = 12,
     Meshlets = 13,
     MeshletVertices = 14,
     MeshletTriangles = 15,

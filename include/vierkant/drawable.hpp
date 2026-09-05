@@ -95,9 +95,6 @@ struct drawable_t
     //! a descriptormap
     descriptor_map_t descriptors;
 
-    //! optional descriptor-set-layout
-    DescriptorSetLayoutPtr descriptor_set_layout;
-
     //! binary blob for push-constants
     std::vector<uint8_t> push_constants;
 

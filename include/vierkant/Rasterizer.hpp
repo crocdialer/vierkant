@@ -37,24 +37,16 @@ public:
     enum DescriptorBinding
     {
         BINDING_VERTICES = 0,
-        BINDING_INDICES = 1,
         BINDING_DRAW_COMMANDS = 2,
         BINDING_MESH_DRAWS = 3,
         BINDING_MATERIAL = 4,
         BINDING_TEXTURES = 5,
-        BINDING_BONE_VERTEX_DATA = 6,
-        BINDING_BONES = 7,
-        BINDING_PREVIOUS_BONES = 8,
         BINDING_JITTER_OFFSET = 9,
-        BINDING_MORPH_TARGETS = 10,
-        BINDING_MORPH_PARAMS = 11,
-        BINDING_PREVIOUS_MORPH_PARAMS = 12,
         BINDING_MESHLETS = 13,
         BINDING_MESHLET_VERTICES = 14,
         BINDING_MESHLET_TRIANGLES = 15,
         BINDING_MESHLET_VISIBILITY = 16,
         BINDING_DEPTH_PYRAMID = 17,
-        BINDING_MAX_RANGE
     };
 
     struct mesh_draw_t

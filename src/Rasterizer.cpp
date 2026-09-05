@@ -358,51 +358,44 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         indexed_drawable.object_index = i;
         indexed_drawable.drawable = &drawable;
 
-        if(!drawable.descriptor_set_layout)
+        if(!drawable.use_own_buffers)
         {
-            if(!drawable.use_own_buffers)
+            // descriptors
+            auto &desc_vertices = drawable.descriptors[Rasterizer::BINDING_VERTICES];
+            desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
+
+            auto &desc_draws = drawable.descriptors[Rasterizer::BINDING_DRAW_COMMANDS];
+            desc_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_draws.stage_flags =
+                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
+
+            auto &desc_mesh_draws = drawable.descriptors[Rasterizer::BINDING_MESH_DRAWS];
+            desc_mesh_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_mesh_draws.stage_flags =
+                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
+
+            auto &desc_material = drawable.descriptors[Rasterizer::BINDING_MATERIAL];
+            desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_TASK_BIT_EXT;
+
+            auto &desc_texture = drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES];
+            desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+            if(vkCmdDrawMeshTasksEXT && use_mesh_shader && drawable.mesh && drawable.mesh->meshlets)
             {
-                // descriptors
-                auto &desc_vertices = drawable.descriptors[Rasterizer::BINDING_VERTICES];
-                desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
-
-                auto &desc_draws = drawable.descriptors[Rasterizer::BINDING_DRAW_COMMANDS];
-                desc_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_draws.stage_flags =
-                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
-
-                auto &desc_mesh_draws = drawable.descriptors[Rasterizer::BINDING_MESH_DRAWS];
-                desc_mesh_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_mesh_draws.stage_flags =
-                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
-
-                auto &desc_material = drawable.descriptors[Rasterizer::BINDING_MATERIAL];
-                desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_TASK_BIT_EXT;
-
-                auto &desc_texture = drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES];
-                desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-                if(vkCmdDrawMeshTasksEXT && use_mesh_shader && drawable.mesh && drawable.mesh->meshlets)
-                {
-                    auto &desc_meshlet_vis = drawable.descriptors[Rasterizer::BINDING_MESHLET_VISIBILITY];
-                    desc_meshlet_vis.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                    desc_meshlet_vis.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
-                }
+                auto &desc_meshlet_vis = drawable.descriptors[Rasterizer::BINDING_MESHLET_VISIBILITY];
+                desc_meshlet_vis.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_meshlet_vis.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
             }
-            // only provide a global texture-array for indirect draws
-            if(indirect_draw) { drawable.descriptors.erase(BINDING_TEXTURES); }
+        }
+        // only provide a global texture-array for indirect draws
+        if(indirect_draw) { drawable.descriptors.erase(BINDING_TEXTURES); }
 
-            indexed_drawable.descriptor_set_layout = vierkant::find_or_create_set_layout(
-                    m_device, drawable.descriptors, frame_assets.descriptor_set_layouts, next_set_layouts);
-            pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
-        }
-        else
-        {
-            indexed_drawable.descriptor_set_layout = std::move(drawable.descriptor_set_layout);
-        }
+        indexed_drawable.descriptor_set_layout = vierkant::find_or_create_set_layout(
+                m_device, drawable.descriptors, frame_assets.descriptor_set_layouts, next_set_layouts);
+        pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
 
         // bindless texture-array
         pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
