@@ -1,5 +1,6 @@
 import "../utils/transform.slang";
 import "../utils/packed_vertex.slang";
+import "../utils/camera.slang";
 
 module renderer;
 
@@ -164,7 +165,6 @@ public enum ResourceBinding : uint
 {
     RenderData = 0,
     Textures = 5,
-    JitterOffset = 9,
     DepthPyramid = 17
 };
 
@@ -249,9 +249,17 @@ public struct mesh_buffers_t
     public Ptr<uint8_t, Access.Read> meshlet_triangles;
 };
 
+// current and previous camera, uploaded as one pair
+public struct camera_data_t
+{
+    public utils::camera_t camera;
+    public utils::camera_t last_camera;
+};
+
 // frame-global buffers, provided as device-addresses in a single UBO (set 0, binding 0)
 public struct render_data_t
 {
+    public Ptr<camera_data_t, Access.Read> cameras;
     public Ptr<mesh_draw_t, Access.Read> mesh_draws;
     public Ptr<material_t, Access.Read> materials;
     public Ptr<mesh_buffers_t, Access.Read> mesh_buffers;

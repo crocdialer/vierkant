@@ -77,8 +77,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         resize_storage(frame_context, create_info.settings.resolution, create_info.settings.output_resolution);
 
-        frame_context.g_buffer_camera_ubo = vierkant::Buffer::create(
-                m_device, nullptr, sizeof(glm::vec2), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        // must match renderer::camera_data_t, which the g-buffer shaders read via device-address
+        static_assert(sizeof(camera_params_t) == 176, "unexpected camera_params_t size");
+
+        // sized for the current/previous pair up front, so the device-address never moves
+        frame_context.g_buffer_camera_ubo =
+                vierkant::Buffer::create(m_device, nullptr, 2 * sizeof(camera_params_t),
+                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         frame_context.lighting_param_ubo =
                 vierkant::Buffer::create(device, nullptr, sizeof(environment_lighting_ubo_t),
@@ -479,10 +485,10 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
 
     // create g-buffer
     auto &g_buffer = geometry_pass(frame_context.cull_result);
-    auto albedo_map = g_buffer.color_attachment(G_BUFFER_ALBEDO);
+    auto albedo_img = g_buffer.color_attachment(G_BUFFER_ALBEDO);
 
     // default to color image
-    auto out_img = albedo_map;
+    auto out_img = albedo_img;
     auto depth_img = frame_context.g_buffer_main.depth_attachment();
 
     // lighting-pass
@@ -496,7 +502,8 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
     out_img = post_fx_pass(cam, out_img, depth_img);
 
     // draw final color+depth with provided renderer
-    m_draw_context.draw_image_fullscreen(renderer, out_img, depth_img, true);
+    m_draw_context.draw_image_fullscreen(renderer, frame_context.settings.debug_draw_flags ? albedo_img : out_img,
+                                         depth_img, true);
 
     // end debug label
     {
@@ -657,11 +664,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     if(!frame_context.recycle_commands)
     {
-        vierkant::descriptor_t camera_desc = {};
-        camera_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        camera_desc.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        camera_desc.buffers = {frame_context.g_buffer_camera_ubo};
-
         // draw all geometry
         for(auto &drawable: cull_result.drawables)
         {
@@ -675,7 +677,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             if(drawable.mesh->meshlets && frame_context.settings.use_meshlet_pipeline)
             {
                 shader_flags |= PROP_MESHLETS;
-                camera_desc.stage_flags |= VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
 
                 auto &mesh_shader_props = m_device->properties().mesh_shader;
                 vierkant::pipeline_specialization pipeline_specialization;
@@ -718,9 +719,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             drawable.pipeline_format.polygon_mode =
                     frame_context.settings.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
 
-            // add descriptor for a jitter-offset
-            drawable.descriptors[Rasterizer::BINDING_JITTER_OFFSET] = camera_desc;
-
             // stage drawables
             m_g_renderer_main.stage_drawable(drawable);
             if(use_gpu_culling)
@@ -740,6 +738,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_main.disable_material = m_g_renderer_post.disable_material = frame_context.settings.disable_material;
     m_g_renderer_main.debug_draw_flags = m_g_renderer_post.debug_draw_flags = frame_context.settings.debug_draw_flags;
     m_g_renderer_main.indirect_draw = m_g_renderer_post.indirect_draw = frame_context.settings.indirect_draw;
+    m_g_renderer_main.camera_buffer_address = m_g_renderer_post.camera_buffer_address =
+            frame_context.g_buffer_camera_ubo->device_address();
     m_g_renderer_main.use_mesh_shader = m_g_renderer_post.use_mesh_shader = frame_context.settings.use_meshlet_pipeline;
 
     // draw last visible objects

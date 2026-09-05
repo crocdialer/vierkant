@@ -16,14 +16,6 @@ renderer::push_constants_t push_constants;
 [[vk::binding(renderer::ResourceBinding::RenderData, 0)]]
 ConstantBuffer<renderer::render_data_t> render_data;
 
-struct camera_ubo_t
-{
-    utils::camera_t camera;
-    utils::camera_t last_camera;
-};
-[[vk::binding(renderer::ResourceBinding::JitterOffset, 0)]]
-ConstantBuffer<camera_ubo_t> camera_ubo;
-
 // mesh-shader-only bindings
 // TODO: not really worth it? not sure ...
 #define CULLING 0
@@ -84,13 +76,13 @@ void mesh_main(uint ti: SV_GroupThreadID, uint wg_id: SV_GroupID, in payload ren
         utils::Vertex v = utils::unpack(mesh_buffers.vertices[vi]);
 
         float3 world_pos = utils::apply_transform(m.transform, v.position);
-        float4 cur_pos = mul(camera_ubo.camera.projection, mul(camera_ubo.camera.view, float4(world_pos, 1.0)));
+        float4 cur_pos = mul(render_data.cameras->camera.projection, mul(render_data.cameras->camera.view, float4(world_pos, 1.0)));
         float4 last_pos = mul(
-                camera_ubo.last_camera.projection,
-                mul(camera_ubo.last_camera.view, float4(utils::apply_transform(m_last.transform, v.position), 1.0)));
+                render_data.cameras->last_camera.projection,
+                mul(render_data.cameras->last_camera.view, float4(utils::apply_transform(m_last.transform, v.position), 1.0)));
 
         float4 jittered_position = cur_pos;
-        jittered_position.xy += 2.0 * camera_ubo.camera.sample_offset * jittered_position.w;
+        jittered_position.xy += 2.0 * render_data.cameras->camera.sample_offset * jittered_position.w;
         out_vertices[i].position = jittered_position;
 
         out_vertices[i].indices.mesh_draw_index = task_payload.object_index;

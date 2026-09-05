@@ -142,6 +142,7 @@ void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept
     std::swap(lhs.m_current_index, rhs.m_current_index);
     std::swap(lhs.m_push_constant_range, rhs.m_push_constant_range);
     std::swap(lhs.m_start_time, rhs.m_start_time);
+    std::swap(lhs.camera_buffer_address, rhs.camera_buffer_address);
 
     std::swap(lhs.use_mesh_shader, rhs.use_mesh_shader);
     std::swap(lhs.use_gpu_timestamps, rhs.use_gpu_timestamps);
@@ -479,6 +480,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         render_data.draw_commands = draw_buffer_indexed ? draw_buffer_indexed->device_address() : 0;
         render_data.meshlet_visibilities =
                 bundle.meshlet_visibilities ? bundle.meshlet_visibilities->device_address() : 0;
+        render_data.cameras = camera_buffer_address;
 
         if(!frame_assets.render_data_ubo)
         {

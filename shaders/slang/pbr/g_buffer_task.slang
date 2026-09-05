@@ -17,14 +17,6 @@ renderer::push_constants_t push_constants;
 [[vk::binding(renderer::ResourceBinding::RenderData, 0)]]
 ConstantBuffer<renderer::render_data_t> render_data;
 
-struct camera_ubo_t
-{
-    utils::camera_t camera;
-    utils::camera_t last_camera;
-};
-[[vk::binding(renderer::ResourceBinding::JitterOffset, 0)]]
-ConstantBuffer<camera_ubo_t> camera_ubo;
-
 // task-shader-only bindings
 [[vk::binding(renderer::ResourceBinding::DepthPyramid, 0)]]
 Sampler2D u_depth_pyramid;
@@ -88,7 +80,7 @@ void task_main(uint3 dispatchThreadID: SV_DispatchThreadID, uint ti: SV_GroupThr
         {
             renderer::mesh_draw_t draw = render_data.mesh_draws[draw_command.object_index];
             renderer::mesh_buffers_t mesh_buffers = render_data.mesh_buffers[draw.mesh_buffer_index];
-            float4x4 m = mul(camera_ubo.camera.view, utils::mat4_cast(draw.current_matrices.transform));
+            float4x4 m = mul(render_data.cameras->camera.view, utils::mat4_cast(draw.current_matrices.transform));
 
             float3 cone_axis_raw = float3(mesh_buffers.meshlets[mi].cone_axis[0], mesh_buffers.meshlets[mi].cone_axis[1],
                                           mesh_buffers.meshlets[mi].cone_axis[2]) /
@@ -103,19 +95,19 @@ void task_main(uint3 dispatchThreadID: SV_DispatchThreadID, uint ti: SV_GroupThr
             visible = render_data.materials[draw.material_index].two_sided ||
                       !cone_cull(center, radius, cone_axis_raw, cone_cutoff, float3(0));
 
-            bool inside_frustum = camera_ubo.camera.ortho
-                                          ? !utils::frustum_cull_ortho(center, radius, camera_ubo.camera.frustum)
-                                          : !utils::frustum_cull(center, radius, camera_ubo.camera.frustum);
+            bool inside_frustum = render_data.cameras->camera.ortho
+                                          ? !utils::frustum_cull_ortho(center, radius, render_data.cameras->camera.frustum)
+                                          : !utils::frustum_cull(center, radius, render_data.cameras->camera.frustum);
             visible = visible && inside_frustum;
 
             float4 aabb;
             bool sphere_visible =
-                    !camera_ubo.camera.ortho &&
-                    utils::project_sphere(center, radius, camera_ubo.camera.near, camera_ubo.camera.projection[0][0],
-                                          camera_ubo.camera.projection[1][1], aabb);
-            if(camera_ubo.camera.ortho)
-                sphere_visible = utils::project_sphere_ortho(center, radius, camera_ubo.camera.near,
-                                                             camera_ubo.camera.frustum, aabb);
+                    !render_data.cameras->camera.ortho &&
+                    utils::project_sphere(center, radius, render_data.cameras->camera.near, render_data.cameras->camera.projection[0][0],
+                                          render_data.cameras->camera.projection[1][1], aabb);
+            if(render_data.cameras->camera.ortho)
+                sphere_visible = utils::project_sphere_ortho(center, radius, render_data.cameras->camera.near,
+                                                             render_data.cameras->camera.frustum, aabb);
 
             uint pw, ph;
             u_depth_pyramid.GetDimensions(pw, ph);
@@ -135,9 +127,9 @@ void task_main(uint3 dispatchThreadID: SV_DispatchThreadID, uint ti: SV_GroupThr
                 float level = floor(log2(max(width, height)));
 
                 float depth = u_depth_pyramid.SampleLevel((aabb.xy + aabb.zw) * 0.5, level).x;
-                depth = camera_ubo.camera.ortho
-                                ? lerp(camera_ubo.camera.far, camera_ubo.camera.near, depth)
-                                : clamp(camera_ubo.camera.near / depth, camera_ubo.camera.near, camera_ubo.camera.far);
+                depth = render_data.cameras->camera.ortho
+                                ? lerp(render_data.cameras->camera.far, render_data.cameras->camera.near, depth)
+                                : clamp(render_data.cameras->camera.near / depth, render_data.cameras->camera.near, render_data.cameras->camera.far);
                 visible = (-center.z - radius) <= depth;
             }
 

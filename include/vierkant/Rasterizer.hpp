@@ -38,7 +38,6 @@ public:
     {
         BINDING_RENDER_DATA = 0,
         BINDING_TEXTURES = 5,
-        BINDING_JITTER_OFFSET = 9,
         BINDING_DEPTH_PYRAMID = 17,
     };
 
@@ -67,12 +66,16 @@ public:
     //! frame-global buffers, provided as device-addresses in a single UBO (set 0, binding 0)
     struct render_data_t
     {
+        //! address of a pair of camera_params_t: current and previous frame
+        VkDeviceAddress cameras = 0;
+
         VkDeviceAddress mesh_draws = 0;
         VkDeviceAddress materials = 0;
         VkDeviceAddress mesh_buffers = 0;
         VkDeviceAddress draw_commands = 0;
         VkDeviceAddress meshlet_visibilities = 0;
     };
+    static_assert(sizeof(render_data_t) == 48, "unexpected render_data_t size");
 
     struct mesh_entry_t
     {
@@ -218,6 +221,9 @@ public:
 
     //! optional cull-delegate
     indirect_draw_delegate_t draw_indirect_delegate;
+
+    //! address of a pair of camera-params (current/previous). provided by the caller, per frame.
+    VkDeviceAddress camera_buffer_address = 0;
 
     Rasterizer() = default;
 
