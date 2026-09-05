@@ -95,6 +95,9 @@ struct drawable_t
     //! a descriptormap
     descriptor_map_t descriptors;
 
+    //! material-textures, gathered into the bindless texture-array. indexed via material_struct_t::base_texture_index
+    std::vector<vierkant::ImagePtr> textures;
+
     //! binary blob for push-constants
     std::vector<uint8_t> push_constants;
 
@@ -133,7 +136,8 @@ struct create_mesh_drawables_params_t
 /**
  * @brief   Factory to create drawables from a provided mesh.
  *
- * @param   params  a struct containing a mesh and other params for drawable-creation.
+ * @param   mesh_component  a mesh-component
+ * @param   params          a struct containing a mesh and other params for drawable-creation.
  * @return  an array of drawables for the mesh-entries.
  */
 std::vector<vierkant::drawable_t> create_mesh_drawables(const vierkant::mesh_component_t &mesh_component,

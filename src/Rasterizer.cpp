@@ -284,10 +284,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     };
 
     auto create_mesh_key = [create_texture_hash](const drawable_t &drawable) -> texture_index_key_t {
-        const auto it = drawable.descriptors.find(BINDING_TEXTURES);
-        if(it == drawable.descriptors.end() || it->second.images.empty()) { return {drawable.mesh.get(), {}}; }
-        const auto &drawable_textures = it->second.images;
-        return {drawable.mesh.get(), create_texture_hash(drawable_textures)};
+        if(drawable.textures.empty()) { return {drawable.mesh.get(), {}}; }
+        return {drawable.mesh.get(), create_texture_hash(drawable.textures)};
     };
 
     texture_index_map_t texture_base_index_map;
@@ -295,17 +293,14 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     // swoop all texture-indices
     for(const auto &drawable: frame_assets.drawables)
     {
-        auto it = drawable.descriptors.find(BINDING_TEXTURES);
-        if(it == drawable.descriptors.end() || it->second.images.empty()) { continue; }
-
-        const auto &drawable_textures = it->second.images;
+        if(drawable.textures.empty()) { continue; }
 
         // insert other textures from drawables
-        if(texture_index_key_t key = {drawable.mesh.get(), create_texture_hash(drawable_textures)};
+        if(texture_index_key_t key = {drawable.mesh.get(), create_texture_hash(drawable.textures)};
            !texture_base_index_map.contains(key))
         {
             texture_base_index_map[key] = textures.size();
-            textures.insert(textures.end(), drawable_textures.begin(), drawable_textures.end());
+            textures.insert(textures.end(), drawable.textures.begin(), drawable.textures.end());
         }
     }
 
@@ -379,10 +374,6 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_TASK_BIT_EXT;
 
-            auto &desc_texture = drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES];
-            desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
             if(vkCmdDrawMeshTasksEXT && use_mesh_shader && drawable.mesh && drawable.mesh->meshlets)
             {
                 auto &desc_meshlet_vis = drawable.descriptors[Rasterizer::BINDING_MESHLET_VISIBILITY];
@@ -390,8 +381,6 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 desc_meshlet_vis.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
             }
         }
-        // only provide a global texture-array for indirect draws
-        if(indirect_draw) { drawable.descriptors.erase(BINDING_TEXTURES); }
 
         indexed_drawable.descriptor_set_layout = vierkant::find_or_create_set_layout(
                 m_device, drawable.descriptors, frame_assets.descriptor_set_layouts, next_set_layouts);

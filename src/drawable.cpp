@@ -153,16 +153,12 @@ std::vector<vierkant::drawable_t> create_mesh_drawables(const vierkant::mesh_com
         // textures
         if(material && !material->texture_data.empty())
         {
-            vierkant::descriptor_t &desc_texture = drawable.descriptors[Rasterizer::BINDING_TEXTURES];
-            desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
             for(auto &[type_flag, tex_data]: material->texture_data)
             {
                 if(auto tex = params.assets->texture({tex_data.texture_id, tex_data.sampler_id}))
                 {
                     drawable.material.texture_type_flags |= static_cast<uint32_t>(type_flag);
-                    desc_texture.images.push_back(tex);
+                    drawable.textures.push_back(tex);
                 }
             }
         }

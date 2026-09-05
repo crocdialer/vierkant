@@ -1,5 +1,6 @@
 #include "test_context.hpp"
 #include "vierkant/PBRDeferred.hpp"
+#include "vierkant/cubemap_utils.hpp"
 #include "vierkant/model/model_loading.hpp"
 #include "vierkant/vierkant.hpp"
 
@@ -50,6 +51,14 @@ TEST(TestPBRDeferred, basic)
     scene->add_object(mesh_node);
     EXPECT_TRUE(scene);
 
+    // an environment plus both convolutions enable the lighting-pass and with it the skybox-pass,
+    // which binds a SamplerCube in set 0
+    constexpr auto hdr_format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    auto env_img = vierkant::cubemap_neutral_environment(test_context.device, 256, test_context.device->queue(), true,
+                                                         hdr_format);
+    scene->set_environment(env_img);
+    EXPECT_TRUE(scene->environment());
+
     // create PBR scene-renderer
     vierkant::PBRDeferred::create_info_t pbr_render_info = {};
 
@@ -58,6 +67,15 @@ TEST(TestPBRDeferred, basic)
     pbr_render_info.pipeline_cache = nullptr;
     pbr_render_info.settings.resolution = res;
     pbr_render_info.settings.indirect_draw = false;
+    pbr_render_info.conv_lambert =
+            vierkant::create_convolution_lambert(test_context.device, env_img, 64, hdr_format,
+                                                 test_context.device->queue());
+    pbr_render_info.conv_ggx = vierkant::create_convolution_ggx(test_context.device, env_img, env_img->width(), hdr_format,
+                                                                test_context.device->queue());
+    // NOTE: both convolutions come back in VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, sampling them needs this
+    pbr_render_info.conv_lambert->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    pbr_render_info.conv_ggx->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
     auto pbr_renderer = vierkant::PBRDeferred::create(test_context.device, pbr_render_info);
     EXPECT_TRUE(pbr_renderer);
 

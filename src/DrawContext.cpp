@@ -57,10 +57,6 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         m_drawable_image = m_drawable_rect;
         m_drawable_image.pipeline_format.shader_stages =
                 m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
-        vierkant::descriptor_t desc_texture = {};
-        desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        m_drawable_image.descriptors[vierkant::Rasterizer::BINDING_TEXTURES] = desc_texture;
     }
 
     graphics_pipeline_info_t fmt = {};
@@ -249,7 +245,7 @@ void DrawContext::draw_text(vierkant::Rasterizer &renderer, const std::string &t
     drawable.matrices.projection =
             glm::orthoRH(0.f, renderer.viewport.width, 0.f, renderer.viewport.height, 0.0f, 1.0f);
     drawable.matrices.transform.translation = {pos.x, pos.y, 0};
-    drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES].images = {font->glyph_texture()};
+    drawable.textures = {font->glyph_texture()};
     drawable.num_indices = lod_0.num_indices;
     drawable.num_vertices = entry.num_vertices;
     renderer.stage_drawable(std::move(drawable));
@@ -300,7 +296,7 @@ void DrawContext::draw_image(vierkant::Rasterizer &renderer, const vierkant::Ima
     drawable.material.color = color;
 
     // set image
-    drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES].images = {image};
+    drawable.textures = {image};
 
     // stage image drawable
     renderer.stage_drawable(std::move(drawable));
@@ -588,7 +584,11 @@ void DrawContext::draw_skybox(vierkant::Rasterizer &renderer, const vierkant::Im
     auto drawable = m_drawable_skybox;
     drawable.matrices.transform = t;
     drawable.matrices.projection = camera::projection_matrix(cam.get());
-    drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES].images = {environment};
+    // skybox samples a SamplerCube from set 0, not the bindless 2D-array
+    auto &desc_cube = drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES];
+    desc_cube.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    desc_cube.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    desc_cube.images = {environment};
     drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_CUBE);
     drawable.material.color = glm::vec4(glm::vec3(environment_factor), 1.f);
     drawable.share_material = false;
