@@ -393,7 +393,9 @@ void draw_scene_renderer_settings_ui_intern(const PBRDeferredPtr &pbr_renderer)
 void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer)
 {
     const auto &stats = pbr_renderer->statistics();
-    const auto &draw_result = stats.back().draw_cull_result;
+    PBRDeferred::statistics_t last_stats = {};
+    if(!stats.empty()) { last_stats = stats.back(); }
+    const auto &draw_result = last_stats.draw_cull_result;
 
     std::vector<PBRDeferred::statistics_t> values(stats.begin(), stats.end());
     auto max_axis_x = static_cast<double>(pbr_renderer->settings.timing_history_size);
@@ -406,7 +408,7 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
     ImGui::BulletText("num_occlusion_culled: %d", draw_result.num_occlusion_culled);
 
     // drawcall/culling plots
-    if(ImGui::TreeNode("culling-plots"))
+    if(!values.empty() && ImGui::TreeNode("culling-plots"))
     {
         if(ImPlot::BeginPlot("##drawcalls"))
         {
@@ -444,7 +446,7 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
     ImGui::Separator();
     ImGui::Spacing();
 
-    const auto &last = stats.back().timings;
+    const auto &last = last_stats.timings;
     ImGui::BulletText("mesh_compute: %.3f ms", last.mesh_compute_ms);
     ImGui::BulletText("g_buffer_main: %.3f ms", last.g_buffer_pre_ms);
     ImGui::BulletText("depth_pyramid: %.3f ms", last.depth_pyramid_ms);
@@ -459,7 +461,7 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
     ImGui::BulletText("depth_of_field_ms: %.3f ms", last.depth_of_field_ms);
     ImGui::BulletText("total_ms: %.3f ms", last.total_ms);
 
-    if(ImGui::TreeNode("timing-plots"))
+    if(!values.empty() && ImGui::TreeNode("timing-plots"))
     {
         if(ImPlot::BeginPlot("##pbr_timings"))
         {
