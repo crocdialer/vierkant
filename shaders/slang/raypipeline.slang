@@ -34,8 +34,12 @@ ConstantBuffer<ray::trace_data_t> trace_data;
 [[vk::binding(2, 0)]]
 SamplerCube u_sampler_cube;
 
-// variable-count binding: must stay the highest binding-number in this set
+// one AABB per lights[] slot, PrimitiveIndex() is the light-index
 [[vk::binding(3, 0)]]
+RaytracingAccelerationStructure lightAS;
+
+// variable-count binding: must stay the highest binding-number in this set
+[[vk::binding(4, 0)]]
 Sampler2D u_textures[];
 
 //-----------------------------------------------------------------------------
@@ -202,24 +206,47 @@ trace_result_t trace(uint2 coord, uint2 size)
                 float t_end = seg_miss ? seg_ray.tmax : length(payload.ray.origin - seg_ray.origin);
                 float closest_hit_t = t_end;
 
-                for(uint li = 0; li < trace_data.params.num_lights; ++li)
+                // drop the light-body hit-add on refractive-caustic paths (see miss shaders).
+                // an empty segment has no hits, and a ray-query needs tmin <= tmax
+                bool walk = !(trace_data.params.suppress_refractive_caustics && seg_caustic) && t_end > seg_ray.tmin;
+
+                // ordered walk: each pass finds the lowest light-index above the last one added,
+                // so lights add in index-order and a duplicate candidate changes nothing
+                uint li_prev = 0;
+                bool has_prev = false;
+
+                while(walk)
                 {
-                    ray::light_t l = trace_data.lights[li];
+                    RayQuery<RAY_FLAG_NONE> query;
+                    query.TraceRayInline(lightAS, RAY_FLAG_NONE, 0xFF,
+                                         RayDesc(seg_ray.origin, seg_ray.tmin, seg_ray.direction, t_end));
+                    uint li_next = ~0u;
+                    float t_next = 0.0;
 
-                    // non-area types never intersect
-                    ray::light_hit_t hit = ray::intersect_light(l, seg_ray.origin, seg_ray.direction);
-                    if(hit.t <= seg_ray.tmin || hit.t >= t_end) { continue; }
+                    while(query.Proceed())
+                    {
+                        uint li = query.CandidatePrimitiveIndex();
+                        if(li >= li_next || (has_prev && li <= li_prev)) { continue; }
 
-                    // drop the light-body hit-add on refractive-caustic paths (see miss shaders)
-                    if(trace_data.params.suppress_refractive_caustics && seg_caustic) { continue; }
+                        ray::light_hit_t hit =
+                                ray::intersect_light(trace_data.lights[li], seg_ray.origin, seg_ray.direction);
+                        if(hit.t <= seg_ray.tmin || hit.t >= t_end) { continue; }
+                        li_next = li;
+                        t_next = hit.t;
+                    }
+                    if(li_next == ~0u) { break; }
 
+                    ray::light_t l = trace_data.lights[li_next];
                     float p_nee = ray::light_pdf(l, seg_ray.origin, seg_ray.direction) *
-                                  ray::light_pick_pdf(trace_data, li);
+                                  ray::light_pick_pdf(trace_data, li_next);
                     float w = ray::mis_weight_hit(trace_data.params.mis_mode, seg_prev_pdf, p_nee);
                     payload.radiance += seg_beta * w * l.color * l.intensity;
 
                     // keep track of closest light-hit
-                    closest_hit_t = min(closest_hit_t, hit.t);
+                    closest_hit_t = min(closest_hit_t, t_next);
+
+                    li_prev = li_next;
+                    has_prev = true;
                 }
 
                 light_hit = closest_hit_t < t_end;

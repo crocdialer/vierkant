@@ -148,7 +148,9 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
         VkWriteDescriptorSetAccelerationStructureKHR writeDescriptorSetAccelerationStructure = {};
         std::unique_ptr<VkAccelerationStructureKHR[]> handles;
     };
+    // writes point into this array, it must not reallocate
     std::vector<acceleration_write_asset_t> acceleration_write_assets;
+    acceleration_write_assets.reserve(descriptors.size());
     std::vector<VkWriteDescriptorSetInlineUniformBlock> inline_uniform_write_assets;
 
     for(const auto &[binding, desc]: descriptors)
@@ -229,7 +231,6 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
 
             case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
             {
-                assert(acceleration_write_assets.empty());
                 acceleration_write_assets.push_back({});
                 auto &acceleration_write_asset = acceleration_write_assets.back();
                 acceleration_write_asset.handles =

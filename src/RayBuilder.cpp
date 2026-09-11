@@ -1,3 +1,5 @@
+#include <cmath>
+#include <cstring>
 #include <unordered_set>
 #include <vierkant/RayBuilder.hpp>
 #include <vierkant/Visitor.hpp>
@@ -1045,6 +1047,169 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
 
     // top-lvl build
     return create_toplevel(context, params, context->top_lvl);
+}
+
+//! world-space box around a light-body, one float wider per face. inactive (NaN) for types without a body
+static VkAabbPositionsKHR light_aabb(const vierkant::light_t &l)
+{
+    const glm::vec3 &n = l.direction;
+    glm::vec3 half_extents(0.f), pad(0.f);
+
+    switch(static_cast<vierkant::LightType>(l.type))
+    {
+        case vierkant::LightType::Sphere: half_extents = glm::vec3(l.size_x); break;
+        case vierkant::LightType::Disk:
+            half_extents = l.size_x * glm::sqrt(glm::max(glm::vec3(0.f), 1.f - n * n));
+            pad = glm::vec3(1e-3f * l.size_x);
+            break;
+        case vierkant::LightType::Rect:
+            half_extents = l.size_x * glm::abs(l.tangent) + l.size_y * glm::abs(glm::cross(n, l.tangent));
+            pad = glm::vec3(1e-3f * std::max(l.size_x, l.size_y));
+            break;
+        case vierkant::LightType::Tube:
+            half_extents = l.size_y * glm::abs(n) + l.size_x * glm::sqrt(glm::max(glm::vec3(0.f), 1.f - n * n));
+            break;
+        default:
+        {
+            const float nan = std::numeric_limits<float>::quiet_NaN();
+            return {nan, nan, nan, nan, nan, nan};
+        }
+    }
+
+    // flat bodies are padded, so an axis-aligned one does not give a zero-thickness box
+    const glm::vec3 lo = l.position - half_extents - pad, hi = l.position + half_extents + pad;
+    const float inf = std::numeric_limits<float>::infinity();
+    return {std::nextafter(lo.x, -inf), std::nextafter(lo.y, -inf), std::nextafter(lo.z, -inf),
+            std::nextafter(hi.x, inf),  std::nextafter(hi.y, inf),  std::nextafter(hi.z, inf)};
+}
+
+RayBuilder::light_acceleration_asset_ptr
+RayBuilder::build_light_acceleration(const std::vector<vierkant::light_t> &lights,
+                                     const light_acceleration_asset_ptr &last)
+{
+    // one box per light keeps primitive-indices equal to light-indices. no lights: one inactive box
+    std::vector<VkAabbPositionsKHR> aabbs;
+    aabbs.reserve(std::max<size_t>(lights.size(), 1));
+    for(const auto &l: lights) { aabbs.push_back(light_aabb(l)); }
+    if(aabbs.empty()) { aabbs.push_back(light_aabb({})); }
+
+    // same boxes, same structures. inactive boxes are NaN -> compare bytes
+    if(last && last->aabbs.size() == aabbs.size() &&
+       !std::memcmp(last->aabbs.data(), aabbs.data(), aabbs.size() * sizeof(VkAabbPositionsKHR)))
+    {
+        return last;
+    }
+
+    auto ret = std::make_shared<light_acceleration_asset_t>();
+    ret->aabbs = std::move(aabbs);
+    const auto num_aabbs = static_cast<uint32_t>(ret->aabbs.size());
+
+    // host-visible build-inputs
+    vierkant::Buffer::create_info_t input_info = {};
+    input_info.device = m_device;
+    input_info.alignment = 16;
+    input_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                       VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    input_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    input_info.data = ret->aabbs.data();
+    input_info.num_bytes = ret->aabbs.size() * sizeof(VkAabbPositionsKHR);
+    ret->aabb_buffer = vierkant::Buffer::create(input_info);
+
+    auto build_sizes = [this](const VkAccelerationStructureBuildGeometryInfoKHR &info, uint32_t count) {
+        VkAccelerationStructureBuildSizesInfoKHR sizes = {};
+        sizes.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+        vkGetAccelerationStructureBuildSizesKHR(m_device->handle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                                                &info, &count, &sizes);
+        return sizes;
+    };
+
+    VkAccelerationStructureGeometryKHR aabb_geometry = {};
+    aabb_geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+    aabb_geometry.geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
+    aabb_geometry.geometry.aabbs.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
+    aabb_geometry.geometry.aabbs.data.deviceAddress = ret->aabb_buffer->device_address();
+    aabb_geometry.geometry.aabbs.stride = sizeof(VkAabbPositionsKHR);
+
+    VkAccelerationStructureBuildGeometryInfoKHR bottom_info = {};
+    bottom_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+    bottom_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+    bottom_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    bottom_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+    bottom_info.geometryCount = 1;
+    bottom_info.pGeometries = &aabb_geometry;
+    const auto bottom_sizes = build_sizes(bottom_info, num_aabbs);
+
+    VkAccelerationStructureCreateInfoKHR create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+    create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+    create_info.size = bottom_sizes.accelerationStructureSize;
+    ret->bottom_lvl = create_acceleration_asset(create_info);
+
+    // identity transform, custom-index 0
+    VkAccelerationStructureInstanceKHR instance = {};
+    instance.transform.matrix[0][0] = instance.transform.matrix[1][1] = instance.transform.matrix[2][2] = 1.f;
+    instance.mask = 0xFF;
+    instance.accelerationStructureReference = ret->bottom_lvl.device_address;
+    input_info.data = &instance;
+    input_info.num_bytes = sizeof(VkAccelerationStructureInstanceKHR);
+    ret->instance_buffer = vierkant::Buffer::create(input_info);
+
+    VkAccelerationStructureGeometryKHR instance_geometry = {};
+    instance_geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+    instance_geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+    instance_geometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
+    instance_geometry.geometry.instances.data.deviceAddress = ret->instance_buffer->device_address();
+
+    auto top_info = bottom_info;
+    top_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+    top_info.pGeometries = &instance_geometry;
+    const auto top_sizes = build_sizes(top_info, 1);
+
+    create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+    create_info.size = top_sizes.accelerationStructureSize;
+    ret->top_lvl = create_acceleration_asset(create_info);
+
+    // one scratch-buffer, the two builds run one after the other
+    vierkant::Buffer::create_info_t scratch_info = {};
+    scratch_info.device = m_device;
+    scratch_info.pool = m_memory_pool;
+    scratch_info.num_bytes = std::max(bottom_sizes.buildScratchSize, top_sizes.buildScratchSize);
+    scratch_info.alignment =
+            m_device->properties().acceleration_structure.minAccelerationStructureScratchOffsetAlignment;
+    scratch_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    scratch_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    ret->scratch_buffer = vierkant::Buffer::create(scratch_info);
+
+    bottom_info.dstAccelerationStructure = ret->bottom_lvl.structure.get();
+    bottom_info.scratchData.deviceAddress = ret->scratch_buffer->device_address();
+    top_info.dstAccelerationStructure = ret->top_lvl.structure.get();
+    top_info.scratchData.deviceAddress = ret->scratch_buffer->device_address();
+
+    ret->build_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    ret->build_command.begin();
+
+    VkAccelerationStructureBuildRangeInfoKHR range = {};
+    range.primitiveCount = num_aabbs;
+    const VkAccelerationStructureBuildRangeInfoKHR *range_ptr = &range;
+    vkCmdBuildAccelerationStructuresKHR(ret->build_command.handle(), 1, &bottom_info, &range_ptr);
+
+    // the top-lvl build reads the bottom-lvl
+    vierkant::stage_barrier(ret->build_command.handle(), VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR);
+
+    range.primitiveCount = 1;
+    vkCmdBuildAccelerationStructuresKHR(ret->build_command.handle(), 1, &top_info, &range_ptr);
+
+    ret->semaphore = vierkant::Semaphore(m_device);
+    vierkant::semaphore_submit_info_t signal_info = {};
+    signal_info.semaphore = ret->semaphore.handle();
+    signal_info.signal_value = SemaphoreValueBuild::BUILD;
+    ret->build_command.submit(m_queue, false, VK_NULL_HANDLE, {signal_info});
+
+    // every frame using this asset waits for its build, also frames that did not trigger it
+    ret->semaphore_info.semaphore = ret->semaphore.handle();
+    ret->semaphore_info.wait_value = SemaphoreValueBuild::BUILD;
+    ret->semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+    return ret;
 }
 
 RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration_context()

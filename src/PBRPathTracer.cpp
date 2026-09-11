@@ -353,7 +353,8 @@ void PBRPathTracer::path_trace_pass(frame_context_t &frame_context, const vierka
     semaphore_info.semaphore = frame_context.semaphore.handle();
     semaphore_info.signal_value = frame_context.semaphore_value + SemaphoreValue::RAYTRACING;
     frame_context.cmd_trace.submit(m_queue, false, VK_NULL_HANDLE,
-                                   {frame_context.scene_ray_acceleration.semaphore_info, semaphore_info});
+                                   {frame_context.scene_ray_acceleration.semaphore_info,
+                                    frame_context.light_acceleration->semaphore_info, semaphore_info});
     frame_context.semaphore_value_done = SemaphoreValue::RAYTRACING;
 }
 
@@ -570,9 +571,14 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
         desc_environment.images = {m_environment};
     }
 
+    // light-AS is assigned after the light-gather below
+    vierkant::descriptor_t &desc_light_acceleration = frame_context.tracable.descriptors[3];
+    desc_light_acceleration.type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+    desc_light_acceleration.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
     // images are assigned during the light-gather below: scene-textures plus any projector-cookies.
     // variable-count -> must stay the highest binding in this set
-    vierkant::descriptor_t &desc_textures = frame_context.tracable.descriptors[3];
+    vierkant::descriptor_t &desc_textures = frame_context.tracable.descriptors[4];
     desc_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
     desc_textures.variable_count = true;
@@ -636,64 +642,11 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     }
     trace_data.trace_params.camera_media_count = static_cast<uint32_t>(num_camera_media);
 
-    // gather lights into one device-array: optional sunlight (disc-light) folded in as light[0]
-    std::vector<vierkant::light_t> lights;
-    const auto &sun_params = frame_context.settings.sunlight_params;
-    if(sun_params && sun_params->intensity > 0.f)
-    {
-        vierkant::light_t sun = {};
-        sun.type = static_cast<uint32_t>(vierkant::LightType::Directional);
-        sun.color = sun_params->color;
-        sun.intensity = sun_params->intensity;
+    // lights and textures were gathered in update_acceleration_structures()
+    const auto &lights = frame_context.lights;
+    desc_textures.images = frame_context.trace_textures;
+    desc_light_acceleration.acceleration_structures = {frame_context.light_acceleration->top_lvl.structure};
 
-        // direction from elevation/azimuth angles
-        sun.direction = glm::quat(glm::vec3(sun_params->spherical_coords, 0.f)) * glm::vec3(0, 0, 1);
-
-        if(glm::dot(sun.direction, sun.direction) > 0.f) { sun.direction = glm::normalize(sun.direction); }
-        sun.range = std::numeric_limits<float>::infinity();
-        sun.angular_size = sun_params->angular_size;
-        lights.push_back(sun);
-    }
-
-    // projector-cookies are appended behind the material-textures the ray-builder collected,
-    // so their indices stay valid for the descriptor-array assembled below
-    auto cookie_textures = frame_context.scene_ray_acceleration.textures;
-    std::unordered_map<vierkant::texture_key_t, uint32_t> cookie_indices;
-
-    // scene lightsources: resolve component light-ids via asset-provider
-    for(const auto *object: scene_visitor.objects)
-    {
-        if(const auto *light_cmp = object->get_component_ptr<vierkant::lightsource_component_t>())
-        {
-            const auto *light_asset = scene->asset_provider()->light(light_cmp->light_id);
-
-            // Area stays reserved for emissive triangles (extracted, not authored)
-            if(light_asset && light_asset->intensity > 0.f && light_asset->type != vierkant::LightType::Area)
-            {
-                auto light = vierkant::convert_light(*light_asset, object->global_transform());
-
-                // cookies are sampled for Spot/Omni only. texture-index 0 (solid-white placeholder) means 'none'
-                if(light_asset->cookie &&
-                   (light_asset->type == vierkant::LightType::Spot || light_asset->type == vierkant::LightType::Omni))
-                {
-                    vierkant::texture_key_t key = {light_asset->cookie->texture_id, light_asset->cookie->sampler_id};
-
-                    if(auto it = cookie_indices.find(key); it != cookie_indices.end())
-                    {
-                        light.texture_index = it->second;
-                    }
-                    else if(auto img = scene->asset_provider()->texture(key))
-                    {
-                        light.texture_index = cookie_textures.size();
-                        cookie_indices[key] = light.texture_index;
-                        cookie_textures.push_back(std::move(img));
-                    }
-                }
-                lights.push_back(light);
-            }
-        }
-    }
-    desc_textures.images = std::move(cookie_textures);
     if(!lights.empty()) { frame_context.lights_buffer->set_data(lights); }
     trace_data.trace_params.num_lights = lights.size();
 
@@ -744,6 +697,71 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
     build_scene_params.previous_context = last_context.get();
     frame_context.scene_ray_acceleration =
             m_ray_builder.build_scene_acceleration(frame_context.scene_acceleration_context, build_scene_params);
+
+    // gather lights into one device-array: optional sunlight (disc-light) folded in as light[0]
+    frame_context.lights.clear();
+    const auto &sun_params = frame_context.settings.sunlight_params;
+    if(sun_params && sun_params->intensity > 0.f)
+    {
+        vierkant::light_t sun = {};
+        sun.type = static_cast<uint32_t>(vierkant::LightType::Directional);
+        sun.color = sun_params->color;
+        sun.intensity = sun_params->intensity;
+
+        // direction from elevation/azimuth angles
+        sun.direction = glm::quat(glm::vec3(sun_params->spherical_coords, 0.f)) * glm::vec3(0, 0, 1);
+
+        if(glm::dot(sun.direction, sun.direction) > 0.f) { sun.direction = glm::normalize(sun.direction); }
+        sun.range = std::numeric_limits<float>::infinity();
+        sun.angular_size = sun_params->angular_size;
+        frame_context.lights.push_back(sun);
+    }
+
+    // projector-cookies are appended behind the material-textures the ray-builder collected,
+    // so their indices stay valid for the descriptor-array assembled in update_trace_descriptors()
+    frame_context.trace_textures = frame_context.scene_ray_acceleration.textures;
+    std::unordered_map<vierkant::texture_key_t, uint32_t> cookie_indices;
+
+    vierkant::SelectVisitor<Object3D> scene_visitor(layer_mask);
+    scene->root()->accept(scene_visitor);
+
+    // scene lightsources: resolve component light-ids via asset-provider
+    for(const auto *object: scene_visitor.objects)
+    {
+        if(const auto *light_cmp = object->get_component_ptr<vierkant::lightsource_component_t>())
+        {
+            const auto *light_asset = scene->asset_provider()->light(light_cmp->light_id);
+
+            // Area stays reserved for emissive triangles (extracted, not authored)
+            if(light_asset && light_asset->intensity > 0.f && light_asset->type != vierkant::LightType::Area)
+            {
+                auto light = vierkant::convert_light(*light_asset, object->global_transform());
+
+                // cookies are sampled for Spot/Omni only. texture-index 0 (solid-white placeholder) means 'none'
+                if(light_asset->cookie &&
+                   (light_asset->type == vierkant::LightType::Spot || light_asset->type == vierkant::LightType::Omni))
+                {
+                    vierkant::texture_key_t key = {light_asset->cookie->texture_id, light_asset->cookie->sampler_id};
+
+                    if(auto it = cookie_indices.find(key); it != cookie_indices.end())
+                    {
+                        light.texture_index = it->second;
+                    }
+                    else if(auto img = scene->asset_provider()->texture(key))
+                    {
+                        light.texture_index = frame_context.trace_textures.size();
+                        cookie_indices[key] = light.texture_index;
+                        frame_context.trace_textures.push_back(std::move(img));
+                    }
+                }
+                frame_context.lights.push_back(light);
+            }
+        }
+    }
+
+    // light-AS: re-used while the boxes stay the same
+    m_light_acceleration = m_ray_builder.build_light_acceleration(frame_context.lights, m_light_acceleration);
+    frame_context.light_acceleration = m_light_acceleration;
 }
 
 void PBRPathTracer::reset_accumulator()

@@ -8,6 +8,7 @@
 #include <vierkant/Scene.hpp>
 #include <vierkant/descriptor.hpp>
 #include <vierkant/micromap_compute.hpp>
+#include <vierkant/punctual_light.hpp>
 #include <vierkant/transform.hpp>
 
 namespace vierkant
@@ -135,6 +136,26 @@ public:
     //! shared acceleration_asset_t
     using acceleration_asset_ptr = std::shared_ptr<acceleration_asset_t>;
 
+    //! acceleration-structures over analytic light-bodies, one AABB per light
+    struct light_acceleration_asset_t
+    {
+        acceleration_asset_t bottom_lvl, top_lvl;
+        vierkant::BufferPtr aabb_buffer, instance_buffer, scratch_buffer;
+
+        //! boxes this asset was built from, compared to detect changes
+        std::vector<VkAabbPositionsKHR> aabbs;
+
+        //! build-command and its timeline, kept alive with the asset
+        vierkant::CommandBuffer build_command;
+        vierkant::Semaphore semaphore;
+
+        //! wait-info for the build
+        vierkant::semaphore_submit_info_t semaphore_info;
+    };
+
+    //! shared light_acceleration_asset_t
+    using light_acceleration_asset_ptr = std::shared_ptr<light_acceleration_asset_t>;
+
     //! can be used to used to cache an array of shared (bottom-lvl) acceleration-structures per whatever
     using entity_asset_map_t = std::map<uint64_t, std::vector<RayBuilder::acceleration_asset_ptr>>;
 
@@ -256,6 +277,19 @@ public:
      * @return  a struct ggrouping timing-values.
      */
     timings_t timings(const scene_acceleration_context_ptr &context);
+
+    /**
+     * @brief   'build_light_acceleration' creates acceleration-structures over analytic light-bodies.
+     *
+     * one AABB per provided light, so primitive-indices stay equal to light-indices. lights without a
+     * body get an inactive box. when the boxes match those of 'last', 'last' is returned and nothing is built.
+     *
+     * @param   lights  a provided array of lights.
+     * @param   last    an optional asset from a previous call.
+     * @return  a shared light_acceleration_asset_t.
+     */
+    light_acceleration_asset_ptr build_light_acceleration(const std::vector<vierkant::light_t> &lights,
+                                                          const light_acceleration_asset_ptr &last = nullptr);
 
 private:
     enum SemaphoreValueBuild : uint64_t
