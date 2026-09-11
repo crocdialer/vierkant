@@ -58,6 +58,9 @@ struct trace_result_t
 
     //! albedo as RGBA8
     uint albedo;
+
+    //! primary ray hit neither geometry nor a light body
+    bool miss;
 };
 
 ray::Ray camera_ray(float2 coord, float2 size, float2 Xi)
@@ -191,15 +194,13 @@ trace_result_t trace(uint2 coord, uint2 size)
             else if(payload.media_op == ray::MediaOp::Leave) { media_count = media_count > 0u ? media_count - 1u : 0u; }
 
             // ghost-light pass: analytic light bodies are additive, non-terminating emitters.
-            // front-facing intersections within the traced segment add MIS-weighted emission; the segment
-            // itself (media integration, scatter, surface shading) is untouched. media-transmittance toward
-            // the light is deliberately omitted until NEE shadow rays get it too (keeps both strategies
-            // estimating the same integral, so the estimator-toggle A/B stays valid)
+            bool light_hit = false;
             {
                 // segment endpoint: where the path continued (surface hit, scatter point or
                 // null-surface boundary alike), or the traced tmax on a miss
                 bool seg_miss = payload.entity_index == utils::MAX_UINT16;
                 float t_end = seg_miss ? seg_ray.tmax : length(payload.ray.origin - seg_ray.origin);
+                float closest_hit_t = t_end;
 
                 for(uint li = 0; li < trace_data.params.num_lights; ++li)
                 {
@@ -216,6 +217,15 @@ trace_result_t trace(uint2 coord, uint2 size)
                                   ray::light_pick_pdf(trace_data, li);
                     float w = ray::mis_weight_hit(trace_data.params.mis_mode, seg_prev_pdf, p_nee);
                     payload.radiance += seg_beta * w * l.color * l.intensity;
+
+                    // keep track of closest light-hit
+                    closest_hit_t = min(closest_hit_t, hit.t);
+                }
+
+                light_hit = closest_hit_t < t_end;
+                if(light_hit)
+                {
+                    payload.position = seg_ray.origin + closest_hit_t * seg_ray.direction;
                 }
             }
 
@@ -230,7 +240,8 @@ trace_result_t trace(uint2 coord, uint2 size)
                 result.albedo = payload.packed_albedo;
                 float4 depth_proj = mul(trace_data.camera.projection_view, float4(result.position, 1.0));
 
-                ray_miss = payload.entity_index == utils::MAX_UINT16;
+                ray_miss = payload.entity_index == utils::MAX_UINT16 && !light_hit;
+                result.miss = ray_miss;
                 result.depth = ray_miss ? 0.0 : depth_proj.z / depth_proj.w;
             }
 
@@ -256,7 +267,7 @@ uint drift_limit(uint2 size, trace_result_t result)
 {
     // the background has no position: reproject its direction as a point at infinity, which is
     // exact under rotation and parallax-free under translation
-    bool ray_miss = result.entity_index == utils::MAX_UINT16;
+    bool ray_miss = result.miss;
     float4 world = ray_miss ? float4(result.direction, 0.0) : float4(result.position, 1.0);
 
     // project the *same* world-point through both cameras, so what is measured is how the content
