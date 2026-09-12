@@ -321,10 +321,11 @@ public float light_pick_pdf(trace_data_t trace_data, uint index)
 }
 
 //! next-event estimation at a surface: pick one light, sample it, trace a visibility ray.
+//! 'nee_prob' is the probability this NEE was played; the estimate is divided by it.
 //! requires trace_data.params.num_lights > 0
 public float3 nee_surface(material_t material, trace_data_t trace_data, RaytracingAccelerationStructure as,
                           Sampler2D textures[], float3 pos, float3 N, float3 V, float eta, float3 media_sigma_t,
-                          inout uint rng_state)
+                          float nee_prob, inout uint rng_state)
 {
     uint index = pick_light(trace_data, rng_state);
     float pick_pdf = light_pick_pdf(trace_data, index);
@@ -350,11 +351,11 @@ public float3 nee_surface(material_t material, trace_data_t trace_data, Raytraci
 
         // MIS vs. bsdf-sampling for lights that bsdf-rays can hit (weight == 1 for all others)
         float weight = bsdf_reachable(trace_data.lights[index])
-                               ? mis_weight_nee(trace_data.params.mis_mode, ls.pdf * pick_pdf, bsdf_pdf)
+                               ? mis_weight_nee(trace_data.params.mis_mode, nee_prob * ls.pdf * pick_pdf, bsdf_pdf)
                                : 1.0;
 
         // divide by pick-pdf and solid-angle pdf; attenuate by through-glass transmittance
-        radiance = transmittance * weight * (1.0 / pick_pdf) * ls.radiance * F * cos_theta / ls.pdf;
+        radiance = transmittance * weight * (1.0 / (nee_prob * pick_pdf)) * ls.radiance * F * cos_theta / ls.pdf;
     }
     return radiance;
 }
@@ -362,10 +363,11 @@ public float3 nee_surface(material_t material, trace_data_t trace_data, Raytraci
 //! next-event estimation at a point 'pos' inside a medium, toward the light 'index' (from pick_light).
 //! 'dir' is the direction the path travels. the medium-throughput up to 'pos' is *not* included - it
 //! differs per distance-sampling strategy, so the caller carries it.
+//! 'nee_prob' is the probability this NEE was played; the estimate is divided by it.
 //! requires trace_data.num_lights > 0
 public float3 nee_volume(uint index, float3 pos, float3 dir, trace_data_t trace_data,
                          RaytracingAccelerationStructure as, Sampler2D textures[], float phase_g,
-                         float3 media_sigma_t, inout uint rng_state)
+                         float3 media_sigma_t, float nee_prob, inout uint rng_state)
 {
     float pick_pdf = light_pick_pdf(trace_data, index);
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
@@ -387,11 +389,11 @@ public float3 nee_volume(uint index, float3 pos, float3 dir, trace_data_t trace_
 
     // MIS vs. phase-sampling for lights that phase-rays can hit (weight == 1 for all others)
     float weight = bsdf_reachable(trace_data.lights[index])
-                           ? mis_weight_nee(trace_data.params.mis_mode, ls.pdf * pick_pdf, phase)
+                           ? mis_weight_nee(trace_data.params.mis_mode, nee_prob * ls.pdf * pick_pdf, phase)
                            : 1.0;
 
     // divide by pick-pdf and solid-angle pdf; attenuate by through-glass transmittance
-    return transmittance * weight * (1.0 / pick_pdf) * ls.radiance * phase / ls.pdf;
+    return transmittance * weight * (1.0 / (nee_prob * pick_pdf)) * ls.radiance * phase / ls.pdf;
 }
 
 }// namespace ray

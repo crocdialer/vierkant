@@ -217,7 +217,8 @@ void serialize(Archive &archive, vierkant::PBRPathTracer::settings_t &render_set
             cereal::make_optional_nvp("suppress_refractive_caustics", render_settings.suppress_refractive_caustics),
             cereal::make_optional_nvp("max_accumulation_drift", render_settings.max_accumulation_drift),
             cereal::make_optional_nvp("light_selection_uniform_mix",
-                                      render_settings.light_selection_uniform_mix));
+                                      render_settings.light_selection_uniform_mix),
+            cereal::make_optional_nvp("rr_threshold", render_settings.rr_threshold));
 }
 
 template<class Archive>
