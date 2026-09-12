@@ -208,8 +208,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const SceneConstPt
         auto &geometry = geometries[i];
         geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
         // only fully-blocking geometry is fixed-function opaque; transmissive/null-surface materials must remain
-        // non-opaque so transmittance shadow rays can pass through them (see transmittance_test()).
-        // 'material' is the mesh's own, so an overridden mesh cannot be flagged opaque here
+        // non-opaque so transmittance shadow rays can pass through them (see transmittance_test())
         const bool opaque = params.allow_opaque && material &&
                             material->blend_mode == vierkant::BlendMode::Opaque && material->transmission == 0.f &&
                             !material->null_surface;
@@ -941,8 +940,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
 
     context->cmd_build_bottom_start.submit(m_queue, false, VK_NULL_HANDLE, {build_bottom_semaphore_info});
 
-    // meshes reached through a per-object material-override: their bottom-lvl is shared by every instance,
-    // so the opacity-flag it is built with cannot describe all of them and has to stay conservative
+    // an overridden mesh shares its bottom-lvl with every instance, so its opacity-flag stays conservative
     std::unordered_set<vierkant::MeshConstPtr> material_override_meshes;
     for(const auto &object: visitor.objects)
     {
