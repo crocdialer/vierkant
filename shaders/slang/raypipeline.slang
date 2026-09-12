@@ -396,6 +396,10 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     bool sample_medium = false;
     float3 sigma_t = payload.media.sigma_s + payload.media.sigma_a;
 
+    // the medium this segment travels through: shadow-rays leaving it are attenuated by it.
+    // kept, because payload.media is replaced with the medium behind the surface further down
+    const float3 segment_sigma_t = sigma_t;
+
     // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
     bool use_direct_lighting = trace_data.params.num_lights > 0;
 
@@ -505,7 +509,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
             float3 pos = payload.ray.origin + payload.ray.direction * t_eq;
             float3 nee = ray::nee_volume(light_index, pos, payload.ray.direction, trace_data, topLevelAS, u_textures,
-                                         payload.media.phase_g, rng_state);
+                                         payload.media.phase_g, segment_sigma_t, rng_state);
             payload.radiance += seg_beta * beam_tr * sigma_s * w * nee / eq_pdf;
         }
 
@@ -520,7 +524,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
                 float w = equiangular ? ray::power_heuristic(dist_pdf, ray::equiangular_pdf(eq, t)) : 1.0;
                 payload.radiance += payload.beta * w *
                                     ray::nee_volume(light_index, payload.ray.origin, payload.ray.direction, trace_data,
-                                                    topLevelAS, u_textures, g, rng_state);
+                                                    topLevelAS, u_textures, g, segment_sigma_t, rng_state);
             }
 
             float phase_pdf;
@@ -675,7 +679,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         if(use_direct_lighting)
         {
             payload.radiance += payload.beta * ray::nee_surface(material, trace_data, topLevelAS, u_textures,
-                                                                payload.position, shading_normal, V, eta, rng_state);
+                                                                payload.position, shading_normal, V, eta,
+                                                                segment_sigma_t, rng_state);
         }
 
         // negated form also stops NaN-pdfs, which would poison beta and MIS weights
@@ -777,7 +782,12 @@ void hit_light_body(inout ray::payload_t payload, light_attributes_t attributes)
         float p_nee = ray::light_pdf(light, WorldRayOrigin(), WorldRayDirection()) *
                       ray::light_pick_pdf(trace_data, light_index);
         float w = ray::mis_weight_hit(trace_data.params.mis_mode, payload.prev_bsdf_pdf, p_nee);
-        payload.radiance += payload.beta * w * light.color * light.intensity;
+
+        // Beer-Lambert over the medium this segment crossed. the shadow-ray side attenuates the same way,
+        // so both estimators integrate the same thing. no distance-sampling here: a segment ending on a
+        // light-body samples no scatter-event, so in-scattering along it is not accounted for
+        float3 media_sigma_t = payload.media.sigma_s + payload.media.sigma_a;
+        payload.radiance += payload.beta * exp(-media_sigma_t * RayTCurrent()) * w * light.color * light.intensity;
     }
 
     // a light-body has no bsdf to continue with, so the path ends here

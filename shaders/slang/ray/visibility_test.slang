@@ -106,7 +106,7 @@ public bool visibility_test(Ray ray, RaytracingAccelerationStructure as, uint ex
 //! rng is only drawn for Blend alpha-cutout (as in visibility_test), so transmission-free scenes keep the same budget.
 public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, uint extra_ray_flags,
                                  trace_data_t trace_data, Sampler2D textures[], uint skip_light_index,
-                                 inout uint rng_state)
+                                 float3 media_sigma_t, inout uint rng_state)
 {
     RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER> query;
     query.TraceRayInline(as, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | extra_ray_flags, 0xFF,
@@ -116,6 +116,10 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
     // Beer-Lambert optical depth accumulated as a signed sum of sigma_t * t (entry -, exit +), so a convex
     // object's entry/exit pair nets sigma_t * (t_exit - t_entry); order-independent, additive over objects.
     float3 optical_depth = float3(0);
+
+    // nearest boundary the ray leaves the medium it started in through. staying at tmax means it never
+    // left, and then the starting medium attenuates the whole segment
+    float exit_t = ray.tmax;
 
     while(query.Proceed())
     {
@@ -135,8 +139,20 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
         let entry = trace_data.entries + query.CandidateInstanceIndex();
         material_t material = trace_data.materials[entry->material_index];
 
-        // null-surface boundaries do not attenuate shadow rays
-        if(material.null_surface) { continue; }
+        // a null-surface boundary does not block, but the participating medium behind it attenuates.
+        // same signed entry/exit depth as the glass interiors below, and no per-interface tint
+        if(material.null_surface)
+        {
+            if(!isinf(material.attenuation_distance))
+            {
+                float3 sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
+                float t = query.CandidateTriangleRayT();
+                bool front_face = query.CandidateTriangleFrontFace();
+                optical_depth += front_face ? -sigma_t * t : sigma_t * t;
+                if(!front_face) { exit_t = min(exit_t, t); }
+            }
+            continue;
+        }
 
         // transmissive geometry: attenuate and pass through (no rng draw)
         if(material.transmission > 0.0)
@@ -149,7 +165,9 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
             {
                 float3 sigma_t = -log(material.attenuation_color) / material.attenuation_distance;
                 float t = query.CandidateTriangleRayT();
-                optical_depth += query.CandidateTriangleFrontFace() ? -sigma_t * t : sigma_t * t;
+                bool front_face = query.CandidateTriangleFrontFace();
+                optical_depth += front_face ? -sigma_t * t : sigma_t * t;
+                if(!front_face) { exit_t = min(exit_t, t); }
             }
             continue;
         }
@@ -184,7 +202,11 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
     // any committed hit (opaque geometry or an alpha-blocking candidate) fully occludes
     if(query.CommittedStatus() != COMMITTED_NOTHING) { return float3(0); }
 
-    // clamp to >= 0: unpaired entries (e.g. exits culled on the CULL_BACK_FACING volume path) must not amplify
+    // a ray that never left its starting medium has no exit to pair with, so nothing above accounted for
+    // it. one that did left an unpaired exit, which already carries the implicit entry at t = 0
+    if(exit_t == ray.tmax) { optical_depth += media_sigma_t * (ray.tmax - ray.tmin); }
+
+    // clamp to >= 0: an unpaired entry (a medium entered and never left) must not amplify
     return transmittance * exp(-max(optical_depth, float3(0)));
 }
 
