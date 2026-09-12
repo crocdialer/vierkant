@@ -399,6 +399,8 @@ private:
     //! information for a raytracing pipeline
     raytracing_shader_map_t m_shader_stages = {}, m_shader_stages_env = {};
 
+    std::vector<raytracing_hit_group_t> m_hit_groups = {};
+
     std::vector<frame_context_t> m_frame_contexts;
 
     vierkant::DrawContext m_draw_context;

@@ -2,6 +2,7 @@
 #include <unordered_map>
 
 #include "vierkant/PipelineCache.hpp"
+#include "vierkant/shaders_slang.hpp"
 #include "vierkant/vierkant.hpp"
 
 TEST(TestPipeline, Format)
@@ -103,4 +104,39 @@ TEST(TestPipeline, PipelineCache)
     // TODO: expected error here, make this obsolete
     // EXPECT_TRUE(test_context.validation_data.num_errors);
     // test_context.validation_data = {};
+}
+TEST(TestPipeline, RaytracingFormat)
+{
+    auto shader_module = vierkant::create_shader_module(vierkant::slang_shaders::slang::raypipeline_slang);
+    ASSERT_TRUE(shader_module.create_info.codeSize);
+
+    // the raypipeline provides more than one miss-shader
+    ASSERT_TRUE(shader_module.entry_points.contains(VK_SHADER_STAGE_MISS_BIT_KHR));
+    ASSERT_GT(shader_module.entry_points.at(VK_SHADER_STAGE_MISS_BIT_KHR).size(), 1);
+
+    std::hash<vierkant::raytracing_pipeline_info_t> fmt_hash;
+
+    vierkant::raytracing_pipeline_info_t foo = {}, bar = {};
+    EXPECT_TRUE(foo == bar);
+    EXPECT_TRUE(fmt_hash(foo) == fmt_hash(bar));
+
+    foo.shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, shader_module},
+                         {VK_SHADER_STAGE_MISS_BIT_KHR, shader_module}};
+    foo.hit_groups = {{.closest_hit = shader_module, .any_hit = shader_module}};
+    bar = foo;
+    EXPECT_TRUE(foo == bar);
+    EXPECT_TRUE(fmt_hash(foo) == fmt_hash(bar));
+
+    // same module, different entry-point -> a different pipeline
+    auto miss_environment = shader_module;
+    miss_environment.entry_point_name = "miss_environment";
+    bar.shader_stages.find(VK_SHADER_STAGE_MISS_BIT_KHR)->second = miss_environment;
+    EXPECT_TRUE(foo != bar);
+    EXPECT_TRUE(fmt_hash(foo) != fmt_hash(bar));
+
+    // an added intersection-shader turns a triangle hit-group into a procedural one
+    bar = foo;
+    bar.hit_groups.front().intersection = shader_module;
+    EXPECT_TRUE(foo != bar);
+    EXPECT_TRUE(fmt_hash(foo) != fmt_hash(bar));
 }

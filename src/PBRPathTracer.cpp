@@ -148,14 +148,13 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     ray_miss_env.entry_point_name = "miss_environment";
 
     m_shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, rt_shader_stages},
-                       {VK_SHADER_STAGE_MISS_BIT_KHR, rt_shader_stages},
-                       {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, rt_shader_stages},
-                       {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, rt_shader_stages}};
+                       {VK_SHADER_STAGE_MISS_BIT_KHR, rt_shader_stages}};
 
     m_shader_stages_env = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, rt_shader_stages},
-                           {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_env},
-                           {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, rt_shader_stages},
-                           {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, rt_shader_stages}};
+                           {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_env}};
+
+    // triangle hit-group for scene-geometry
+    m_hit_groups = {{.closest_hit = rt_shader_stages, .any_hit = rt_shader_stages}};
 
     // create drawables for post-fx-pass
     {
@@ -734,6 +733,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
     m_environment = scene->environment();
     bool use_environment = m_environment && frame_context.settings.draw_skybox;
     frame_context.tracable.pipeline_info.shader_stages = use_environment ? m_shader_stages_env : m_shader_stages;
+    frame_context.tracable.pipeline_info.hit_groups = m_hit_groups;
 
     RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
     build_scene_params.layer_mask = layer_mask;

@@ -101,7 +101,7 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     {
         binding_table = m_binding_tables.put(
                 pipeline->handle(),
-                create_shader_binding_table(pipeline->handle(), tracable.pipeline_info.shader_stages));
+                create_shader_binding_table(pipeline->handle(), tracable.pipeline_info));
     }
 
     // fetch descriptor set
@@ -141,27 +141,19 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 RayTracer::shader_binding_table_t
-RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::raytracing_shader_map_t &shader_stages)
+RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::raytracing_pipeline_info_t &pipeline_info)
 {
     using Group = shader_binding_table_t::Group;
     auto ray_props = m_device->properties().ray_pipeline;
 
-    // this feels a bit silly but these groups do not correspond 1:1 to shader-stages.
+    // groups do not correspond 1:1 to shader-stages: a hit-group merges up to three of them
+    auto shader_layout = vierkant::raytracing_shader_layout(pipeline_info);
+
     std::map<shader_binding_table_t::Group, size_t> group_elements;
-    for(const auto &[stage, shader]: shader_stages)
-    {
-        switch(stage)
-        {
-            case VK_SHADER_STAGE_RAYGEN_BIT_KHR: group_elements[Group::Raygen]++; break;
-            case VK_SHADER_STAGE_MISS_BIT_KHR: group_elements[Group::Miss]++; break;
-            case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
-            case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR: group_elements[Group::Hit]++; break;
-            // any-hit is merged into the closest-hit group, it does not produce a separate group-handle
-            case VK_SHADER_STAGE_ANY_HIT_BIT_KHR: break;
-            case VK_SHADER_STAGE_CALLABLE_BIT_KHR: group_elements[Group::Callable]++; break;
-            default: break;
-        }
-    }
+    group_elements[Group::Raygen] = shader_layout.num_raygen_groups;
+    group_elements[Group::Hit] = shader_layout.num_hit_groups;
+    group_elements[Group::Miss] = shader_layout.num_miss_groups;
+    group_elements[Group::Callable] = shader_layout.num_callable_groups;
     const uint32_t handle_size = ray_props.shaderGroupHandleSize;
     const uint32_t handle_size_aligned = aligned_size(handle_size, ray_props.shaderGroupHandleAlignment);
 
@@ -195,10 +187,7 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::rayt
     binding_table_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
     binding_table.buffer = vierkant::Buffer::create(binding_table_buffer_info);
 
-    // shader groups
-    auto group_create_infos = vierkant::raytracing_shader_groups(shader_stages);
-
-    const uint32_t group_count = group_create_infos.size();
+    const uint32_t group_count = shader_layout.groups.size();
 
     // retrieve the group-handles into host-memory
     std::vector<uint8_t> group_handle_data(group_count * handle_size);

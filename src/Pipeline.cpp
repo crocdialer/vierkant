@@ -9,38 +9,9 @@ std::vector<VkPipelineShaderStageCreateInfo>
 shader_stage_create_infos(const ShaderMap_T &shader_stages, const VkSpecializationInfo *specialization_info = nullptr)
 {
     std::vector<VkPipelineShaderStageCreateInfo> ret;
-
     for(const auto &[stage, shader_module]: shader_stages)
     {
-        VkPipelineShaderStageCreateInfo stage_info = {};
-        stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        stage_info.stage = stage;
-
-        // no module, pNext contains ShaderModuleCreateinfo
-        stage_info.pNext = &shader_module.create_info;
-
-        if(!shader_module.entry_point_name.empty())
-        {
-            if(auto entry_it = shader_module.entry_points.find(stage); entry_it != shader_module.entry_points.end())
-            {
-                // iterate over entry-points for the current stage
-                assert(!entry_it->second.empty());
-                for(const auto &entry_point: entry_it->second)
-                {
-                    if(entry_point.name.find(shader_module.entry_point_name) != std::string::npos)
-                    {
-                        stage_info.pName = entry_point.name.c_str();
-                    }
-                }
-            }
-        }
-        else
-        {
-            stage_info.pName = shader_module.entry_points.at(stage).front().name.c_str();
-        }
-
-        stage_info.pSpecializationInfo = specialization_info;
-        ret.push_back(stage_info);
+        ret.push_back(shader_stage_create_info(stage, shader_module, specialization_info));
     }
     return ret;
 };
@@ -215,12 +186,9 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::raytracing_pipeline_inf
 
     if(!vkCreateRayTracingPipelinesKHR) { return nullptr; }
 
-    // shader stages
+    // shader stages and groups
     auto specialization_info = raytracing_info.specialization ? raytracing_info.specialization->info() : nullptr;
-    auto stage_create_infos = shader_stage_create_infos(raytracing_info.shader_stages, specialization_info);
-
-    // shader groups
-    auto group_create_infos = raytracing_shader_groups(raytracing_info.shader_stages);
+    auto shader_layout = raytracing_shader_layout(raytracing_info, specialization_info);
 
     // define pipeline layout (uniforms, push-constants, ...)
     VkPipelineLayoutCreateInfo pipeline_layout_info = {};
@@ -236,10 +204,10 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::raytracing_pipeline_inf
 
     VkRayTracingPipelineCreateInfoKHR pipeline_create_info = {};
     pipeline_create_info.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
-    pipeline_create_info.stageCount = stage_create_infos.size();
-    pipeline_create_info.pStages = stage_create_infos.data();
-    pipeline_create_info.groupCount = group_create_infos.size();
-    pipeline_create_info.pGroups = group_create_infos.data();
+    pipeline_create_info.stageCount = shader_layout.stages.size();
+    pipeline_create_info.pStages = shader_layout.stages.data();
+    pipeline_create_info.groupCount = shader_layout.groups.size();
+    pipeline_create_info.pGroups = shader_layout.groups.data();
     pipeline_create_info.layout = pipeline_layout;
     pipeline_create_info.maxPipelineRayRecursionDepth = raytracing_info.max_recursion;
 
