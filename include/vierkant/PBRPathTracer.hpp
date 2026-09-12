@@ -229,6 +229,9 @@ private:
         std::vector<vierkant::light_t> lights;
         std::vector<vierkant::ImagePtr> trace_textures;
 
+        //! object each light came from, parallel to 'lights'. a default entry has no object (the sun)
+        std::vector<vierkant::id_entry_t> light_object_ids;
+
         //! light-bodies traced by this frame, kept alive until the context is reused
         RayBuilder::light_acceleration_asset_ptr light_acceleration;
 

@@ -10,6 +10,13 @@
 namespace vierkant
 {
 
+//! mirrors ray::LIGHT_ENTITY_INDEX_TOP in shaders/slang/ray/ray_common.slang: light-bodies count down from
+//! here, scene-entries count up from zero, so only the lights that exist take space away from geometry
+static constexpr uint32_t LIGHT_ENTITY_INDEX_TOP = 0xFFFE;
+
+//! marks a light that came from no object, such as the sun
+static constexpr uint32_t NO_OBJECT_ID = std::numeric_limits<uint32_t>::max();
+
 using duration_t = std::chrono::duration<float>;
 
 struct alignas(16) pixel_buffer_t
@@ -249,22 +256,43 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
 
     render_result_t ret;
     ret.object_ids = m_storage.object_ids;
-    ret.object_by_index_fn =
-            [scene, &scene_asset = frame_context.scene_ray_acceleration](uint32_t draw_id) -> vierkant::id_entry_t {
-        if(auto it = scene_asset.entry_idx_to_object_id.find(draw_id); it != scene_asset.entry_idx_to_object_id.end())
+    ret.object_by_index_fn = [&scene_asset = frame_context.scene_ray_acceleration,
+                              &light_object_ids =
+                                      frame_context.light_object_ids](uint32_t draw_id) -> vierkant::id_entry_t {
+        // a light-body resolves to the object its lightsource-component sits on
+        if(draw_id <= LIGHT_ENTITY_INDEX_TOP && draw_id > LIGHT_ENTITY_INDEX_TOP - light_object_ids.size())
+        {
+            if(const uint32_t light_index = LIGHT_ENTITY_INDEX_TOP - draw_id;
+               light_object_ids[light_index].id != NO_OBJECT_ID)
+            {
+                return light_object_ids[light_index];
+            }
+            return {};
+        }
+        if(const auto it = scene_asset.entry_idx_to_object_id.find(draw_id);
+           it != scene_asset.entry_idx_to_object_id.end())
         {
             return it->second;
         }
         return {};
     };
-    ret.indices_by_id_fn =
-            [scene, &scene_asset = frame_context.scene_ray_acceleration](uint32_t object_id) -> std::vector<uint32_t> {
+    ret.indices_by_id_fn = [&scene_asset = frame_context.scene_ray_acceleration,
+                            &light_object_ids =
+                                    frame_context.light_object_ids](uint32_t object_id) -> std::vector<uint32_t> {
+        std::vector<uint32_t> out_indices;
+
         if(const auto it = scene_asset.object_id_to_entry_indices.find(object_id);
            it != scene_asset.object_id_to_entry_indices.end())
         {
-            return it->second;
+            out_indices = it->second;
         }
-        return {};
+
+        // an object can carry geometry and a lightsource at once, so both index-sets apply
+        for(uint32_t i = 0; i < light_object_ids.size(); ++i)
+        {
+            if(light_object_ids[i].id == object_id) { out_indices.push_back(LIGHT_ENTITY_INDEX_TOP - i); }
+        }
+        return out_indices;
     };
 
     // pass semaphore wait/signal information
@@ -653,10 +681,10 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     // selection-distribution for next-event-estimation, rebuilt per frame (O(num_lights))
     // reference the weights at the focus-point rather than the camera, that is where we are looking
     const auto cam_transform = cam->global_transform();
-    const glm::vec3 focus_pos = cam_transform.translation + (cam_transform.rotation * glm::vec3(0.f, 0.f, -1.f)) *
-                                                                    camera_params.focal_distance;
-    auto light_alias_table = vierkant::create_light_alias_table(lights, focus_pos,
-                                                               frame_context.settings.light_selection_uniform_mix);
+    const glm::vec3 focus_pos = cam_transform.translation +
+                                (cam_transform.rotation * glm::vec3(0.f, 0.f, -1.f)) * camera_params.focal_distance;
+    auto light_alias_table =
+            vierkant::create_light_alias_table(lights, focus_pos, frame_context.settings.light_selection_uniform_mix);
     if(!light_alias_table.empty()) { frame_context.light_alias_buffer->set_data(light_alias_table); }
 
     // assign buffer-addresses
@@ -691,6 +719,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
 
     // gather lights into one device-array: optional sunlight (disc-light) folded in as light[0]
     frame_context.lights.clear();
+    frame_context.light_object_ids.clear();
     const auto &sun_params = frame_context.settings.sunlight_params;
     if(sun_params && sun_params->intensity > 0.f)
     {
@@ -706,6 +735,9 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
         sun.range = std::numeric_limits<float>::infinity();
         sun.angular_size = sun_params->angular_size;
         frame_context.lights.push_back(sun);
+
+        // the sun is a setting, not an object. entity 0 is a valid id, so mark it explicitly
+        frame_context.light_object_ids.push_back({NO_OBJECT_ID, 0});
     }
 
     vierkant::SelectVisitor<Object3D> scene_visitor(layer_mask);
@@ -736,6 +768,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
                             vierkant::texture_key_t{light_asset->cookie->texture_id, light_asset->cookie->sampler_id});
                 }
                 frame_context.lights.push_back(light);
+                frame_context.light_object_ids.push_back({object->id(), 0});
             }
         }
     }

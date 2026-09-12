@@ -782,7 +782,7 @@ void hit_light_body(inout ray::payload_t payload, light_attributes_t attributes)
 
     // a light-body has no bsdf to continue with, so the path ends here
     payload.position = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
-    payload.entity_index = ray::LIGHT_ENTITY_INDEX;
+    payload.entity_index = ray::LIGHT_ENTITY_INDEX_TOP - light_index;
     payload.stop = true;
 }
 
