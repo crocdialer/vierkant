@@ -36,6 +36,99 @@ public struct RayCone
 
 public static const uint MISS_INDEX_DEFAULT = 0;
 
+//! light-bodies count down from here, scene-entries count up from zero, 0xFFFF is a miss.
+//! the two only meet when entries + lights exceed the 16 bits entity_index provides
+public static const uint LIGHT_ENTITY_INDEX_TOP = 0xFFFE;
+
+//! closed-form ray-intersection with an analytic light body
+public struct light_hit_t
+{
+    //! hit distance, <= 0 marks a miss
+    public float t;
+
+    //! cosine at the light surface (facing the ray origin)
+    public float cos_light;
+};
+
+//! intersect a ray with an analytic light body. front-facing surfaces only: back sides are
+//! transparent, consistent with the one-sided black NEE samples. non-area types never hit
+public light_hit_t intersect_light(light_t l, float3 P, float3 dir)
+{
+    light_hit_t ret;
+    ret.t = 0.0;
+    ret.cos_light = 0.0;
+
+    switch(l.type)
+    {
+        case LightType::Sphere:
+        {
+            float3 to_center = l.position - P;
+            float d2 = dot(to_center, to_center);
+            float r2 = l.size_x * l.size_x;
+
+            // inside the sphere: no hit (matches the black NEE sample)
+            if(d2 <= r2) { break; }
+            float b = dot(dir, to_center);
+            float disc = b * b - d2 + r2;
+            if(disc <= 0.0) { break; }
+            float t = b - sqrt(disc);
+            if(t <= 0.0) { break; }
+            ret.t = t;
+            ret.cos_light = dot((P + t * dir - l.position) / l.size_x, -dir);
+            break;
+        }
+        case LightType::Rect:
+        case LightType::Disk:
+        {
+            float cos_light = dot(l.direction, -dir);
+            if(cos_light <= 0.0) { break; }
+            float t = dot(l.position - P, l.direction) / -cos_light;
+            if(t <= 0.0) { break; }
+
+            float3 q = P + t * dir - l.position;
+            if(l.type == LightType::Rect)
+            {
+                float3 bitangent = cross(l.direction, l.tangent);
+                if(abs(dot(q, l.tangent)) > l.size_x || abs(dot(q, bitangent)) > l.size_y) { break; }
+            }
+            else if(dot(q, q) > l.size_x * l.size_x) { break; }
+            ret.t = t;
+            ret.cos_light = cos_light;
+            break;
+        }
+        case LightType::Tube:
+        {
+            // nearest mantle intersection (quadratic in the plane perpendicular to the axis)
+            float3 o = P - l.position;
+            float3 d_perp = dir - l.direction * dot(dir, l.direction);
+            float3 o_perp = o - l.direction * dot(o, l.direction);
+            float A = dot(d_perp, d_perp);
+            float B = dot(o_perp, d_perp);
+            float C = dot(o_perp, o_perp) - l.size_x * l.size_x;
+            float disc = B * B - A * C;
+
+            // parallel to the axis, miss, or P inside the mantle radius (backfacing hit)
+            if(A <= EPS || disc <= 0.0 || C <= 0.0) { break; }
+            float t = (-B - sqrt(disc)) / A;
+            if(t <= 0.0 || abs(dot(o + t * dir, l.direction)) > l.size_y) { break; }
+
+            // radial unit-normal at the hit
+            float cos_light = dot((o_perp + t * d_perp) / l.size_x, -dir);
+            if(cos_light <= 0.0) { break; }
+            ret.t = t;
+            ret.cos_light = cos_light;
+            break;
+        }
+        default: break;
+    }
+    return ret;
+}
+
+//! cull-mask for rays that must not see the light-bodies instance, which the host tags with
+//! RayBuilder::light_instance_mask (0x80). ray_cast() needs it: it calls Proceed() once, which only
+//! completes traversal while nothing procedural can turn up
+public static const uint GEOMETRY_MASK = 0x7F;
+
 //! maximum number of nested media a path can track (mirrored host-side in vierkant/media.hpp)
 public static const uint MAX_MEDIA_STACK_SIZE = 4;
 

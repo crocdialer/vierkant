@@ -77,6 +77,7 @@ shader_module_t create_shader_module(const void *spirv_code, size_t num_bytes)
             {SpvExecutionModelRayGenerationKHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR},
             {SpvExecutionModelClosestHitKHR, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
             {SpvExecutionModelAnyHitKHR, VK_SHADER_STAGE_ANY_HIT_BIT_KHR},
+            {SpvExecutionModelIntersectionKHR, VK_SHADER_STAGE_INTERSECTION_BIT_KHR},
             {SpvExecutionModelMissKHR, VK_SHADER_STAGE_MISS_BIT_KHR},
             {SpvExecutionModelCallableKHR, VK_SHADER_STAGE_CALLABLE_BIT_KHR},
             {SpvExecutionModelMeshEXT, VK_SHADER_STAGE_MESH_BIT_EXT},
@@ -109,9 +110,44 @@ shader_module_t create_shader_module(const void *spirv_code, size_t num_bytes)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<VkRayTracingShaderGroupCreateInfoKHR> raytracing_shader_groups(const raytracing_shader_map_t &shader_stages)
+VkPipelineShaderStageCreateInfo shader_stage_create_info(VkShaderStageFlagBits stage,
+                                                         const shader_module_t &shader_module,
+                                                         const VkSpecializationInfo *specialization_info)
 {
-    std::vector<VkRayTracingShaderGroupCreateInfoKHR> ret;
+    VkPipelineShaderStageCreateInfo stage_info = {};
+    stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stage_info.stage = stage;
+
+    // no module, pNext contains ShaderModuleCreateinfo
+    stage_info.pNext = &shader_module.create_info;
+
+    if(!shader_module.entry_point_name.empty())
+    {
+        if(auto entry_it = shader_module.entry_points.find(stage); entry_it != shader_module.entry_points.end())
+        {
+            // iterate over entry-points for the current stage
+            assert(!entry_it->second.empty());
+            for(const auto &entry_point: entry_it->second)
+            {
+                if(entry_point.name.find(shader_module.entry_point_name) != std::string::npos)
+                {
+                    stage_info.pName = entry_point.name.c_str();
+                }
+            }
+        }
+    }
+    else { stage_info.pName = shader_module.entry_points.at(stage).front().name.c_str(); }
+
+    stage_info.pSpecializationInfo = specialization_info;
+    return stage_info;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+raytracing_shader_layout_t raytracing_shader_layout(const raytracing_pipeline_info_t &pipeline_info,
+                                                    const VkSpecializationInfo *specialization_info)
+{
+    raytracing_shader_layout_t ret;
 
     VkRayTracingShaderGroupCreateInfoKHR group_create_info = {};
     group_create_info.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
@@ -120,40 +156,61 @@ std::vector<VkRayTracingShaderGroupCreateInfoKHR> raytracing_shader_groups(const
     group_create_info.anyHitShader = VK_SHADER_UNUSED_KHR;
     group_create_info.intersectionShader = VK_SHADER_UNUSED_KHR;
 
-    uint32_t next_index = 0;
+    // append a stage, return its index
+    auto add_stage = [&ret, specialization_info](VkShaderStageFlagBits stage, const shader_module_t &shader_module) {
+        ret.stages.push_back(shader_stage_create_info(stage, shader_module, specialization_info));
+        return static_cast<uint32_t>(ret.stages.size() - 1);
+    };
 
-    for(const auto &[stage, shader_module]: shader_stages)
-    {
-        switch(stage)
+    // one general group per shader of that stage, in the order the shader-map provides them
+    auto add_general_groups = [&](VkShaderStageFlagBits stage) {
+        uint32_t num_groups = 0;
+        auto [begin, end] = pipeline_info.shader_stages.equal_range(stage);
+
+        for(auto it = begin; it != end; ++it)
         {
-            case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
-            case VK_SHADER_STAGE_MISS_BIT_KHR:
-                group_create_info.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
-                group_create_info.generalShader = next_index;
-                group_create_info.closestHitShader = VK_SHADER_UNUSED_KHR;
-                group_create_info.anyHitShader = VK_SHADER_UNUSED_KHR;
-                group_create_info.intersectionShader = VK_SHADER_UNUSED_KHR;
-                ret.push_back(group_create_info);
-                break;
-
-            case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
-                group_create_info.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
-                group_create_info.closestHitShader = next_index;
-                group_create_info.generalShader = VK_SHADER_UNUSED_KHR;
-                ret.push_back(group_create_info);
-                break;
-
-            case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
-                group_create_info.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
-                group_create_info.anyHitShader = next_index;
-                break;
-
-            default: throw std::runtime_error("raytracing_shader_groups: provided a non-raytracing shader");
+            auto general_group = group_create_info;
+            general_group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+            general_group.generalShader = add_stage(stage, it->second);
+            ret.groups.push_back(general_group);
+            num_groups++;
         }
-        next_index++;
+        return num_groups;
+    };
+
+    for(const auto &[stage, shader_module]: pipeline_info.shader_stages)
+    {
+        if(stage != VK_SHADER_STAGE_RAYGEN_BIT_KHR && stage != VK_SHADER_STAGE_MISS_BIT_KHR &&
+           stage != VK_SHADER_STAGE_CALLABLE_BIT_KHR)
+        {
+            throw std::runtime_error("raytracing_shader_layout: shader_stages holds a hit-stage, "
+                                     "those belong into raytracing_pipeline_info_t::hit_groups");
+        }
     }
+
+    // emission-order is raygen, hit, miss, callable - the shader-binding-table's region-order
+    ret.num_raygen_groups = add_general_groups(VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+
+    for(const auto &hit_group: pipeline_info.hit_groups)
+    {
+        auto group = group_create_info;
+        group.type = hit_group.intersection ? VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR
+                                            : VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+        group.closestHitShader = add_stage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, hit_group.closest_hit);
+
+        if(hit_group.any_hit) { group.anyHitShader = add_stage(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, *hit_group.any_hit); }
+        if(hit_group.intersection)
+        {
+            group.intersectionShader = add_stage(VK_SHADER_STAGE_INTERSECTION_BIT_KHR, *hit_group.intersection);
+        }
+        ret.groups.push_back(group);
+    }
+    ret.num_hit_groups = static_cast<uint32_t>(pipeline_info.hit_groups.size());
+
+    ret.num_miss_groups = add_general_groups(VK_SHADER_STAGE_MISS_BIT_KHR);
+    ret.num_callable_groups = add_general_groups(VK_SHADER_STAGE_CALLABLE_BIT_KHR);
     return ret;
-};
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -300,6 +357,7 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
 bool raytracing_pipeline_info_t::operator==(const raytracing_pipeline_info_t &other) const
 {
     if(shader_stages != other.shader_stages) { return false; }
+    if(hit_groups != other.hit_groups) { return false; }
     if(max_recursion != other.max_recursion) { return false; }
     if(descriptor_set_layouts != other.descriptor_set_layouts) { return false; }
     if(push_constant_ranges != other.push_constant_ranges) { return false; }
@@ -384,6 +442,7 @@ size_t std::hash<vierkant::shader_module_t>::operator()(vierkant::shader_module_
     size_t h = 0;
     hash_combine(h, sm.create_info.pCode);
     hash_combine(h, sm.create_info.codeSize);
+    hash_combine(h, sm.entry_point_name);
     return h;
 }
 
@@ -491,6 +550,12 @@ size_t std::hash<vierkant::raytracing_pipeline_info_t>::operator()(
     {
         hash_combine(h, stage);
         hash_combine(h, shader);
+    }
+    for(const auto &hit_group: fmt.hit_groups)
+    {
+        hash_combine(h, hit_group.closest_hit);
+        if(hit_group.any_hit) { hash_combine(h, *hit_group.any_hit); }
+        if(hit_group.intersection) { hash_combine(h, *hit_group.intersection); }
     }
     hash_combine(h, fmt.max_recursion);
     for(const auto &dsl: fmt.descriptor_set_layouts) { hash_combine(h, dsl); }

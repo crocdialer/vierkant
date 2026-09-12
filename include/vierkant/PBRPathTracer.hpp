@@ -225,6 +225,16 @@ private:
 
         vierkant::RayTracer::tracable_t tracable = {};
 
+        //! lights gathered for this frame, plus all textures the trace binds
+        std::vector<vierkant::light_t> lights;
+        std::vector<vierkant::ImagePtr> trace_textures;
+
+        //! object each light came from, parallel to 'lights'. a default entry has no object (the sun)
+        std::vector<vierkant::id_entry_t> light_object_ids;
+
+        //! light-bodies traced by this frame, kept alive until the context is reused
+        RayBuilder::light_acceleration_asset_ptr light_acceleration;
+
         struct denoise_ping_pong_t
         {
             vierkant::Compute::computable_t computable = {};
@@ -377,6 +387,9 @@ private:
     //! build acceleration structures
     vierkant::RayBuilder m_ray_builder;
 
+    //! most recent light-bodies structure, re-used while they do not move
+    RayBuilder::light_acceleration_asset_ptr m_light_acceleration;
+
     size_t m_batch_index = 0;
 
     //! projection-view of the most recently traced frame. unset means: no drift measurable (yet)
@@ -398,6 +411,8 @@ private:
 
     //! information for a raytracing pipeline
     raytracing_shader_map_t m_shader_stages = {}, m_shader_stages_env = {};
+
+    std::vector<raytracing_hit_group_t> m_hit_groups = {};
 
     std::vector<frame_context_t> m_frame_contexts;
 

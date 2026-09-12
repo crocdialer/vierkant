@@ -116,7 +116,7 @@ private:
     };
 
     shader_binding_table_t create_shader_binding_table(VkPipeline pipeline,
-                                                       const vierkant::raytracing_shader_map_t &shader_stages);
+                                                       const vierkant::raytracing_pipeline_info_t &pipeline_info);
 
     vierkant::DevicePtr m_device;
 

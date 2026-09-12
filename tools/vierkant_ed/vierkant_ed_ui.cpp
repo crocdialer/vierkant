@@ -829,6 +829,11 @@ void VierkantEd::create_ui()
                     {
                         auto [object_id, sub_entry] = overlay_asset.object_by_index_fn(draw_idx);
                         picked_object = m_scene->object_by_id(object_id);
+                        if(!picked_object)
+                        {
+                            spdlog::error("could not resolve pixel/object_by_id (draw_idx: {})", draw_idx);
+                            continue;
+                        }
                         picked_objects.insert(picked_object);
                     }
                     spdlog::trace("picked object({}/{}): {}", i + 1, picked_ids.size(), picked_object->name);

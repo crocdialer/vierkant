@@ -35,14 +35,29 @@ struct shader_module_t
 
     bool operator==(const shader_module_t &other) const
     {
-        return create_info.pCode == other.create_info.pCode && create_info.codeSize == other.create_info.codeSize;
+        return create_info.pCode == other.create_info.pCode && create_info.codeSize == other.create_info.codeSize &&
+               entry_point_name == other.entry_point_name;
     };
 };
 
 using shader_stage_map_t = std::map<VkShaderStageFlagBits, shader_module_t>;
 
-//! raytracing pipelines can provide multiple shaders per stage
+//! raytracing pipelines can provide multiple shaders per stage.
+//! holds the general stages only (raygen/miss/callable), hit-stages live in raytracing_hit_group_t
 using raytracing_shader_map_t = std::multimap<VkShaderStageFlagBits, shader_module_t>;
+
+/**
+ * @brief   raytracing_hit_group_t groups the shaders of a single hit-group.
+ *          providing an intersection-shader makes it a procedural hit-group, otherwise a triangle hit-group.
+ */
+struct raytracing_hit_group_t
+{
+    shader_module_t closest_hit = {};
+    std::optional<shader_module_t> any_hit = {};
+    std::optional<shader_module_t> intersection = {};
+
+    bool operator==(const raytracing_hit_group_t &other) const = default;
+};
 
 /**
  * @brief   Helper function to create a shared VkShaderModule
@@ -60,8 +75,17 @@ shader_module_t create_shader_module(const T &array)
     return create_shader_module(array.data(), sizeof(typename T::value_type) * array.size());
 }
 
-std::vector<VkRayTracingShaderGroupCreateInfoKHR>
-raytracing_shader_groups(const raytracing_shader_map_t &shader_stages);
+/**
+ * @brief   Create a VkPipelineShaderStageCreateInfo for a single shader-module.
+ *          the returned struct points into @p shader_module, which needs to outlive it.
+ *
+ * @param   stage                   the shader-stage to create the info for
+ * @param   shader_module           a shader-module providing the code and its entry-points
+ * @param   specialization_info     optional specialization-constants
+ */
+VkPipelineShaderStageCreateInfo shader_stage_create_info(VkShaderStageFlagBits stage,
+                                                         const shader_module_t &shader_module,
+                                                         const VkSpecializationInfo *specialization_info = nullptr);
 
 /**
  * @brief   ShaderType is used to refer to different sets of shader-stages
@@ -119,21 +143,21 @@ public:
     }
 
     template<typename T>
-    void set(uint32_t constant_id, const T &data)
+    void set(const uint32_t constant_id, const T &data)
     {
         static_assert((std::integral<T> || std::floating_point<T>) && sizeof(T) == 4, "only 32-bit numerical allowed");
-        auto ptr = (uint8_t *) &data;
-        auto end = ptr + sizeof(data);
+        auto *ptr = (uint8_t *) &data;
+        auto *end = ptr + sizeof(data);
         std::copy(ptr, end, constant_blobs[constant_id].data());
     }
 
-    inline bool operator==(const pipeline_specialization &other) const
+    bool operator==(const pipeline_specialization &other) const
     {
         return constant_blobs == other.constant_blobs;
     }
 
 private:
-    VkSpecializationInfo m_info;
+    VkSpecializationInfo m_info = {};
     std::vector<VkSpecializationMapEntry> m_map_entries;
     std::vector<uint8_t> m_data;
 };
@@ -247,7 +271,11 @@ struct graphics_pipeline_info_t
  */
 struct raytracing_pipeline_info_t
 {
+    //! general stages only: raygen/miss/callable
     raytracing_shader_map_t shader_stages;
+
+    //! hit-groups, in the order they are addressed by an instance's shader-binding-table record-offset
+    std::vector<raytracing_hit_group_t> hit_groups;
 
     //! maximum recursion depth (default: 1 -> no recursion)
     uint32_t max_recursion = 1;
@@ -263,6 +291,32 @@ struct raytracing_pipeline_info_t
 
     bool operator==(const raytracing_pipeline_info_t &other) const;
 };
+
+/**
+ * @brief   raytracing_shader_layout_t holds the flattened stages and groups of a raytracing pipeline.
+ *          groups are emitted as raygen, hit, miss, callable - the order a shader-binding-table expects.
+ */
+struct raytracing_shader_layout_t
+{
+    std::vector<VkPipelineShaderStageCreateInfo> stages;
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> groups;
+
+    //! number of groups per shader-binding-table region, in emission-order
+    uint32_t num_raygen_groups = 0;
+    uint32_t num_hit_groups = 0;
+    uint32_t num_miss_groups = 0;
+    uint32_t num_callable_groups = 0;
+};
+
+/**
+ * @brief   Flatten a raytracing pipeline's shaders into stage- and group-create-infos.
+ *          the returned stages point into @p pipeline_info, which needs to outlive them.
+ *
+ * @param   pipeline_info           a raytracing_pipeline_info_t providing stages and hit-groups
+ * @param   specialization_info     optional specialization-constants
+ */
+raytracing_shader_layout_t raytracing_shader_layout(const raytracing_pipeline_info_t &pipeline_info,
+                                                    const VkSpecializationInfo *specialization_info = nullptr);
 
 /**
  * @brief   compute_pipeline_info_t groups all sort of information for a compute-pipeline.

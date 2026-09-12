@@ -10,6 +10,13 @@
 namespace vierkant
 {
 
+//! mirrors ray::LIGHT_ENTITY_INDEX_TOP in shaders/slang/ray/ray_common.slang: light-bodies count down from
+//! here, scene-entries count up from zero, so only the lights that exist take space away from geometry
+static constexpr uint32_t LIGHT_ENTITY_INDEX_TOP = 0xFFFE;
+
+//! marks a light that came from no object, such as the sun
+static constexpr uint32_t NO_OBJECT_ID = std::numeric_limits<uint32_t>::max();
+
 using duration_t = std::chrono::duration<float>;
 
 struct alignas(16) pixel_buffer_t
@@ -148,14 +155,22 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     ray_miss_env.entry_point_name = "miss_environment";
 
     m_shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, rt_shader_stages},
-                       {VK_SHADER_STAGE_MISS_BIT_KHR, rt_shader_stages},
-                       {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, rt_shader_stages},
-                       {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, rt_shader_stages}};
+                       {VK_SHADER_STAGE_MISS_BIT_KHR, rt_shader_stages}};
 
     m_shader_stages_env = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, rt_shader_stages},
-                           {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_env},
-                           {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, rt_shader_stages},
-                           {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, rt_shader_stages}};
+                           {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_env}};
+
+    // entry-points are matched by substring, so no hit-group name may contain another's
+    auto ray_closest_hit = rt_shader_stages;
+    ray_closest_hit.entry_point_name = "closest_hit";
+    auto ray_light_hit = rt_shader_stages;
+    ray_light_hit.entry_point_name = "hit_light_body";
+    auto ray_light_intersection = rt_shader_stages;
+    ray_light_intersection.entry_point_name = "intersect_light_body";
+
+    // record-offset 0: scene-geometry. record-offset 1: the analytic light-bodies
+    m_hit_groups = {{.closest_hit = ray_closest_hit, .any_hit = rt_shader_stages},
+                    {.closest_hit = ray_light_hit, .intersection = ray_light_intersection}};
 
     // create drawables for post-fx-pass
     {
@@ -241,22 +256,43 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
 
     render_result_t ret;
     ret.object_ids = m_storage.object_ids;
-    ret.object_by_index_fn =
-            [scene, &scene_asset = frame_context.scene_ray_acceleration](uint32_t draw_id) -> vierkant::id_entry_t {
-        if(auto it = scene_asset.entry_idx_to_object_id.find(draw_id); it != scene_asset.entry_idx_to_object_id.end())
+    ret.object_by_index_fn = [&scene_asset = frame_context.scene_ray_acceleration,
+                              &light_object_ids =
+                                      frame_context.light_object_ids](uint32_t draw_id) -> vierkant::id_entry_t {
+        // a light-body resolves to the object its lightsource-component sits on
+        if(draw_id <= LIGHT_ENTITY_INDEX_TOP && draw_id > LIGHT_ENTITY_INDEX_TOP - light_object_ids.size())
+        {
+            if(const uint32_t light_index = LIGHT_ENTITY_INDEX_TOP - draw_id;
+               light_object_ids[light_index].id != NO_OBJECT_ID)
+            {
+                return light_object_ids[light_index];
+            }
+            return {};
+        }
+        if(const auto it = scene_asset.entry_idx_to_object_id.find(draw_id);
+           it != scene_asset.entry_idx_to_object_id.end())
         {
             return it->second;
         }
         return {};
     };
-    ret.indices_by_id_fn =
-            [scene, &scene_asset = frame_context.scene_ray_acceleration](uint32_t object_id) -> std::vector<uint32_t> {
+    ret.indices_by_id_fn = [&scene_asset = frame_context.scene_ray_acceleration,
+                            &light_object_ids =
+                                    frame_context.light_object_ids](uint32_t object_id) -> std::vector<uint32_t> {
+        std::vector<uint32_t> out_indices;
+
         if(const auto it = scene_asset.object_id_to_entry_indices.find(object_id);
            it != scene_asset.object_id_to_entry_indices.end())
         {
-            return it->second;
+            out_indices = it->second;
         }
-        return {};
+
+        // an object can carry geometry and a lightsource at once, so both index-sets apply
+        for(uint32_t i = 0; i < light_object_ids.size(); ++i)
+        {
+            if(light_object_ids[i].id == object_id) { out_indices.push_back(LIGHT_ENTITY_INDEX_TOP - i); }
+        }
+        return out_indices;
     };
 
     // pass semaphore wait/signal information
@@ -615,7 +651,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 
     trace_data.camera_params = camera_params;
 
-    // single scene-traversal, shared by camera-media detection and light-gather
+    // camera-media detection needs the camera, so it keeps its own traversal here
     vierkant::SelectVisitor<Object3D> scene_visitor(layer_mask);
     scene->root()->accept(scene_visitor);
 
@@ -636,74 +672,19 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     }
     trace_data.trace_params.camera_media_count = static_cast<uint32_t>(num_camera_media);
 
-    // gather lights into one device-array: optional sunlight (disc-light) folded in as light[0]
-    std::vector<vierkant::light_t> lights;
-    const auto &sun_params = frame_context.settings.sunlight_params;
-    if(sun_params && sun_params->intensity > 0.f)
-    {
-        vierkant::light_t sun = {};
-        sun.type = static_cast<uint32_t>(vierkant::LightType::Directional);
-        sun.color = sun_params->color;
-        sun.intensity = sun_params->intensity;
-
-        // direction from elevation/azimuth angles
-        sun.direction = glm::quat(glm::vec3(sun_params->spherical_coords, 0.f)) * glm::vec3(0, 0, 1);
-
-        if(glm::dot(sun.direction, sun.direction) > 0.f) { sun.direction = glm::normalize(sun.direction); }
-        sun.range = std::numeric_limits<float>::infinity();
-        sun.angular_size = sun_params->angular_size;
-        lights.push_back(sun);
-    }
-
-    // projector-cookies are appended behind the material-textures the ray-builder collected,
-    // so their indices stay valid for the descriptor-array assembled below
-    auto cookie_textures = frame_context.scene_ray_acceleration.textures;
-    std::unordered_map<vierkant::texture_key_t, uint32_t> cookie_indices;
-
-    // scene lightsources: resolve component light-ids via asset-provider
-    for(const auto *object: scene_visitor.objects)
-    {
-        if(const auto *light_cmp = object->get_component_ptr<vierkant::lightsource_component_t>())
-        {
-            const auto *light_asset = scene->asset_provider()->light(light_cmp->light_id);
-
-            // Area stays reserved for emissive triangles (extracted, not authored)
-            if(light_asset && light_asset->intensity > 0.f && light_asset->type != vierkant::LightType::Area)
-            {
-                auto light = vierkant::convert_light(*light_asset, object->global_transform());
-
-                // cookies are sampled for Spot/Omni only. texture-index 0 (solid-white placeholder) means 'none'
-                if(light_asset->cookie &&
-                   (light_asset->type == vierkant::LightType::Spot || light_asset->type == vierkant::LightType::Omni))
-                {
-                    vierkant::texture_key_t key = {light_asset->cookie->texture_id, light_asset->cookie->sampler_id};
-
-                    if(auto it = cookie_indices.find(key); it != cookie_indices.end())
-                    {
-                        light.texture_index = it->second;
-                    }
-                    else if(auto img = scene->asset_provider()->texture(key))
-                    {
-                        light.texture_index = cookie_textures.size();
-                        cookie_indices[key] = light.texture_index;
-                        cookie_textures.push_back(std::move(img));
-                    }
-                }
-                lights.push_back(light);
-            }
-        }
-    }
-    desc_textures.images = std::move(cookie_textures);
+    // lights and textures were gathered in update_acceleration_structures()
+    const auto &lights = frame_context.lights;
+    desc_textures.images = frame_context.trace_textures;
     if(!lights.empty()) { frame_context.lights_buffer->set_data(lights); }
     trace_data.trace_params.num_lights = lights.size();
 
     // selection-distribution for next-event-estimation, rebuilt per frame (O(num_lights))
     // reference the weights at the focus-point rather than the camera, that is where we are looking
     const auto cam_transform = cam->global_transform();
-    const glm::vec3 focus_pos = cam_transform.translation + (cam_transform.rotation * glm::vec3(0.f, 0.f, -1.f)) *
-                                                                    camera_params.focal_distance;
-    auto light_alias_table = vierkant::create_light_alias_table(lights, focus_pos,
-                                                               frame_context.settings.light_selection_uniform_mix);
+    const glm::vec3 focus_pos = cam_transform.translation +
+                                (cam_transform.rotation * glm::vec3(0.f, 0.f, -1.f)) * camera_params.focal_distance;
+    auto light_alias_table =
+            vierkant::create_light_alias_table(lights, focus_pos, frame_context.settings.light_selection_uniform_mix);
     if(!light_alias_table.empty()) { frame_context.light_alias_buffer->set_data(light_alias_table); }
 
     // assign buffer-addresses
@@ -734,6 +715,68 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
     m_environment = scene->environment();
     bool use_environment = m_environment && frame_context.settings.draw_skybox;
     frame_context.tracable.pipeline_info.shader_stages = use_environment ? m_shader_stages_env : m_shader_stages;
+    frame_context.tracable.pipeline_info.hit_groups = m_hit_groups;
+
+    // gather lights into one device-array: optional sunlight (disc-light) folded in as light[0]
+    frame_context.lights.clear();
+    frame_context.light_object_ids.clear();
+    const auto &sun_params = frame_context.settings.sunlight_params;
+    if(sun_params && sun_params->intensity > 0.f)
+    {
+        vierkant::light_t sun = {};
+        sun.type = static_cast<uint32_t>(vierkant::LightType::Directional);
+        sun.color = sun_params->color;
+        sun.intensity = sun_params->intensity;
+
+        // direction from elevation/azimuth angles
+        sun.direction = glm::quat(glm::vec3(sun_params->spherical_coords, 0.f)) * glm::vec3(0, 0, 1);
+
+        if(glm::dot(sun.direction, sun.direction) > 0.f) { sun.direction = glm::normalize(sun.direction); }
+        sun.range = std::numeric_limits<float>::infinity();
+        sun.angular_size = sun_params->angular_size;
+        frame_context.lights.push_back(sun);
+
+        // the sun is a setting, not an object. entity 0 is a valid id, so mark it explicitly
+        frame_context.light_object_ids.push_back({NO_OBJECT_ID, 0});
+    }
+
+    vierkant::SelectVisitor<Object3D> scene_visitor(layer_mask);
+    scene->root()->accept(scene_visitor);
+
+    // cookie-indices count from the scene-textures, which only exist after the build below.
+    // collect the requests here, resolve them afterwards
+    std::vector<std::pair<uint32_t, vierkant::texture_key_t>> cookie_requests;
+
+    // scene lightsources: resolve component light-ids via asset-provider
+    for(const auto *object: scene_visitor.objects)
+    {
+        if(const auto *light_cmp = object->get_component_ptr<vierkant::lightsource_component_t>())
+        {
+            const auto *light_asset = scene->asset_provider()->light(light_cmp->light_id);
+
+            // Area stays reserved for emissive triangles (extracted, not authored)
+            if(light_asset && light_asset->intensity > 0.f && light_asset->type != vierkant::LightType::Area)
+            {
+                auto light = vierkant::convert_light(*light_asset, object->global_transform());
+
+                // cookies are sampled for Spot/Omni only. texture-index 0 (solid-white placeholder) means 'none'
+                if(light_asset->cookie &&
+                   (light_asset->type == vierkant::LightType::Spot || light_asset->type == vierkant::LightType::Omni))
+                {
+                    cookie_requests.emplace_back(
+                            static_cast<uint32_t>(frame_context.lights.size()),
+                            vierkant::texture_key_t{light_asset->cookie->texture_id, light_asset->cookie->sampler_id});
+                }
+                frame_context.lights.push_back(light);
+                frame_context.light_object_ids.push_back({object->id(), 0});
+            }
+        }
+    }
+
+    // light-bodies: re-used while the boxes stay the same. a cookie-index never moves a box,
+    // so the boxes are final even though the indices below are not yet assigned
+    m_light_acceleration = m_ray_builder.build_light_acceleration(frame_context.lights, m_light_acceleration);
+    frame_context.light_acceleration = m_light_acceleration;
 
     RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
     build_scene_params.layer_mask = layer_mask;
@@ -742,8 +785,30 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
     build_scene_params.use_scene_assets = true;
     build_scene_params.omm_cache = frame_context.settings.omm_cache;
     build_scene_params.previous_context = last_context.get();
+    build_scene_params.light_acceleration = frame_context.light_acceleration;
     frame_context.scene_ray_acceleration =
             m_ray_builder.build_scene_acceleration(frame_context.scene_acceleration_context, build_scene_params);
+
+    // projector-cookies are appended behind the material-textures the ray-builder collected,
+    // so their indices stay valid for the descriptor-array assembled in update_trace_descriptors()
+    frame_context.trace_textures = frame_context.scene_ray_acceleration.textures;
+    std::unordered_map<vierkant::texture_key_t, uint32_t> cookie_indices;
+
+    for(const auto &[light_index, key]: cookie_requests)
+    {
+        // texture-index 0 (solid-white placeholder) means 'none'
+        if(auto it = cookie_indices.find(key); it != cookie_indices.end())
+        {
+            frame_context.lights[light_index].texture_index = it->second;
+        }
+        else if(auto img = scene->asset_provider()->texture(key))
+        {
+            uint32_t texture_index = frame_context.trace_textures.size();
+            frame_context.lights[light_index].texture_index = texture_index;
+            cookie_indices[key] = texture_index;
+            frame_context.trace_textures.push_back(std::move(img));
+        }
+    }
 }
 
 void PBRPathTracer::reset_accumulator()

@@ -169,11 +169,8 @@ trace_result_t trace(uint2 coord, uint2 size)
             ray_desc.Direction = next_ray.direction;
             ray_desc.TMax = next_ray.tmax;
 
-            // segment state for the ghost-light pass below (closest_hit updates beta/prev_bsdf_pdf/ray)
+            // the traced ray, kept for the primary-ray outputs below (closest_hit updates payload.ray)
             ray::Ray seg_ray = next_ray;
-            float3 seg_beta = beta;
-            float seg_prev_pdf = payload.prev_bsdf_pdf;
-            bool seg_caustic = payload.caustic_path;
 
             //let hit = HitObject.TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
             //ReorderThread(hit);
@@ -193,42 +190,6 @@ trace_result_t trace(uint2 coord, uint2 size)
             }
             else if(payload.media_op == ray::MediaOp::Leave) { media_count = media_count > 0u ? media_count - 1u : 0u; }
 
-            // ghost-light pass: analytic light bodies are additive, non-terminating emitters.
-            bool light_hit = false;
-            {
-                // segment endpoint: where the path continued (surface hit, scatter point or
-                // null-surface boundary alike), or the traced tmax on a miss
-                bool seg_miss = payload.entity_index == utils::MAX_UINT16;
-                float t_end = seg_miss ? seg_ray.tmax : length(payload.ray.origin - seg_ray.origin);
-                float closest_hit_t = t_end;
-
-                for(uint li = 0; li < trace_data.params.num_lights; ++li)
-                {
-                    ray::light_t l = trace_data.lights[li];
-
-                    // non-area types never intersect
-                    ray::light_hit_t hit = ray::intersect_light(l, seg_ray.origin, seg_ray.direction);
-                    if(hit.t <= seg_ray.tmin || hit.t >= t_end) { continue; }
-
-                    // drop the light-body hit-add on refractive-caustic paths (see miss shaders)
-                    if(trace_data.params.suppress_refractive_caustics && seg_caustic) { continue; }
-
-                    float p_nee = ray::light_pdf(l, seg_ray.origin, seg_ray.direction) *
-                                  ray::light_pick_pdf(trace_data, li);
-                    float w = ray::mis_weight_hit(trace_data.params.mis_mode, seg_prev_pdf, p_nee);
-                    payload.radiance += seg_beta * w * l.color * l.intensity;
-
-                    // keep track of closest light-hit
-                    closest_hit_t = min(closest_hit_t, hit.t);
-                }
-
-                light_hit = closest_hit_t < t_end;
-                if(light_hit)
-                {
-                    payload.position = seg_ray.origin + closest_hit_t * seg_ray.direction;
-                }
-            }
-
             path_radiance = payload.radiance;
 
             if(i == 0)
@@ -240,7 +201,7 @@ trace_result_t trace(uint2 coord, uint2 size)
                 result.albedo = payload.packed_albedo;
                 float4 depth_proj = mul(trace_data.camera.projection_view, float4(result.position, 1.0));
 
-                ray_miss = payload.entity_index == utils::MAX_UINT16 && !light_hit;
+                ray_miss = payload.entity_index == utils::MAX_UINT16;
                 result.miss = ray_miss;
                 result.depth = ray_miss ? 0.0 : depth_proj.z / depth_proj.w;
             }
@@ -410,30 +371,28 @@ utils::Vertex interpolate_vertex(Ptr<ray::entry_t, Access::Read> entry, ray::Tri
     return out_vert;
 }
 
-[shader("closesthit")]
-void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes attribs)
+/**
+ * @brief   'media_segment' integrates the participating medium a segment travels through.
+ *
+ * attenuates payload.beta over [0, segment_end], adds volumetric emission and the single-scatter
+ * estimates, and on a sampled scatter-event moves payload.ray to the scatter-point and re-aims it
+ * through the phase-function. shared by the geometry- and the light-body closest-hit, so both
+ * estimators integrate the same medium.
+ *
+ * @param   segment_end  distance to the surface or light-body this segment ends on
+ * @param   entry        scene-entry of that surface. only the wip grid-density branch reads it,
+ *                       so a light-body hit passes null
+ * @return  true when the path scattered before reaching 'segment_end'
+ */
+bool media_segment(inout ray::payload_t payload, float segment_end, Ptr<ray::entry_t, Access::Read> entry,
+                   inout uint rng_state)
 {
-    uint rng_state = payload.rng_state;
-    let entry = trace_data.entries + InstanceIndex();
-
-    ray::Triangle triangle = get_triangle(entry);
-    utils::Vertex v = interpolate_vertex(entry, triangle, attribs.barycentrics);
-    float triangle_lod = lod_constant(entry, triangle);
-    ray::material_t material = trace_data.materials[entry->material_index];
-
-    // potentially limit ray tmax
-    float tmax_inside_volume = 2 * length(entry->transform.scale() * entry->aabb.half_extents());
-
-    float3 V = -WorldRayDirection();
-    float NoV = abs(dot(V, v.normal));
-
-    payload.entity_index = InstanceIndex();
-    payload.position = v.position;
-    payload.normal = v.normal;
-
-    // participating media
     bool sample_medium = false;
     float3 sigma_t = payload.media.sigma_s + payload.media.sigma_a;
+
+    // the medium this segment travels through: shadow-rays leaving it are attenuated by it.
+    // kept, because payload.media is replaced with the medium behind the surface further down
+    const float3 segment_sigma_t = sigma_t;
 
     // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
     bool use_direct_lighting = trace_data.params.num_lights > 0;
@@ -465,7 +424,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             // set up before the scatter-branch moves payload.ray.origin off the segment-start
             if(equiangular)
             {
-                eq = ray::equiangular_setup(payload.ray, RayTCurrent(), l.position);
+                eq = ray::equiangular_setup(payload.ray, segment_end, l.position);
                 equiangular = eq.valid;
             }
         }
@@ -479,12 +438,12 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             // integral(Tr(t) * sigma_a * Le, dt) = sigma_a * Le * (1 - exp(-sigma_t * s)) / sigma_t
             if(any(payload.media.emission > float3(0)))
             {
-                float3 tr_int = (float3(1) - exp(-sigma_t * RayTCurrent())) / max(sigma_t, float3(ray::EPS));
+                float3 tr_int = (float3(1) - exp(-sigma_t * segment_end)) / max(sigma_t, float3(ray::EPS));
                 payload.radiance += payload.beta * payload.media.sigma_a * payload.media.emission * tr_int;
             }
 
-            t = min(-log(1 - utils::rnd(rng_state)) / max(sigma_t[channel], ray::EPS), RayTCurrent());
-            sample_medium = t < RayTCurrent();
+            t = min(-log(1 - utils::rnd(rng_state)) / max(sigma_t[channel], ray::EPS), segment_end);
+            sample_medium = t < segment_end;
 
             float3 beam_tr = exp(-sigma_t * t);
             float3 density = sample_medium ? beam_tr * sigma_t : beam_tr;
@@ -509,7 +468,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             while(true)
             {
                 t -= log(1 - utils::rnd(rng_state)) * inv_max_density / sigma_t[channel];
-                if(t >= RayTCurrent()) { break; }
+                if(t >= segment_end) { break; }
 
                 float3 p = ray_local.origin + t * ray_local.direction;
                 float density =
@@ -544,7 +503,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
             float3 pos = payload.ray.origin + payload.ray.direction * t_eq;
             float3 nee = ray::nee_volume(light_index, pos, payload.ray.direction, trace_data, topLevelAS, u_textures,
-                                         payload.media.phase_g, rng_state);
+                                         payload.media.phase_g, segment_sigma_t, rng_state);
             payload.radiance += seg_beta * beam_tr * sigma_s * w * nee / eq_pdf;
         }
 
@@ -559,7 +518,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
                 float w = equiangular ? ray::power_heuristic(dist_pdf, ray::equiangular_pdf(eq, t)) : 1.0;
                 payload.radiance += payload.beta * w *
                                     ray::nee_volume(light_index, payload.ray.origin, payload.ray.direction, trace_data,
-                                                    topLevelAS, u_textures, g, rng_state);
+                                                    topLevelAS, u_textures, g, segment_sigma_t, rng_state);
             }
 
             float phase_pdf;
@@ -571,6 +530,39 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             payload.regularize = payload.regularize || phase_pdf < REGULARIZE_PDF_THRESHOLD;
         }
     }
+
+    return sample_medium;
+}
+
+[shader("closesthit")]
+void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes attribs)
+{
+    uint rng_state = payload.rng_state;
+    let entry = trace_data.entries + InstanceIndex();
+
+    ray::Triangle triangle = get_triangle(entry);
+    utils::Vertex v = interpolate_vertex(entry, triangle, attribs.barycentrics);
+    float triangle_lod = lod_constant(entry, triangle);
+    ray::material_t material = trace_data.materials[entry->material_index];
+
+    // potentially limit ray tmax
+    float tmax_inside_volume = 2 * length(entry->transform.scale() * entry->aabb.half_extents());
+
+    float3 V = -WorldRayDirection();
+    float NoV = abs(dot(V, v.normal));
+
+    payload.entity_index = InstanceIndex();
+    payload.position = v.position;
+    payload.normal = v.normal;
+
+    // the medium this segment travels through: shadow-rays leaving it are attenuated by it.
+    // kept, because payload.media is replaced with the medium behind the surface further down
+    const float3 segment_sigma_t = payload.media.sigma_s + payload.media.sigma_a;
+
+    // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
+    bool use_direct_lighting = trace_data.params.num_lights > 0;
+
+    bool sample_medium = media_segment(payload, RayTCurrent(), entry, rng_state);
 
     if(!sample_medium) { payload.ray.origin = payload.position; }
 
@@ -589,7 +581,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     float eta = backface ? surf_ior / payload.last_ior : payload.media.ior / surf_ior;
     eta += ray::EPS;
 
-    sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
+    float3 sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
     sigma_t = backface ? float3(0) : sigma_t;
 
     // volumetric scattering (glTF KHR_materials_scatter / KHR_materials_volume_scatter):
@@ -714,7 +706,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         if(use_direct_lighting)
         {
             payload.radiance += payload.beta * ray::nee_surface(material, trace_data, topLevelAS, u_textures,
-                                                                payload.position, shading_normal, V, eta, rng_state);
+                                                                payload.position, shading_normal, V, eta,
+                                                                segment_sigma_t, rng_state);
         }
 
         // negated form also stops NaN-pdfs, which would poison beta and MIS weights
@@ -781,6 +774,64 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 //-----------------------------------------------------------------------------
 // any-hit
 //-----------------------------------------------------------------------------
+
+//! procedural-hit attributes for a light-body. the closest-hit re-derives everything from the
+//! primitive-index, so nothing needs to travel here
+struct light_attributes_t
+{
+    float unused;
+};
+
+[shader("intersection")]
+void intersect_light_body()
+{
+    ray::light_t light = trace_data.lights[PrimitiveIndex()];
+
+    // non-area types never intersect
+    ray::light_hit_t hit = ray::intersect_light(light, WorldRayOrigin(), WorldRayDirection());
+
+    if(hit.t > RayTMin() && hit.t < RayTCurrent())
+    {
+        light_attributes_t attributes = {};
+        ReportHit(hit.t, 0, attributes);
+    }
+}
+
+[shader("closesthit")]
+void hit_light_body(inout ray::payload_t payload, light_attributes_t attributes)
+{
+    uint light_index = PrimitiveIndex();
+    ray::light_t light = trace_data.lights[light_index];
+    uint rng_state = payload.rng_state;
+
+    payload.position = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
+    payload.entity_index = ray::LIGHT_ENTITY_INDEX_TOP - light_index;
+
+    // the medium up to the body, through the same routine the geometry closest-hit runs, so both
+    // estimators integrate it identically. a scatter before the body continues the path instead of
+    // reaching it, exactly as a scatter before a surface does
+    bool sample_medium = media_segment(payload, RayTCurrent(), nullptr, rng_state);
+
+    if(!sample_medium)
+    {
+        payload.ray.origin = payload.position;
+
+        // drop the light-body hit-add on refractive-caustic paths (see miss shaders)
+        if(!(trace_data.params.suppress_refractive_caustics && payload.caustic_path))
+        {
+            float p_nee = ray::light_pdf(light, WorldRayOrigin(), WorldRayDirection()) *
+                          ray::light_pick_pdf(trace_data, light_index);
+            float w = ray::mis_weight_hit(trace_data.params.mis_mode, payload.prev_bsdf_pdf, p_nee);
+
+            // payload.beta already carries the medium's transmittance
+            payload.radiance += payload.beta * w * light.color * light.intensity;
+        }
+
+        // a light-body has no bsdf to continue with, so the path ends here
+        payload.stop = true;
+    }
+    payload.rng_state = rng_state;
+}
 
 [shader("anyhit")]
 void any_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes attribs)
