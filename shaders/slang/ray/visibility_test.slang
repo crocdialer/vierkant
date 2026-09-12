@@ -44,14 +44,26 @@ public RayHit ray_cast(Ray ray, RaytracingAccelerationStructure as)
 //! binary shadow-ray visibility. non-opaque candidates get the same alpha-cutout/blend treatment as any_hit(),
 //! so alpha-masked geometry no longer casts solid shadows
 public bool visibility_test(Ray ray, RaytracingAccelerationStructure as, uint extra_ray_flags,
-                            trace_data_t trace_data, Sampler2D textures[], inout uint rng_state)
+                            trace_data_t trace_data, Sampler2D textures[], uint skip_light_index,
+                            inout uint rng_state)
 {
     RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER> query;
-    query.TraceRayInline(as, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | extra_ray_flags, GEOMETRY_MASK,
+    query.TraceRayInline(as, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | extra_ray_flags, 0xFF,
                          RayDesc(ray.origin, ray.tmin, ray.direction, ray.tmax));
 
     while(query.Proceed())
     {
+        // light-bodies are opaque occluders. the body this shadow-ray was aimed at is skipped by index,
+        // so a light never shadows itself - exact, and no tmax-epsilon to tune
+        if(query.CandidateType() == CANDIDATE_PROCEDURAL_PRIMITIVE)
+        {
+            uint light_index = query.CandidatePrimitiveIndex();
+            if(light_index == skip_light_index) { continue; }
+
+            light_hit_t light_hit = intersect_light(trace_data.lights[light_index], ray.origin, ray.direction);
+            if(light_hit.t > ray.tmin && light_hit.t < ray.tmax) { query.CommitProceduralPrimitiveHit(light_hit.t); }
+            continue;
+        }
         if(query.CandidateType() != CANDIDATE_NON_OPAQUE_TRIANGLE) { continue; }
 
         let entry = trace_data.entries + query.CandidateInstanceIndex();
@@ -93,20 +105,31 @@ public bool visibility_test(Ray ray, RaytracingAccelerationStructure as, uint ex
 //! null-surface boundaries pass through unattenuated. opaque and alpha-cutout/blend hits still fully block.
 //! rng is only drawn for Blend alpha-cutout (as in visibility_test), so transmission-free scenes keep the same budget.
 public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, uint extra_ray_flags,
-                                 trace_data_t trace_data, Sampler2D textures[], inout uint rng_state)
+                                 trace_data_t trace_data, Sampler2D textures[], uint skip_light_index,
+                                 inout uint rng_state)
 {
     RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER> query;
-    query.TraceRayInline(as, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | extra_ray_flags, GEOMETRY_MASK,
+    query.TraceRayInline(as, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | extra_ray_flags, 0xFF,
                          RayDesc(ray.origin, ray.tmin, ray.direction, ray.tmax));
 
     float3 transmittance = float3(1);
-
     // Beer-Lambert optical depth accumulated as a signed sum of sigma_t * t (entry -, exit +), so a convex
     // object's entry/exit pair nets sigma_t * (t_exit - t_entry); order-independent, additive over objects.
     float3 optical_depth = float3(0);
 
     while(query.Proceed())
     {
+        // light-bodies are opaque occluders. the body this shadow-ray was aimed at is skipped by index,
+        // so a light never shadows itself - exact, and no tmax-epsilon to tune
+        if(query.CandidateType() == CANDIDATE_PROCEDURAL_PRIMITIVE)
+        {
+            uint light_index = query.CandidatePrimitiveIndex();
+            if(light_index == skip_light_index) { continue; }
+
+            light_hit_t light_hit = intersect_light(trace_data.lights[light_index], ray.origin, ray.direction);
+            if(light_hit.t > ray.tmin && light_hit.t < ray.tmax) { query.CommitProceduralPrimitiveHit(light_hit.t); }
+            continue;
+        }
         if(query.CandidateType() != CANDIDATE_NON_OPAQUE_TRIANGLE) { continue; }
 
         let entry = trace_data.entries + query.CandidateInstanceIndex();

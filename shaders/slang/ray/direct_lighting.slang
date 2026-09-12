@@ -242,89 +242,7 @@ public bool bsdf_reachable(light_t l)
            l.type == LightType::Sphere || l.type == LightType::Tube || l.type == LightType::Disk;
 }
 
-//! closed-form ray-intersection with an analytic light body
-public struct light_hit_t
-{
-    //! hit distance, <= 0 marks a miss
-    public float t;
 
-    //! cosine at the light surface (facing the ray origin)
-    public float cos_light;
-};
-
-//! intersect a ray with an analytic light body. front-facing surfaces only: back sides are
-//! transparent, consistent with the one-sided black NEE samples. non-area types never hit
-public light_hit_t intersect_light(light_t l, float3 P, float3 dir)
-{
-    light_hit_t ret;
-    ret.t = 0.0;
-    ret.cos_light = 0.0;
-
-    switch(l.type)
-    {
-        case LightType::Sphere:
-        {
-            float3 to_center = l.position - P;
-            float d2 = dot(to_center, to_center);
-            float r2 = l.size_x * l.size_x;
-
-            // inside the sphere: no hit (matches the black NEE sample)
-            if(d2 <= r2) { break; }
-            float b = dot(dir, to_center);
-            float disc = b * b - d2 + r2;
-            if(disc <= 0.0) { break; }
-            float t = b - sqrt(disc);
-            if(t <= 0.0) { break; }
-            ret.t = t;
-            ret.cos_light = dot((P + t * dir - l.position) / l.size_x, -dir);
-            break;
-        }
-        case LightType::Rect:
-        case LightType::Disk:
-        {
-            float cos_light = dot(l.direction, -dir);
-            if(cos_light <= 0.0) { break; }
-            float t = dot(l.position - P, l.direction) / -cos_light;
-            if(t <= 0.0) { break; }
-
-            float3 q = P + t * dir - l.position;
-            if(l.type == LightType::Rect)
-            {
-                float3 bitangent = cross(l.direction, l.tangent);
-                if(abs(dot(q, l.tangent)) > l.size_x || abs(dot(q, bitangent)) > l.size_y) { break; }
-            }
-            else if(dot(q, q) > l.size_x * l.size_x) { break; }
-            ret.t = t;
-            ret.cos_light = cos_light;
-            break;
-        }
-        case LightType::Tube:
-        {
-            // nearest mantle intersection (quadratic in the plane perpendicular to the axis)
-            float3 o = P - l.position;
-            float3 d_perp = dir - l.direction * dot(dir, l.direction);
-            float3 o_perp = o - l.direction * dot(o, l.direction);
-            float A = dot(d_perp, d_perp);
-            float B = dot(o_perp, d_perp);
-            float C = dot(o_perp, o_perp) - l.size_x * l.size_x;
-            float disc = B * B - A * C;
-
-            // parallel to the axis, miss, or P inside the mantle radius (backfacing hit)
-            if(A <= EPS || disc <= 0.0 || C <= 0.0) { break; }
-            float t = (-B - sqrt(disc)) / A;
-            if(t <= 0.0 || abs(dot(o + t * dir, l.direction)) > l.size_y) { break; }
-
-            // radial unit-normal at the hit
-            float cos_light = dot((o_perp + t * d_perp) / l.size_x, -dir);
-            if(cos_light <= 0.0) { break; }
-            ret.t = t;
-            ret.cos_light = cos_light;
-            break;
-        }
-        default: break;
-    }
-    return ret;
-}
 
 //! NEE-side MIS weight against a bsdf/phase competitor-pdf, respecting a forced estimator-mode
 public float mis_weight_nee(MisMode mode, float p_nee, float p_bsdf)
@@ -422,7 +340,7 @@ public float3 nee_surface(material_t material, trace_data_t trace_data, Raytraci
     r.tmax = ls.dist;
 
     float3 radiance = float3(0);
-    float3 transmittance = transmittance_test(r, as, 0, trace_data, textures, rng_state);
+    float3 transmittance = transmittance_test(r, as, 0, trace_data, textures, index, rng_state);
     if(any(transmittance > 0.0))
     {
         float bsdf_pdf = 0.0;
@@ -461,7 +379,8 @@ public float3 nee_volume(uint index, float3 pos, float3 dir, trace_data_t trace_
     r.direction = ls.direction;
     r.tmin = EPS;
     r.tmax = ls.dist;
-    float3 transmittance = transmittance_test(r, as, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, trace_data, textures, rng_state);
+    float3 transmittance =
+            transmittance_test(r, as, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, trace_data, textures, index, rng_state);
     if(!any(transmittance > 0.0)) { return float3(0); }
 
     float phase = utils::phase_hg(dot(dir, ls.direction), phase_g);
