@@ -371,28 +371,22 @@ utils::Vertex interpolate_vertex(Ptr<ray::entry_t, Access::Read> entry, ray::Tri
     return out_vert;
 }
 
-[shader("closesthit")]
-void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes attribs)
+/**
+ * @brief   'media_segment' integrates the participating medium a segment travels through.
+ *
+ * attenuates payload.beta over [0, segment_end], adds volumetric emission and the single-scatter
+ * estimates, and on a sampled scatter-event moves payload.ray to the scatter-point and re-aims it
+ * through the phase-function. shared by the geometry- and the light-body closest-hit, so both
+ * estimators integrate the same medium.
+ *
+ * @param   segment_end  distance to the surface or light-body this segment ends on
+ * @param   entry        scene-entry of that surface. only the wip grid-density branch reads it,
+ *                       so a light-body hit passes null
+ * @return  true when the path scattered before reaching 'segment_end'
+ */
+bool media_segment(inout ray::payload_t payload, float segment_end, Ptr<ray::entry_t, Access::Read> entry,
+                   inout uint rng_state)
 {
-    uint rng_state = payload.rng_state;
-    let entry = trace_data.entries + InstanceIndex();
-
-    ray::Triangle triangle = get_triangle(entry);
-    utils::Vertex v = interpolate_vertex(entry, triangle, attribs.barycentrics);
-    float triangle_lod = lod_constant(entry, triangle);
-    ray::material_t material = trace_data.materials[entry->material_index];
-
-    // potentially limit ray tmax
-    float tmax_inside_volume = 2 * length(entry->transform.scale() * entry->aabb.half_extents());
-
-    float3 V = -WorldRayDirection();
-    float NoV = abs(dot(V, v.normal));
-
-    payload.entity_index = InstanceIndex();
-    payload.position = v.position;
-    payload.normal = v.normal;
-
-    // participating media
     bool sample_medium = false;
     float3 sigma_t = payload.media.sigma_s + payload.media.sigma_a;
 
@@ -430,7 +424,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             // set up before the scatter-branch moves payload.ray.origin off the segment-start
             if(equiangular)
             {
-                eq = ray::equiangular_setup(payload.ray, RayTCurrent(), l.position);
+                eq = ray::equiangular_setup(payload.ray, segment_end, l.position);
                 equiangular = eq.valid;
             }
         }
@@ -444,12 +438,12 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             // integral(Tr(t) * sigma_a * Le, dt) = sigma_a * Le * (1 - exp(-sigma_t * s)) / sigma_t
             if(any(payload.media.emission > float3(0)))
             {
-                float3 tr_int = (float3(1) - exp(-sigma_t * RayTCurrent())) / max(sigma_t, float3(ray::EPS));
+                float3 tr_int = (float3(1) - exp(-sigma_t * segment_end)) / max(sigma_t, float3(ray::EPS));
                 payload.radiance += payload.beta * payload.media.sigma_a * payload.media.emission * tr_int;
             }
 
-            t = min(-log(1 - utils::rnd(rng_state)) / max(sigma_t[channel], ray::EPS), RayTCurrent());
-            sample_medium = t < RayTCurrent();
+            t = min(-log(1 - utils::rnd(rng_state)) / max(sigma_t[channel], ray::EPS), segment_end);
+            sample_medium = t < segment_end;
 
             float3 beam_tr = exp(-sigma_t * t);
             float3 density = sample_medium ? beam_tr * sigma_t : beam_tr;
@@ -474,7 +468,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             while(true)
             {
                 t -= log(1 - utils::rnd(rng_state)) * inv_max_density / sigma_t[channel];
-                if(t >= RayTCurrent()) { break; }
+                if(t >= segment_end) { break; }
 
                 float3 p = ray_local.origin + t * ray_local.direction;
                 float density =
@@ -537,6 +531,39 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         }
     }
 
+    return sample_medium;
+}
+
+[shader("closesthit")]
+void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes attribs)
+{
+    uint rng_state = payload.rng_state;
+    let entry = trace_data.entries + InstanceIndex();
+
+    ray::Triangle triangle = get_triangle(entry);
+    utils::Vertex v = interpolate_vertex(entry, triangle, attribs.barycentrics);
+    float triangle_lod = lod_constant(entry, triangle);
+    ray::material_t material = trace_data.materials[entry->material_index];
+
+    // potentially limit ray tmax
+    float tmax_inside_volume = 2 * length(entry->transform.scale() * entry->aabb.half_extents());
+
+    float3 V = -WorldRayDirection();
+    float NoV = abs(dot(V, v.normal));
+
+    payload.entity_index = InstanceIndex();
+    payload.position = v.position;
+    payload.normal = v.normal;
+
+    // the medium this segment travels through: shadow-rays leaving it are attenuated by it.
+    // kept, because payload.media is replaced with the medium behind the surface further down
+    const float3 segment_sigma_t = payload.media.sigma_s + payload.media.sigma_a;
+
+    // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
+    bool use_direct_lighting = trace_data.params.num_lights > 0;
+
+    bool sample_medium = media_segment(payload, RayTCurrent(), entry, rng_state);
+
     if(!sample_medium) { payload.ray.origin = payload.position; }
 
     bool sample_surface = !(material.null_surface || sample_medium);
@@ -554,7 +581,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     float eta = backface ? surf_ior / payload.last_ior : payload.media.ior / surf_ior;
     eta += ray::EPS;
 
-    sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
+    float3 sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
     sigma_t = backface ? float3(0) : sigma_t;
 
     // volumetric scattering (glTF KHR_materials_scatter / KHR_materials_volume_scatter):
@@ -775,25 +802,35 @@ void hit_light_body(inout ray::payload_t payload, light_attributes_t attributes)
 {
     uint light_index = PrimitiveIndex();
     ray::light_t light = trace_data.lights[light_index];
+    uint rng_state = payload.rng_state;
 
-    // drop the light-body hit-add on refractive-caustic paths (see miss shaders)
-    if(!(trace_data.params.suppress_refractive_caustics && payload.caustic_path))
-    {
-        float p_nee = ray::light_pdf(light, WorldRayOrigin(), WorldRayDirection()) *
-                      ray::light_pick_pdf(trace_data, light_index);
-        float w = ray::mis_weight_hit(trace_data.params.mis_mode, payload.prev_bsdf_pdf, p_nee);
-
-        // Beer-Lambert over the medium this segment crossed. the shadow-ray side attenuates the same way,
-        // so both estimators integrate the same thing. no distance-sampling here: a segment ending on a
-        // light-body samples no scatter-event, so in-scattering along it is not accounted for
-        float3 media_sigma_t = payload.media.sigma_s + payload.media.sigma_a;
-        payload.radiance += payload.beta * exp(-media_sigma_t * RayTCurrent()) * w * light.color * light.intensity;
-    }
-
-    // a light-body has no bsdf to continue with, so the path ends here
     payload.position = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
     payload.entity_index = ray::LIGHT_ENTITY_INDEX_TOP - light_index;
-    payload.stop = true;
+
+    // the medium up to the body, through the same routine the geometry closest-hit runs, so both
+    // estimators integrate it identically. a scatter before the body continues the path instead of
+    // reaching it, exactly as a scatter before a surface does
+    bool sample_medium = media_segment(payload, RayTCurrent(), nullptr, rng_state);
+
+    if(!sample_medium)
+    {
+        payload.ray.origin = payload.position;
+
+        // drop the light-body hit-add on refractive-caustic paths (see miss shaders)
+        if(!(trace_data.params.suppress_refractive_caustics && payload.caustic_path))
+        {
+            float p_nee = ray::light_pdf(light, WorldRayOrigin(), WorldRayDirection()) *
+                          ray::light_pick_pdf(trace_data, light_index);
+            float w = ray::mis_weight_hit(trace_data.params.mis_mode, payload.prev_bsdf_pdf, p_nee);
+
+            // payload.beta already carries the medium's transmittance
+            payload.radiance += payload.beta * w * light.color * light.intensity;
+        }
+
+        // a light-body has no bsdf to continue with, so the path ends here
+        payload.stop = true;
+    }
+    payload.rng_state = rng_state;
 }
 
 [shader("anyhit")]
