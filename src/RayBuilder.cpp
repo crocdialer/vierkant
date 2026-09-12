@@ -666,8 +666,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                 light_instance.transform.matrix[2][2] = 1.f;
         light_instance.mask = light_instance_mask;
 
-        // TODO: the procedural hit-group and its record-offset arrive with the light-shaders
-        light_instance.instanceShaderBindingTableRecordOffset = 0;
+        // record-offset 1: the procedural hit-group, behind the scene-geometry's triangle hit-group
+        light_instance.instanceShaderBindingTableRecordOffset = 1;
         light_instance.accelerationStructureReference = params.light_acceleration->bottom_lvl.device_address;
         instances.push_back(light_instance);
     }

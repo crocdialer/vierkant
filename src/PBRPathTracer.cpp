@@ -153,8 +153,17 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     m_shader_stages_env = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, rt_shader_stages},
                            {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_env}};
 
-    // triangle hit-group for scene-geometry
-    m_hit_groups = {{.closest_hit = rt_shader_stages, .any_hit = rt_shader_stages}};
+    // entry-points are matched by substring, so no hit-group name may contain another's
+    auto ray_closest_hit = rt_shader_stages;
+    ray_closest_hit.entry_point_name = "closest_hit";
+    auto ray_light_hit = rt_shader_stages;
+    ray_light_hit.entry_point_name = "hit_light_body";
+    auto ray_light_intersection = rt_shader_stages;
+    ray_light_intersection.entry_point_name = "intersect_light_body";
+
+    // record-offset 0: scene-geometry. record-offset 1: the analytic light-bodies
+    m_hit_groups = {{.closest_hit = ray_closest_hit, .any_hit = rt_shader_stages},
+                    {.closest_hit = ray_light_hit, .intersection = ray_light_intersection}};
 
     // create drawables for post-fx-pass
     {

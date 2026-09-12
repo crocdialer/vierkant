@@ -77,6 +77,7 @@ shader_module_t create_shader_module(const void *spirv_code, size_t num_bytes)
             {SpvExecutionModelRayGenerationKHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR},
             {SpvExecutionModelClosestHitKHR, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
             {SpvExecutionModelAnyHitKHR, VK_SHADER_STAGE_ANY_HIT_BIT_KHR},
+            {SpvExecutionModelIntersectionKHR, VK_SHADER_STAGE_INTERSECTION_BIT_KHR},
             {SpvExecutionModelMissKHR, VK_SHADER_STAGE_MISS_BIT_KHR},
             {SpvExecutionModelCallableKHR, VK_SHADER_STAGE_CALLABLE_BIT_KHR},
             {SpvExecutionModelMeshEXT, VK_SHADER_STAGE_MESH_BIT_EXT},

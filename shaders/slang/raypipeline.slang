@@ -169,18 +169,13 @@ trace_result_t trace(uint2 coord, uint2 size)
             ray_desc.Direction = next_ray.direction;
             ray_desc.TMax = next_ray.tmax;
 
-            // segment state for the ghost-light pass below (closest_hit updates beta/prev_bsdf_pdf/ray)
+            // the traced ray, kept for the primary-ray outputs below (closest_hit updates payload.ray)
             ray::Ray seg_ray = next_ray;
-            float3 seg_beta = beta;
-            float seg_prev_pdf = payload.prev_bsdf_pdf;
-            bool seg_caustic = payload.caustic_path;
 
             //let hit = HitObject.TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
             //ReorderThread(hit);
             //HitObject.Invoke(topLevelAS, hit, payload);
-            // TODO: the light-bodies instance stays masked off until the light-shaders arrive
-            TraceRay(topLevelAS, ray_flags, ray::GEOMETRY_MASK, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc,
-                     payload);
+            TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
 
             cone = payload.cone;
             next_ray = payload.ray;
@@ -195,42 +190,6 @@ trace_result_t trace(uint2 coord, uint2 size)
             }
             else if(payload.media_op == ray::MediaOp::Leave) { media_count = media_count > 0u ? media_count - 1u : 0u; }
 
-            // ghost-light pass: analytic light bodies are additive, non-terminating emitters.
-            bool light_hit = false;
-            {
-                // segment endpoint: where the path continued (surface hit, scatter point or
-                // null-surface boundary alike), or the traced tmax on a miss
-                bool seg_miss = payload.entity_index == utils::MAX_UINT16;
-                float t_end = seg_miss ? seg_ray.tmax : length(payload.ray.origin - seg_ray.origin);
-                float closest_hit_t = t_end;
-
-                for(uint li = 0; li < trace_data.params.num_lights; ++li)
-                {
-                    ray::light_t l = trace_data.lights[li];
-
-                    // non-area types never intersect
-                    ray::light_hit_t hit = ray::intersect_light(l, seg_ray.origin, seg_ray.direction);
-                    if(hit.t <= seg_ray.tmin || hit.t >= t_end) { continue; }
-
-                    // drop the light-body hit-add on refractive-caustic paths (see miss shaders)
-                    if(trace_data.params.suppress_refractive_caustics && seg_caustic) { continue; }
-
-                    float p_nee = ray::light_pdf(l, seg_ray.origin, seg_ray.direction) *
-                                  ray::light_pick_pdf(trace_data, li);
-                    float w = ray::mis_weight_hit(trace_data.params.mis_mode, seg_prev_pdf, p_nee);
-                    payload.radiance += seg_beta * w * l.color * l.intensity;
-
-                    // keep track of closest light-hit
-                    closest_hit_t = min(closest_hit_t, hit.t);
-                }
-
-                light_hit = closest_hit_t < t_end;
-                if(light_hit)
-                {
-                    payload.position = seg_ray.origin + closest_hit_t * seg_ray.direction;
-                }
-            }
-
             path_radiance = payload.radiance;
 
             if(i == 0)
@@ -242,7 +201,7 @@ trace_result_t trace(uint2 coord, uint2 size)
                 result.albedo = payload.packed_albedo;
                 float4 depth_proj = mul(trace_data.camera.projection_view, float4(result.position, 1.0));
 
-                ray_miss = payload.entity_index == utils::MAX_UINT16 && !light_hit;
+                ray_miss = payload.entity_index == utils::MAX_UINT16;
                 result.miss = ray_miss;
                 result.depth = ray_miss ? 0.0 : depth_proj.z / depth_proj.w;
             }
@@ -783,6 +742,49 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 //-----------------------------------------------------------------------------
 // any-hit
 //-----------------------------------------------------------------------------
+
+//! procedural-hit attributes for a light-body. the closest-hit re-derives everything from the
+//! primitive-index, so nothing needs to travel here
+struct light_attributes_t
+{
+    float unused;
+};
+
+[shader("intersection")]
+void intersect_light_body()
+{
+    ray::light_t light = trace_data.lights[PrimitiveIndex()];
+
+    // non-area types never intersect
+    ray::light_hit_t hit = ray::intersect_light(light, WorldRayOrigin(), WorldRayDirection());
+
+    if(hit.t > RayTMin() && hit.t < RayTCurrent())
+    {
+        light_attributes_t attributes = {};
+        ReportHit(hit.t, 0, attributes);
+    }
+}
+
+[shader("closesthit")]
+void hit_light_body(inout ray::payload_t payload, light_attributes_t attributes)
+{
+    uint light_index = PrimitiveIndex();
+    ray::light_t light = trace_data.lights[light_index];
+
+    // drop the light-body hit-add on refractive-caustic paths (see miss shaders)
+    if(!(trace_data.params.suppress_refractive_caustics && payload.caustic_path))
+    {
+        float p_nee = ray::light_pdf(light, WorldRayOrigin(), WorldRayDirection()) *
+                      ray::light_pick_pdf(trace_data, light_index);
+        float w = ray::mis_weight_hit(trace_data.params.mis_mode, payload.prev_bsdf_pdf, p_nee);
+        payload.radiance += payload.beta * w * light.color * light.intensity;
+    }
+
+    // a light-body has no bsdf to continue with, so the path ends here
+    payload.position = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
+    payload.entity_index = ray::LIGHT_ENTITY_INDEX;
+    payload.stop = true;
+}
 
 [shader("anyhit")]
 void any_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes attribs)

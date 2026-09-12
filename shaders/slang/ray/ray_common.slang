@@ -36,6 +36,9 @@ public struct RayCone
 
 public static const uint MISS_INDEX_DEFAULT = 0;
 
+//! entity-index marking a light-body hit: not a miss, and not a scene-entity either
+public static const uint LIGHT_ENTITY_INDEX = 0xFFFE;
+
 //! cull-mask for geometry-only rays: everything except the light-bodies instance,
 //! which the host tags with RayBuilder::light_instance_mask (0x80)
 public static const uint GEOMETRY_MASK = 0x7F;
