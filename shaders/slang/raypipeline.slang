@@ -25,6 +25,9 @@ static const uint MEDIA_STACK_TOP = ray::MAX_MEDIA_STACK_SIZE - 1;
 static const float REGULARIZE_PDF_THRESHOLD = 1e3;
 static const float REGULARIZE_MIN_ROUGHNESS = 0.25;
 
+//! floor on the NEE-roulette probability
+static const float NEE_P_MIN = 0.05;
+
 [[vk::binding(0, 0)]]
 RaytracingAccelerationStructure topLevelAS;
 
@@ -371,6 +374,13 @@ utils::Vertex interpolate_vertex(Ptr<ray::entry_t, Access::Read> entry, ray::Tri
     return out_vert;
 }
 
+//! probability of playing NEE at a vertex: 1 above the path-roulette threshold, proportional below
+float nee_probability(float3 beta, uint depth)
+{
+    float thresh = trace_data.params.rr_threshold * depth;
+    return thresh > 0.0 ? clamp(max3(beta) / thresh, NEE_P_MIN, 1.0) : 1.0;
+}
+
 /**
  * @brief   'media_segment' integrates the participating medium a segment travels through.
  *
@@ -395,7 +405,12 @@ bool media_segment(inout ray::payload_t payload, float segment_end, Ptr<ray::ent
     const float3 segment_sigma_t = sigma_t;
 
     // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
-    bool use_direct_lighting = trace_data.params.num_lights > 0;
+    bool has_lights = trace_data.params.num_lights > 0;
+
+    // NEE roulette: play NEE with probability ~ beta below the path-roulette threshold
+    float nee_prob = nee_probability(payload.beta, payload.depth);
+    bool use_direct_lighting = has_lights;
+    if(use_direct_lighting && nee_prob < 1.0) { use_direct_lighting = utils::rnd(rng_state) < nee_prob; }
 
     if(any(sigma_t > float3(0)))
     {
@@ -503,7 +518,7 @@ bool media_segment(inout ray::payload_t payload, float segment_end, Ptr<ray::ent
 
             float3 pos = payload.ray.origin + payload.ray.direction * t_eq;
             float3 nee = ray::nee_volume(light_index, pos, payload.ray.direction, trace_data, topLevelAS, u_textures,
-                                         payload.media.phase_g, segment_sigma_t, rng_state);
+                                         payload.media.phase_g, segment_sigma_t, nee_prob, rng_state);
             payload.radiance += seg_beta * beam_tr * sigma_s * w * nee / eq_pdf;
         }
 
@@ -518,7 +533,7 @@ bool media_segment(inout ray::payload_t payload, float segment_end, Ptr<ray::ent
                 float w = equiangular ? ray::power_heuristic(dist_pdf, ray::equiangular_pdf(eq, t)) : 1.0;
                 payload.radiance += payload.beta * w *
                                     ray::nee_volume(light_index, payload.ray.origin, payload.ray.direction, trace_data,
-                                                    topLevelAS, u_textures, g, segment_sigma_t, rng_state);
+                                                    topLevelAS, u_textures, g, segment_sigma_t, nee_prob, rng_state);
             }
 
             float phase_pdf;
@@ -526,7 +541,7 @@ bool media_segment(inout ray::payload_t payload, float segment_end, Ptr<ray::ent
                     mul(utils::sample_phase_hg(Xi, g, phase_pdf), utils::local_frame(payload.ray.direction));
 
             // solid-angle pdf of this bounce for MIS at the next vertex (<= 0: no NEE competitor here)
-            payload.prev_bsdf_pdf = use_direct_lighting ? phase_pdf : 0.0;
+            payload.prev_bsdf_pdf = has_lights ? phase_pdf / nee_prob : 0.0;
             payload.regularize = payload.regularize || phase_pdf < REGULARIZE_PDF_THRESHOLD;
         }
     }
@@ -559,10 +574,15 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     // kept, because payload.media is replaced with the medium behind the surface further down
     const float3 segment_sigma_t = payload.media.sigma_s + payload.media.sigma_a;
 
-    // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
-    bool use_direct_lighting = trace_data.params.num_lights > 0;
-
     bool sample_medium = media_segment(payload, RayTCurrent(), entry, rng_state);
+
+    // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
+    bool has_lights = trace_data.params.num_lights > 0;
+
+    // NEE roulette: play NEE with probability ~ beta below the path-roulette threshold
+    float nee_prob = nee_probability(payload.beta, payload.depth);
+    bool use_direct_lighting = has_lights;
+    if(use_direct_lighting && nee_prob < 1.0) { use_direct_lighting = utils::rnd(rng_state) < nee_prob; }
 
     if(!sample_medium) { payload.ray.origin = payload.position; }
 
@@ -707,7 +727,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         {
             payload.radiance += payload.beta * ray::nee_surface(material, trace_data, topLevelAS, u_textures,
                                                                 payload.position, shading_normal, V, eta,
-                                                                segment_sigma_t, rng_state);
+                                                                segment_sigma_t, nee_prob, rng_state);
         }
 
         // negated form also stops NaN-pdfs, which would poison beta and MIS weights
@@ -720,7 +740,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         payload.ray.direction = bsdf_sample.direction;
 
         // solid-angle pdf of this bounce for MIS at the next vertex (<= 0: no NEE competitor here)
-        payload.prev_bsdf_pdf = use_direct_lighting ? bsdf_sample.pdf : 0.0;
+        payload.prev_bsdf_pdf = has_lights ? bsdf_sample.pdf / nee_prob : 0.0;
         bool specular = bsdf_sample.pdf < REGULARIZE_PDF_THRESHOLD;
         payload.regularize = payload.regularize || specular;
 
@@ -757,7 +777,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     }
 
     // Russian roulette
-    if(max3(payload.beta) <= 0.05 * payload.depth)
+    if(max3(payload.beta) <= trace_data.params.rr_threshold * payload.depth)
     {
         float q = 1.0 - max3(payload.beta);
         if(utils::rnd(rng_state) < q)

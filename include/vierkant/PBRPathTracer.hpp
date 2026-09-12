@@ -61,6 +61,9 @@ public:
         //! optionally clamp indirect path-throughput
         float max_path_beta = 0.f;
 
+        //! russian-roulette beta-threshold slope per bounce, 0: off
+        float rr_threshold = 0.05f;
+
         //! flag indicating if path-tracing should be suspended after processing 'max_num_batches'
         bool suspend_trace_when_done = true;
 
@@ -306,6 +309,9 @@ private:
 
         //! number of Directional lights, stored first in the light-array
         uint32_t num_directional_lights = 0;
+
+        //! russian-roulette beta-threshold slope per bounce, 0: off
+        float rr_threshold = 0.05f;
     };
 
     struct denoise_params_t

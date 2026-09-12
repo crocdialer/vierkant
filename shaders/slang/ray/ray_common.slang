@@ -463,8 +463,8 @@ public struct trace_params_t
     //! number of Directional lights, stored first in the light-array
     public uint num_directional_lights;
 
-    //! explicit padding to align to 16B
-    private uint pad1;
+    //! russian-roulette beta-threshold slope per bounce, 0: off
+    public float rr_threshold;
 };
 
 public struct camera_ubo_t
