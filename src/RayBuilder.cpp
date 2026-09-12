@@ -208,9 +208,11 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const SceneConstPt
         auto &geometry = geometries[i];
         geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
         // only fully-blocking geometry is fixed-function opaque; transmissive/null-surface materials must remain
-        // non-opaque so transmittance shadow rays can pass through them (see transmittance_test())
-        const bool opaque = material && material->blend_mode == vierkant::BlendMode::Opaque &&
-                            material->transmission == 0.f && !material->null_surface;
+        // non-opaque so transmittance shadow rays can pass through them (see transmittance_test()).
+        // 'material' is the mesh's own, so an overridden mesh cannot be flagged opaque here
+        const bool opaque = params.allow_opaque && material &&
+                            material->blend_mode == vierkant::BlendMode::Opaque && material->transmission == 0.f &&
+                            !material->null_surface;
         geometry.flags = opaque ? VK_GEOMETRY_OPAQUE_BIT_KHR : 0;
         geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
         geometry.geometry.triangles = triangles;
@@ -939,6 +941,16 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
 
     context->cmd_build_bottom_start.submit(m_queue, false, VK_NULL_HANDLE, {build_bottom_semaphore_info});
 
+    // meshes reached through a per-object material-override: their bottom-lvl is shared by every instance,
+    // so the opacity-flag it is built with cannot describe all of them and has to stay conservative
+    std::unordered_set<vierkant::MeshConstPtr> material_override_meshes;
+    for(const auto &object: visitor.objects)
+    {
+        if(!object->has_component<vierkant::mesh_component_t>()) { continue; }
+        const auto &mesh_component = object->get_component<vierkant::mesh_component_t>();
+        if(mesh_component.material_ids) { material_override_meshes.insert(mesh_component.mesh); }
+    }
+
     //  cache-lookup / non-blocking build of acceleration structures
     for(const auto &object: visitor.objects)
     {
@@ -1004,6 +1016,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             // move over optional micromaps
             create_mesh_structures_params.micromap_assets = context->mesh_micromap_assets[mesh];
             create_mesh_structures_params.compaction = !use_mesh_compute;
+            create_mesh_structures_params.allow_opaque = !material_override_meshes.contains(mesh);
             create_mesh_structures_params.update_assets = std::move(previous_entity_assets[object->id()]);
             create_mesh_structures_params.semaphore_info.semaphore = context->semaphore.handle();
             create_mesh_structures_params.semaphore_info.wait_value = semaphore_wait_value;

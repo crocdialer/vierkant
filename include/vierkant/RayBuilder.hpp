@@ -334,6 +334,10 @@ private:
 
         bool compaction = true;
         std::vector<acceleration_asset_ptr> update_assets = {};
+
+        //! false marks the mesh as reachable through a material-override. the bottom-lvl is shared by every
+        //! instance, so its opacity-flag cannot reflect a per-object material and stays conservative
+        bool allow_opaque = true;
     };
 
     /**
