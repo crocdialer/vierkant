@@ -460,8 +460,11 @@ public struct trace_params_t
     //! number of direct lights
     public uint num_lights;
 
+    //! number of Directional lights, stored first in the light-array
+    public uint num_directional_lights;
+
     //! explicit padding to align to 16B
-    private uint pad0, pad1;
+    private uint pad1;
 };
 
 public struct camera_ubo_t

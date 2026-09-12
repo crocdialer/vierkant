@@ -873,15 +873,14 @@ void any_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttributes
 // miss shaders
 //-----------------------------------------------------------------------------
 
-//! sun-style directional disc-lights are visible on miss, MIS-weighted against their NEE strategy.
-//! local analytic light bodies terminate rays elsewhere and never show up here (M3)
+//! sun-style directional disc-lights are visible on miss.
+//! -> directional lights are stored first, rest skipped
 float3 eval_distant_lights(float3 dir, float prev_bsdf_pdf)
 {
     float3 radiance = float3(0);
-    for(uint i = 0; i < trace_data.params.num_lights; ++i)
+    for(uint i = 0; i < trace_data.params.num_directional_lights; ++i)
     {
         ray::light_t l = trace_data.lights[i];
-        if(l.type != ray::LightType::Directional) { continue; }
 
         // constant disc-radiance inside the cone; delta suns (angular_size == 0) yield pdf 0
         float pdf = ray::light_pdf(l, float3(0), dir);

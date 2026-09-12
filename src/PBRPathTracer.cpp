@@ -677,6 +677,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     desc_textures.images = frame_context.trace_textures;
     if(!lights.empty()) { frame_context.lights_buffer->set_data(lights); }
     trace_data.trace_params.num_lights = lights.size();
+    trace_data.trace_params.num_directional_lights = frame_context.num_directional_lights;
 
     // selection-distribution for next-event-estimation, rebuilt per frame (O(num_lights))
     // reference the weights at the focus-point rather than the camera, that is where we are looking
@@ -720,6 +721,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
     // gather lights into one device-array: optional sunlight (disc-light) folded in as light[0]
     frame_context.lights.clear();
     frame_context.light_object_ids.clear();
+    frame_context.num_directional_lights = 0;
     const auto &sun_params = frame_context.settings.sunlight_params;
     if(sun_params && sun_params->intensity > 0.f)
     {
@@ -748,30 +750,40 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
     std::vector<std::pair<uint32_t, vierkant::texture_key_t>> cookie_requests;
 
     // scene lightsources: resolve component light-ids via asset-provider
-    for(const auto *object: scene_visitor.objects)
-    {
-        if(const auto *light_cmp = object->get_component_ptr<vierkant::lightsource_component_t>())
+    auto gather_lights = [&](bool directional) {
+        for(const auto *object: scene_visitor.objects)
         {
+            const auto *light_cmp = object->get_component_ptr<vierkant::lightsource_component_t>();
+            if(!light_cmp) { continue; }
             const auto *light_asset = scene->asset_provider()->light(light_cmp->light_id);
 
             // Area stays reserved for emissive triangles (extracted, not authored)
-            if(light_asset && light_asset->intensity > 0.f && light_asset->type != vierkant::LightType::Area)
+            if(!light_asset || light_asset->intensity <= 0.f || light_asset->type == vierkant::LightType::Area)
             {
-                auto light = vierkant::convert_light(*light_asset, object->global_transform());
-
-                // cookies are sampled for Spot/Omni only. texture-index 0 (solid-white placeholder) means 'none'
-                if(light_asset->cookie &&
-                   (light_asset->type == vierkant::LightType::Spot || light_asset->type == vierkant::LightType::Omni))
-                {
-                    cookie_requests.emplace_back(
-                            static_cast<uint32_t>(frame_context.lights.size()),
-                            vierkant::texture_key_t{light_asset->cookie->texture_id, light_asset->cookie->sampler_id});
-                }
-                frame_context.lights.push_back(light);
-                frame_context.light_object_ids.push_back({object->id(), 0});
+                continue;
             }
+            if((light_asset->type == vierkant::LightType::Directional) != directional) { continue; }
+
+            auto light = vierkant::convert_light(*light_asset, object->global_transform());
+
+            // cookies are sampled for Spot/Omni only. texture-index 0 (solid-white placeholder) means 'none'
+            if(light_asset->cookie &&
+               (light_asset->type == vierkant::LightType::Spot || light_asset->type == vierkant::LightType::Omni))
+            {
+                cookie_requests.emplace_back(
+                        static_cast<uint32_t>(frame_context.lights.size()),
+                        vierkant::texture_key_t{light_asset->cookie->texture_id, light_asset->cookie->sampler_id});
+            }
+            frame_context.lights.push_back(light);
+            frame_context.light_object_ids.push_back({object->id(), 0});
         }
-    }
+    };
+
+    // directional lights first, so the miss-shader can stop after them. every index taken below
+    // (cookies, light-body boxes, the alias-table) is taken against this final order
+    gather_lights(true);
+    frame_context.num_directional_lights = static_cast<uint32_t>(frame_context.lights.size());
+    gather_lights(false);
 
     // light-bodies: re-used while the boxes stay the same. a cookie-index never moves a box,
     // so the boxes are final even though the indices below are not yet assigned

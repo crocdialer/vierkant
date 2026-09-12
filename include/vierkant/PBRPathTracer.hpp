@@ -232,6 +232,9 @@ private:
         //! object each light came from, parallel to 'lights'. a default entry has no object (the sun)
         std::vector<vierkant::id_entry_t> light_object_ids;
 
+        //! number of leading Directional entries in 'lights'
+        uint32_t num_directional_lights = 0;
+
         //! light-bodies traced by this frame, kept alive until the context is reused
         RayBuilder::light_acceleration_asset_ptr light_acceleration;
 
@@ -300,6 +303,9 @@ private:
 
         //! number of direct lights
         uint32_t num_lights = 0;
+
+        //! number of Directional lights, stored first in the light-array
+        uint32_t num_directional_lights = 0;
     };
 
     struct denoise_params_t
