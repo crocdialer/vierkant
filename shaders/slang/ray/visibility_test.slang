@@ -25,7 +25,8 @@ public RayHit ray_cast(Ray ray, RaytracingAccelerationStructure as)
     ret.valid = false;
 
     RayQuery<RAY_FLAG_FORCE_OPAQUE> query;
-    query.TraceRayInline(as, RAY_FLAG_FORCE_OPAQUE, 0xFF, RayDesc(ray.origin, ray.tmin, ray.direction, ray.tmax));
+    query.TraceRayInline(as, RAY_FLAG_FORCE_OPAQUE, GEOMETRY_MASK,
+                         RayDesc(ray.origin, ray.tmin, ray.direction, ray.tmax));
     query.Proceed();
 
     if(query.CommittedStatus() != COMMITTED_NOTHING)
@@ -46,7 +47,7 @@ public bool visibility_test(Ray ray, RaytracingAccelerationStructure as, uint ex
                             trace_data_t trace_data, Sampler2D textures[], inout uint rng_state)
 {
     RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER> query;
-    query.TraceRayInline(as, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | extra_ray_flags, 0xFF,
+    query.TraceRayInline(as, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | extra_ray_flags, GEOMETRY_MASK,
                          RayDesc(ray.origin, ray.tmin, ray.direction, ray.tmax));
 
     while(query.Proceed())
@@ -95,7 +96,7 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
                                  trace_data_t trace_data, Sampler2D textures[], inout uint rng_state)
 {
     RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER> query;
-    query.TraceRayInline(as, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | extra_ray_flags, 0xFF,
+    query.TraceRayInline(as, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | extra_ray_flags, GEOMETRY_MASK,
                          RayDesc(ray.origin, ray.tmin, ray.direction, ray.tmax));
 
     float3 transmittance = float3(1);

@@ -36,6 +36,10 @@ public struct RayCone
 
 public static const uint MISS_INDEX_DEFAULT = 0;
 
+//! cull-mask for geometry-only rays: everything except the light-bodies instance,
+//! which the host tags with RayBuilder::light_instance_mask (0x80)
+public static const uint GEOMETRY_MASK = 0x7F;
+
 //! maximum number of nested media a path can track (mirrored host-side in vierkant/media.hpp)
 public static const uint MAX_MEDIA_STACK_SIZE = 4;
 

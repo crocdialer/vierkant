@@ -225,6 +225,13 @@ private:
 
         vierkant::RayTracer::tracable_t tracable = {};
 
+        //! lights gathered for this frame, plus all textures the trace binds
+        std::vector<vierkant::light_t> lights;
+        std::vector<vierkant::ImagePtr> trace_textures;
+
+        //! light-bodies traced by this frame, kept alive until the context is reused
+        RayBuilder::light_acceleration_asset_ptr light_acceleration;
+
         struct denoise_ping_pong_t
         {
             vierkant::Compute::computable_t computable = {};
@@ -376,6 +383,9 @@ private:
 
     //! build acceleration structures
     vierkant::RayBuilder m_ray_builder;
+
+    //! most recent light-bodies structure, re-used while they do not move
+    RayBuilder::light_acceleration_asset_ptr m_light_acceleration;
 
     size_t m_batch_index = 0;
 

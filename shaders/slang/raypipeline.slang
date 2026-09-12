@@ -178,7 +178,9 @@ trace_result_t trace(uint2 coord, uint2 size)
             //let hit = HitObject.TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
             //ReorderThread(hit);
             //HitObject.Invoke(topLevelAS, hit, payload);
-            TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
+            // TODO: the light-bodies instance stays masked off until the light-shaders arrive
+            TraceRay(topLevelAS, ray_flags, ray::GEOMETRY_MASK, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc,
+                     payload);
 
             cone = payload.cone;
             next_ray = payload.ray;
