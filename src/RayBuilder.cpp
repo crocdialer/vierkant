@@ -39,6 +39,9 @@ struct RayBuilder::scene_acceleration_context_t
     //! map a vierkant::Mesh to bottom-lvl structures
     std::map<vierkant::MeshConstPtr, std::vector<RayBuilder::acceleration_asset_ptr>> mesh_assets;
 
+    //! bottom-lvl over the analytic light-bodies. owned here, so it is never touched by another frame
+    RayBuilder::light_acceleration_asset_t light_acceleration;
+
     //! pending builds for this frame (initial build or compaction)
     std::unordered_map<vierkant::animated_mesh_t, RayBuilder::build_result_t> build_results;
 
@@ -660,7 +663,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
     // analytic light-bodies as one extra instance. it has no scene-entry, so it stays last and must never
     // reach an InstanceIndex() lookup. its cull-mask keeps it out of every geometry-only ray
-    if(params.light_acceleration)
+    if(params.lights)
     {
         VkAccelerationStructureInstanceKHR light_instance = {};
         light_instance.transform.matrix[0][0] = light_instance.transform.matrix[1][1] =
@@ -669,7 +672,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
         // record-offset 1: the procedural hit-group, behind the scene-geometry's triangle hit-group
         light_instance.instanceShaderBindingTableRecordOffset = 1;
-        light_instance.accelerationStructureReference = params.light_acceleration->bottom_lvl.device_address;
+        light_instance.accelerationStructureReference = context->light_acceleration.bottom_lvl.device_address;
         instances.push_back(light_instance);
     }
 
@@ -793,11 +796,9 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
     semaphore_info.wait_value = RayBuilder::UpdateSemaphoreValue::UPDATE_BOTTOM;
     semaphore_info.signal_value = UpdateSemaphoreValue::UPDATE_TOP;
 
-    // the top-lvl build reads the light-bodies' bottom-lvl. a frame that rebuilt nothing waits on an
-    // already signalled value
-    std::vector<vierkant::semaphore_submit_info_t> toplvl_semaphore_infos = {semaphore_info};
-    if(params.light_acceleration) { toplvl_semaphore_infos.push_back(params.light_acceleration->semaphore_info); }
-    context->cmd_build_toplvl.submit(m_queue, false, VK_NULL_HANDLE, toplvl_semaphore_infos);
+    // the light-bodies' bottom-lvl is built in the same pass as the mesh structures, so waiting on
+    // UPDATE_BOTTOM covers it too
+    context->cmd_build_toplvl.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
 
     // provide semaphore wait-info
     ret.semaphore_info.semaphore = context->semaphore.handle();
@@ -936,6 +937,14 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
 
         // move newly created micromaps into context
         for(auto &pair: micromap_result.mesh_micromap_assets) { context->mesh_micromap_assets.insert(std::move(pair)); }
+    }
+
+    // analytic light-bodies. shares the bottom-lvl pass with the mesh structures, so it needs no
+    // command-buffer, semaphore or submit of its own, and its cost lands inside update_bottom_ms
+    if(params.lights)
+    {
+        build_light_acceleration(context->light_acceleration, *params.lights,
+                                 context->cmd_build_bottom_start.handle());
     }
 
     context->cmd_build_bottom_start.submit(m_queue, false, VK_NULL_HANDLE, {build_bottom_semaphore_info});
@@ -1111,9 +1120,8 @@ static VkAabbPositionsKHR light_aabb(const vierkant::light_t &l)
             std::nextafter(hi.x, inf),  std::nextafter(hi.y, inf),  std::nextafter(hi.z, inf)};
 }
 
-RayBuilder::light_acceleration_asset_ptr
-RayBuilder::build_light_acceleration(const std::vector<vierkant::light_t> &lights,
-                                     const light_acceleration_asset_ptr &last)
+void RayBuilder::build_light_acceleration(light_acceleration_asset_t &asset,
+                                         const std::vector<vierkant::light_t> &lights, VkCommandBuffer cmd)
 {
     // one box per light keeps primitive-indices equal to light-indices. no lights: one inactive box
     std::vector<VkAabbPositionsKHR> aabbs;
@@ -1122,32 +1130,36 @@ RayBuilder::build_light_acceleration(const std::vector<vierkant::light_t> &light
     if(aabbs.empty()) { aabbs.push_back(light_aabb({})); }
 
     // same boxes, same structure. inactive boxes are NaN -> compare bytes
-    if(last && last->aabbs.size() == aabbs.size() &&
-       !std::memcmp(last->aabbs.data(), aabbs.data(), aabbs.size() * sizeof(VkAabbPositionsKHR)))
+    if(asset.bottom_lvl.structure && asset.aabbs.size() == aabbs.size() &&
+       !std::memcmp(asset.aabbs.data(), aabbs.data(), aabbs.size() * sizeof(VkAabbPositionsKHR)))
     {
-        return last;
+        return;
     }
 
-    auto ret = std::make_shared<light_acceleration_asset_t>();
-    ret->aabbs = std::move(aabbs);
-    const auto num_aabbs = static_cast<uint32_t>(ret->aabbs.size());
+    // only the light-count forces new allocations. a light that merely moved reuses everything below
+    const bool resize = !asset.bottom_lvl.structure || asset.aabbs.size() != aabbs.size();
+    asset.aabbs = std::move(aabbs);
+    const auto num_aabbs = static_cast<uint32_t>(asset.aabbs.size());
 
-    // host-visible build-input
-    vierkant::Buffer::create_info_t input_info = {};
-    input_info.device = m_device;
-    input_info.alignment = 16;
-    input_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                       VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    input_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-    input_info.data = ret->aabbs.data();
-    input_info.num_bytes = ret->aabbs.size() * sizeof(VkAabbPositionsKHR);
-    ret->aabb_buffer = vierkant::Buffer::create(input_info);
+    if(resize)
+    {
+        // host-visible build-input
+        vierkant::Buffer::create_info_t input_info = {};
+        input_info.device = m_device;
+        input_info.alignment = 16;
+        input_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                           VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+        input_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+        input_info.num_bytes = asset.aabbs.size() * sizeof(VkAabbPositionsKHR);
+        asset.aabb_buffer = vierkant::Buffer::create(input_info);
+    }
+    asset.aabb_buffer->set_data(asset.aabbs);
 
     VkAccelerationStructureGeometryKHR aabb_geometry = {};
     aabb_geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
     aabb_geometry.geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
     aabb_geometry.geometry.aabbs.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
-    aabb_geometry.geometry.aabbs.data.deviceAddress = ret->aabb_buffer->device_address();
+    aabb_geometry.geometry.aabbs.data.deviceAddress = asset.aabb_buffer->device_address();
     aabb_geometry.geometry.aabbs.stride = sizeof(VkAabbPositionsKHR);
 
     VkAccelerationStructureBuildGeometryInfoKHR bottom_info = {};
@@ -1158,49 +1170,37 @@ RayBuilder::build_light_acceleration(const std::vector<vierkant::light_t> &light
     bottom_info.geometryCount = 1;
     bottom_info.pGeometries = &aabb_geometry;
 
-    VkAccelerationStructureBuildSizesInfoKHR bottom_sizes = {};
-    bottom_sizes.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
-    vkGetAccelerationStructureBuildSizesKHR(m_device->handle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
-                                            &bottom_info, &num_aabbs, &bottom_sizes);
+    if(resize)
+    {
+        VkAccelerationStructureBuildSizesInfoKHR bottom_sizes = {};
+        bottom_sizes.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+        vkGetAccelerationStructureBuildSizesKHR(m_device->handle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                                                &bottom_info, &num_aabbs, &bottom_sizes);
 
-    VkAccelerationStructureCreateInfoKHR create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
-    create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-    create_info.size = bottom_sizes.accelerationStructureSize;
-    ret->bottom_lvl = create_acceleration_asset(create_info);
+        VkAccelerationStructureCreateInfoKHR create_info = {};
+        create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+        create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+        create_info.size = bottom_sizes.accelerationStructureSize;
+        asset.bottom_lvl = create_acceleration_asset(create_info);
 
-    vierkant::Buffer::create_info_t scratch_info = {};
-    scratch_info.device = m_device;
-    scratch_info.pool = m_memory_pool;
-    scratch_info.num_bytes = bottom_sizes.buildScratchSize;
-    scratch_info.alignment =
-            m_device->properties().acceleration_structure.minAccelerationStructureScratchOffsetAlignment;
-    scratch_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-    scratch_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    ret->scratch_buffer = vierkant::Buffer::create(scratch_info);
+        vierkant::Buffer::create_info_t scratch_info = {};
+        scratch_info.device = m_device;
+        scratch_info.pool = m_memory_pool;
+        scratch_info.num_bytes = bottom_sizes.buildScratchSize;
+        scratch_info.alignment =
+                m_device->properties().acceleration_structure.minAccelerationStructureScratchOffsetAlignment;
+        scratch_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        scratch_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        asset.scratch_buffer = vierkant::Buffer::create(scratch_info);
+    }
 
-    bottom_info.dstAccelerationStructure = ret->bottom_lvl.structure.get();
-    bottom_info.scratchData.deviceAddress = ret->scratch_buffer->device_address();
-
-    ret->build_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
-    ret->build_command.begin();
+    bottom_info.dstAccelerationStructure = asset.bottom_lvl.structure.get();
+    bottom_info.scratchData.deviceAddress = asset.scratch_buffer->device_address();
 
     VkAccelerationStructureBuildRangeInfoKHR range = {};
     range.primitiveCount = num_aabbs;
     const VkAccelerationStructureBuildRangeInfoKHR *range_ptr = &range;
-    vkCmdBuildAccelerationStructuresKHR(ret->build_command.handle(), 1, &bottom_info, &range_ptr);
-
-    ret->semaphore = vierkant::Semaphore(m_device);
-    vierkant::semaphore_submit_info_t signal_info = {};
-    signal_info.semaphore = ret->semaphore.handle();
-    signal_info.signal_value = SemaphoreValueBuild::BUILD;
-    ret->build_command.submit(m_queue, false, VK_NULL_HANDLE, {signal_info});
-
-    // every frame using this asset waits for its build, also frames that did not trigger it
-    ret->semaphore_info.semaphore = ret->semaphore.handle();
-    ret->semaphore_info.wait_value = SemaphoreValueBuild::BUILD;
-    ret->semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
-    return ret;
+    vkCmdBuildAccelerationStructuresKHR(cmd, 1, &bottom_info, &range_ptr);
 }
 
 RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration_context()

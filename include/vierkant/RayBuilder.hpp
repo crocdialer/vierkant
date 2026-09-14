@@ -136,25 +136,16 @@ public:
     //! shared acceleration_asset_t
     using acceleration_asset_ptr = std::shared_ptr<acceleration_asset_t>;
 
-    //! bottom-lvl structure over analytic light-bodies, one AABB per light
+    //! bottom-lvl structure over analytic light-bodies, one AABB per light.
+    //! owned by a scene_acceleration_context_t, so it is not shared between frames in flight
     struct light_acceleration_asset_t
     {
         acceleration_asset_t bottom_lvl;
         vierkant::BufferPtr aabb_buffer, scratch_buffer;
 
-        //! boxes this asset was built from, compared to detect changes
+        //! boxes the structure currently holds, compared to detect changes
         std::vector<VkAabbPositionsKHR> aabbs;
-
-        //! build-command and its timeline, kept alive with the asset
-        vierkant::CommandBuffer build_command;
-        vierkant::Semaphore semaphore;
-
-        //! wait-info for the build
-        vierkant::semaphore_submit_info_t semaphore_info;
     };
-
-    //! shared light_acceleration_asset_t
-    using light_acceleration_asset_ptr = std::shared_ptr<light_acceleration_asset_t>;
 
     //! cull-mask for the light-instance. every other instance keeps 0xFF, geometry-only rays pass ~this
     static constexpr uint8_t light_instance_mask = 0x80;
@@ -257,8 +248,9 @@ public:
         //! optionally provide a handle to a previous context, in order to re-use existing acceleration-assets.
         const scene_acceleration_context_t *previous_context = nullptr;
 
-        //! optional light-bodies, appended as the last top-lvl instance
-        light_acceleration_asset_ptr light_acceleration;
+        //! optional analytic light-bodies, appended as one extra top-lvl instance.
+        //! their bottom-lvl is built alongside the mesh structures, see build_light_acceleration()
+        const std::vector<vierkant::light_t> *lights = nullptr;
 
         //! bitmask of vierkant::layer_t, only matching objects enter the acceleration-structures
         uint32_t layer_mask = LAYER_ALL;
@@ -277,18 +269,6 @@ public:
                                                        const build_scene_acceleration_params_t &params);
 
     /**
-     * @brief   'build_light_acceleration' builds a bottom-lvl structure holding one AABB per light-slot.
-     *
-     * lights without a body get an inactive AABB, so a primitive-index equals its index in @p lights.
-     * returns @p last unchanged when the boxes did not move.
-     *
-     * @param   lights  the lights to enclose
-     * @param   last    the asset of the previous build, or nullptr
-     */
-    light_acceleration_asset_ptr build_light_acceleration(const std::vector<vierkant::light_t> &lights,
-                                                          const light_acceleration_asset_ptr &last);
-
-    /**
      * @brief   'timings' can be used to query gpu-timings for a recent run.
      *
      * @param   context an opaque context handle, used for the run to query timings
@@ -302,6 +282,21 @@ private:
         BUILD = 1,
         COMPACTED,
     };
+
+    /**
+     * @brief   'build_light_acceleration' keeps @p asset's bottom-lvl in sync with @p lights and records
+     *          its build into @p cmd when the boxes moved.
+     *
+     * lights without a body get an inactive AABB, so a primitive-index equals its index in @p lights. the
+     * structure and its buffers survive a rebuild and are only recreated when the light-count changes, so
+     * a moving light costs an upload and a build rather than a round of allocations.
+     *
+     * @param   asset   the context's light-asset, created on first use
+     * @param   lights  the lights to enclose
+     * @param   cmd     command-buffer to record the build into. must be in recording state
+     */
+    void build_light_acceleration(light_acceleration_asset_t &asset, const std::vector<vierkant::light_t> &lights,
+                                  VkCommandBuffer cmd);
 
     struct build_result_t
     {

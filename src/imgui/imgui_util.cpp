@@ -622,6 +622,7 @@ void draw_scene_renderer_statistics_ui_intern(const PBRPathTracerPtr &path_trace
     ImGui::BulletText("bloom_ms: %.3f ms", last.bloom_ms);
     ImGui::BulletText("tonemap_ms: %.3f ms", last.tonemap_ms);
     ImGui::BulletText("total_ms: %.3f ms", last.total_ms);
+    ImGui::BulletText("cpu_ms: %.3f ms", last.cpu_ms);
 
     if(!stats.empty() && ImGui::TreeNode("timing-plots"))
     {

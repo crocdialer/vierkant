@@ -130,6 +130,11 @@ public:
         double denoise_ms = 0.0;
         double bloom_ms = 0.0;
         double tonemap_ms = 0.0;
+
+        //! cpu-time spent in render_scene(), excluding the wait for the previous frame
+        double cpu_ms = 0.0;
+
+        //! sum of the gpu-stages above. not frame-time: cpu_ms overlaps it
         double total_ms = 0.0;
     };
 
@@ -238,9 +243,6 @@ private:
         //! number of leading Directional entries in 'lights'
         uint32_t num_directional_lights = 0;
 
-        //! light-bodies traced by this frame, kept alive until the context is reused
-        RayBuilder::light_acceleration_asset_ptr light_acceleration;
-
         struct denoise_ping_pong_t
         {
             vierkant::Compute::computable_t computable = {};
@@ -261,6 +263,9 @@ private:
         // gpu timings/statistics
         vierkant::QueryPoolPtr query_pool;
         statistics_t statistics = {};
+
+        //! cpu-time of this context's last render_scene(), read out with its gpu-timestamps one frame later
+        double cpu_ms = 0.0;
     };
 
     struct alignas(16) trace_params_t
@@ -398,9 +403,6 @@ private:
 
     //! build acceleration structures
     vierkant::RayBuilder m_ray_builder;
-
-    //! most recent light-bodies structure, re-used while they do not move
-    RayBuilder::light_acceleration_asset_ptr m_light_acceleration;
 
     size_t m_batch_index = 0;
 
