@@ -218,6 +218,10 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     // timing/query-pool, resize storage-assets
     pre_render(frame_context);
 
+    // cpu-time of this frame's work. starts after the wait above, so it measures what the renderer
+    // does rather than how long it blocked on the previous frame
+    const auto cpu_start = std::chrono::steady_clock::now();
+
     // copy settings for next frame
     frame_context.settings = settings;
 
@@ -301,6 +305,9 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     semaphore_submit_info.wait_value = frame_context.semaphore_value + frame_context.semaphore_value_done;
     semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
     ret.semaphore_infos = {semaphore_submit_info};
+
+    frame_context.cpu_ms =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - cpu_start).count();
     return ret;
 }
 
@@ -329,6 +336,7 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
     }
 
     timings.raybuilder_timings = m_ray_builder.timings(frame_context.scene_acceleration_context);
+    timings.cpu_ms = frame_context.cpu_ms;
 
     timings.raytrace_ms = timing_millis[SemaphoreValue::RAYTRACING];
     timings.denoise_ms = timing_millis[SemaphoreValue::DENOISER];
@@ -786,11 +794,6 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
     frame_context.num_directional_lights = static_cast<uint32_t>(frame_context.lights.size());
     gather_lights(false);
 
-    // light-bodies: re-used while the boxes stay the same. a cookie-index never moves a box,
-    // so the boxes are final even though the indices below are not yet assigned
-    m_light_acceleration = m_ray_builder.build_light_acceleration(frame_context.lights, m_light_acceleration);
-    frame_context.light_acceleration = m_light_acceleration;
-
     RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
     build_scene_params.layer_mask = layer_mask;
     build_scene_params.scene = scene;
@@ -798,7 +801,9 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
     build_scene_params.use_scene_assets = true;
     build_scene_params.omm_cache = frame_context.settings.omm_cache;
     build_scene_params.previous_context = last_context.get();
-    build_scene_params.light_acceleration = frame_context.light_acceleration;
+    // light-bodies: the ray-builder keeps their structure and rebuilds it only when a box moved.
+    // a cookie-index never moves a box, so the boxes are final even though the indices below are not
+    build_scene_params.lights = &frame_context.lights;
     frame_context.scene_ray_acceleration =
             m_ray_builder.build_scene_acceleration(frame_context.scene_acceleration_context, build_scene_params);
 
