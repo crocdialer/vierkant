@@ -8,6 +8,7 @@ struct object_overlay_params_t
 };
 
 [[vk::binding(0, 0)]]
+[[vk::image_format("r16ui")]]
 RWTexture2D<uint> in_object_id_img;
 
 [[vk::binding(1, 0)]]

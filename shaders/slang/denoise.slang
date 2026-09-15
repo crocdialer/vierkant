@@ -13,7 +13,8 @@ RWTexture2D<float4> u_out_image;
 RWStructuredBuffer<float> out_depth;
 
 [[vk::binding(3)]]
-RWTexture2D<uint4> out_object_ids;
+[[vk::image_format("r16ui")]]
+RWTexture2D<uint> out_object_ids;
 
 [[vk::binding(4)]]
 RWTexture2D<float4> u_prev_pass;
@@ -112,7 +113,7 @@ void main(uint3 dispatchThreadID: SV_DispatchThreadID)
     if(constants.pass_index == 0)
     {
         out_depth[buffer_idx] = in_pixel[buffer_idx].depth;
-        out_object_ids[coords] = uint4(utils::MAX_UINT16 - in_pixel[buffer_idx].object_id, 0, 0, 0);
+        out_object_ids[coords] = utils::MAX_UINT16 - in_pixel[buffer_idx].object_id;
     }
 
     if(constants.denoise)
