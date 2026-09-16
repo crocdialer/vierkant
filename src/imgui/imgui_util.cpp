@@ -498,6 +498,7 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     int max_trace_depth = static_cast<int>(path_tracer->settings.max_trace_depth);
     float max_path_beta = path_tracer->settings.max_path_beta;
     float rr_threshold = path_tracer->settings.rr_threshold;
+    float nee_beta_scale = path_tracer->settings.nee_beta_scale;
 
     if(ImGui::InputInt("num batches", &max_num_batches) && max_num_batches >= 0)
     {
@@ -522,6 +523,10 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     if(ImGui::InputFloat("rr_threshold", &rr_threshold) && rr_threshold >= 0.f)
     {
         path_tracer->settings.rr_threshold = rr_threshold;
+    }
+    if(ImGui::InputFloat("nee_beta_scale", &nee_beta_scale) && nee_beta_scale >= 0.f)
+    {
+        path_tracer->settings.nee_beta_scale = nee_beta_scale;
     }
     ImGui::Checkbox("skybox", &path_tracer->settings.draw_skybox);
     ImGui::Checkbox("suspend_trace_when_done", &path_tracer->settings.suspend_trace_when_done);

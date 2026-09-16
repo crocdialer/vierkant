@@ -650,6 +650,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.trace_params.max_trace_depth = frame_context.settings.max_trace_depth;
     trace_data.trace_params.max_path_beta = frame_context.settings.max_path_beta;
     trace_data.trace_params.rr_threshold = frame_context.settings.rr_threshold;
+    trace_data.trace_params.nee_beta_scale = frame_context.settings.nee_beta_scale;
     trace_data.trace_params.disable_material = frame_context.settings.disable_material;
     trace_data.trace_params.mis_mode = frame_context.settings.mis_mode;
     trace_data.trace_params.suppress_refractive_caustics = frame_context.settings.suppress_refractive_caustics;
