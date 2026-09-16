@@ -14,6 +14,12 @@ public static const float PDF_EPS = 1e-3;
 
 public static const float DEFAULT_TMAX = 10000.0f;
 
+//! path regularization: bounces below this pdf-threshold mark the path
+public static const float REGULARIZE_PDF_THRESHOLD = 1e3;
+
+//! largest of the three channels
+public float max3(float3 v) { return v.x > v.y ? max(v.x, v.z) : max(v.y, v.z); }
+
 //! Triangle groups triangle vertices
 public struct Triangle
 {
@@ -465,6 +471,12 @@ public struct trace_params_t
 
     //! russian-roulette beta-threshold slope per bounce, 0: off
     public float rr_threshold;
+
+    //! NEE probability = beta / (nee_beta_scale * depth), clamped. 0: off
+    public float nee_beta_scale;
+
+    //! 16byte alignment
+    private int pad1, pad2, pad3;
 };
 
 public struct camera_ubo_t
@@ -493,9 +505,9 @@ public struct trace_data_t
     public Ptr<uint32_t, Access.Read> *index_buffers;
     public Ptr<entry_t, Access.Read> entries;
     public Ptr<material_t, Access.Read> materials;
-    public pixel_data_t *out_pixels;
     public Ptr<light_t, Access.Read> lights;
     public Ptr<light_alias_bin_t, Access.Read> light_alias_table;
+    public pixel_data_t *out_pixels;
 };
 
 }// namespace ray

@@ -301,6 +301,44 @@ public float light_pdf(light_t l, float3 P, float3 dir)
     }
 }
 
+//! floor on the NEE-roulette probability. bsdf-sampling picks up a skipped estimate, so low is cheap
+public static const float NEE_P_MIN = 0.05;
+
+//! floor for punctual lights: no bsdf-competitor absorbs a skip. 1.0 -> never roulette them
+public static const float NEE_P_MIN_PUNCTUAL = 1.0;
+
+//! probability of playing NEE at a vertex. depth 0 always plays
+public float nee_probability(trace_data_t trace_data, float3 beta, uint depth, float p_min)
+{
+    float scale = trace_data.params.nee_beta_scale * depth;
+    return scale > 0.0 ? clamp(max3(beta) / scale, p_min, 1.0) : 1.0;
+}
+
+//! outcome of the per-vertex NEE roulette, for one already-picked light
+public struct nee_roulette_t
+{
+    //! probability this NEE was played; the estimate divides by it
+    public float prob;
+
+    //! probability for bsdf-reachable lights; prev_bsdf_pdf uses this one
+    public float reachable_prob;
+
+    //! false when the roulette skipped NEE at this vertex
+    public bool play;
+};
+
+//! roll the NEE roulette for the picked light 'l', floored by its type
+public nee_roulette_t nee_roulette(trace_data_t trace_data, light_t l, float3 beta, uint depth,
+                                   inout uint rng_state)
+{
+    nee_roulette_t ret;
+    ret.reachable_prob = nee_probability(trace_data, beta, depth, NEE_P_MIN);
+    ret.prob = bsdf_reachable(l) ? ret.reachable_prob
+                                 : nee_probability(trace_data, beta, depth, NEE_P_MIN_PUNCTUAL);
+    ret.play = ret.prob >= 1.0 || utils::rnd(rng_state) < ret.prob;
+    return ret;
+}
+
 //! draw a light from the power-weighted alias-table, in O(1) from two uniform draws.
 //! single light: keep the rng-stream untouched. mirrors vierkant::sample_light_alias_table()
 public uint pick_light(trace_data_t trace_data, inout uint rng_state)
@@ -320,14 +358,14 @@ public float light_pick_pdf(trace_data_t trace_data, uint index)
     return trace_data.light_alias_table[index].prob;
 }
 
-//! next-event estimation at a surface: pick one light, sample it, trace a visibility ray.
+//! next-event estimation at a surface, toward the light 'index' (from pick_light):
+//! sample it, then trace a visibility ray.
 //! 'nee_prob' is the probability this NEE was played; the estimate is divided by it.
 //! requires trace_data.params.num_lights > 0
-public float3 nee_surface(material_t material, trace_data_t trace_data, RaytracingAccelerationStructure as,
-                          Sampler2D textures[], float3 pos, float3 N, float3 V, float eta, float3 media_sigma_t,
-                          float nee_prob, inout uint rng_state)
+public float3 nee_surface(uint index, material_t material, trace_data_t trace_data,
+                          RaytracingAccelerationStructure as, Sampler2D textures[], float3 pos, float3 N, float3 V,
+                          float eta, float3 media_sigma_t, float nee_prob, inout uint rng_state)
 {
-    uint index = pick_light(trace_data, rng_state);
     float pick_pdf = light_pick_pdf(trace_data, index);
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
     light_sample_t ls = sample_light(trace_data.lights[index], pos, Xi, textures);

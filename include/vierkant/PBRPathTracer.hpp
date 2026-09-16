@@ -64,6 +64,9 @@ public:
         //! russian-roulette beta-threshold slope per bounce, 0: off
         float rr_threshold = 0.05f;
 
+        //! NEE probability = beta / (nee_beta_scale * depth), clamped. 0: off
+        float nee_beta_scale = 1.f;
+
         //! flag indicating if path-tracing should be suspended after processing 'max_num_batches'
         bool suspend_trace_when_done = true;
 
@@ -317,6 +320,9 @@ private:
 
         //! russian-roulette beta-threshold slope per bounce, 0: off
         float rr_threshold = 0.05f;
+
+        //! NEE probability = beta / (nee_beta_scale * depth), clamped. 0: off
+        float nee_beta_scale = 1.f;
     };
 
     struct denoise_params_t
@@ -352,14 +358,14 @@ private:
         VkDeviceAddress index_buffers{};
         VkDeviceAddress entries{};
         VkDeviceAddress materials{};
-        VkDeviceAddress out_pixels{};
         VkDeviceAddress lights{};
         VkDeviceAddress light_alias_table{};
+        VkDeviceAddress out_pixels{};
     };
 
     //! offset of the last member, pinned so an insertion above cannot silently shift the layout
     //! away from ray::trace_data_t in ray_common.slang (checked against spirv-dis)
-    static_assert(offsetof(trace_data_t, light_alias_table) == 576,
+    static_assert(offsetof(trace_data_t, out_pixels) == 592,
                   "trace_data_t layout must match shader-side (ray_common.slang)");
 
     struct alignas(16) composition_ubo_t
