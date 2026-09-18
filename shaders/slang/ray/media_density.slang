@@ -21,7 +21,7 @@ namespace ray
  * become the per-material runtime gate (material's density-sampler) once that costs little enough
  * to leave compiled in - which is what replacing the procedural placeholder with a texture buys.
  */
-public static const bool MEDIA_HETEROGENEOUS = false;
+public static const bool MEDIA_HETEROGENEOUS = true;
 
 //! the wip density-field is clamped to [0, 1], so 1 bounds it everywhere. a real grid replaces this
 //! with its own majorant, per volume or per macrocell
@@ -72,8 +72,8 @@ public float media_density(float3 pos, float time)
  * @brief   ratio-tracked transmittance through an entry's density-field over [0, dist].
  *
  * every sample is treated as a null collision and weighted by the share of the majorant the real
- * extinction did not use. that is unbiased per channel, so unlike the delta-tracked distance-sample
- * in media_segment this estimator handles chromatic sigma_t without any spectral MIS.
+ * extinction did not use. that is unbiased per channel - the same weighting the distance-sample in
+ * media_segment applies, so both handle chromatic sigma_t without any spectral MIS.
  *
  * @param   entry       the volume whose aabb the density-field is defined in
  * @param   ray         worldspace shadow-ray

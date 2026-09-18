@@ -119,37 +119,47 @@ public bool media_segment(inout payload_t payload, float segment_end,
             // the volume this medium came from, recorded when the path entered it
             let entry = trace_data.entries + payload.media.entry_index;
 
-            // NOTE: wip grid-density media with monochromatic attenuation. the NEE transmittance in
-            // visibility_test ratio-tracks the same field, which is chromatic - only this
-            // distance-sample carries the single-channel restriction
-            const float inv_max_density = 1.0 / MEDIA_MAX_DENSITY;
             Ray ray_local = to_media_ray(entry, payload.ray);
 
-            // event-ratios at a real collision are density-independent (both coefficients scale with density)
-            float3 scatter_ratio = sigma_s / max(sigma_t, float3(EPS));
+            // one achromatic majorant bounds every channel, the same one media_transmittance
+            // ratio-tracks against, so both estimators integrate the field the same way
+            const float majorant = max3(sigma_t) * MEDIA_MAX_DENSITY;
 
+            // weighted delta tracking: a real collision ends the walk, a null one reweights per
+            // channel. analog tracking would carry the extinction in the collision-probability of
+            // a single channel and attenuate achromatically
             while(true)
             {
-                // max(): a channel with zero extinction would make the step 0/0 and never advance
-                t -= log(1 - utils::rnd(rng_state)) * inv_max_density / max(sigma_t[channel], EPS);
+                t -= log(1 - utils::rnd(rng_state)) / majorant;
                 if(t >= segment_end) { break; }
 
                 float density = media_density(ray_local.origin + t * ray_local.direction,
                                               trace_data.params.time);
-                if(density * inv_max_density > utils::rnd(rng_state))
+                float3 sigma_t_density = sigma_t * density;
+
+                // channel-average, never 1: a hero-channel probability reaches 1 on the majorant's
+                // own channel, leaving no null collision to carry the other channels
+                float p_real = channel_avg(sigma_t_density) / majorant;
+
+                if(utils::rnd(rng_state) < p_real)
                 {
-                    // real collision: weighted event-split instead of analog absorb-vs-scatter.
-                    // emission via collision-estimator (sigma_a/sigma_t * Le), then continue as
-                    // scattering with throughput scaled by the single-scattering albedo
+                    // real collision: emission via collision-estimator (sigma_a * Le), then
+                    // continue as scattering. both divided by the density of the event
+                    float inv_pdf = 1.0 / max(majorant * p_real, PDF_EPS);
+
                     if(any(payload.media.emission > float3(0)))
                     {
-                        payload.radiance += payload.beta * (float3(1) - scatter_ratio) * payload.media.emission;
+                        payload.radiance +=
+                                payload.beta * payload.media.sigma_a * density * payload.media.emission * inv_pdf;
                     }
-                    payload.beta *= scatter_ratio;
+                    payload.beta *= sigma_s * density * inv_pdf;
 
                     sample_medium = true;
                     break;
                 }
+
+                // null collision: the per-channel share of the majorant the real extinction left unused
+                payload.beta *= (float3(majorant) - sigma_t_density) / max(majorant * (1.0 - p_real), PDF_EPS);
             }
         }
 
