@@ -1,6 +1,5 @@
 module raypipeline;
 
-import "ray/types";
 import "ray/ray_common";
 import "ray/pixel_data";
 import "ray/bsdf_disney";
@@ -380,9 +379,10 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     // the medium this segment travels through: shadow-rays leaving it are attenuated by it.
     // kept, because payload.media is replaced with the medium behind the surface further down
     const float3 segment_sigma_t = payload.media.sigma_s + payload.media.sigma_a;
+    const uint segment_entry_index = payload.media.entry_index;
 
     bool sample_medium =
-            ray::media_segment(payload, RayTCurrent(), entry, trace_data, topLevelAS, u_textures, rng_state);
+            ray::media_segment(payload, RayTCurrent(), trace_data, topLevelAS, u_textures, rng_state);
 
     // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
     bool has_lights = trace_data.params.num_lights > 0;
@@ -424,6 +424,12 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
     // null-surface volumes route material-emission into the medium (emitted radiance Le)
     next_media.emission = material.null_surface ? material.emission.a * material.emission.rgb : float3(0);
+
+    // the volume's own entry, so a segment inside it can reach its aabb without a hit to ask.
+    // only a density-grid needs it, and without one the medium stays analytic
+    next_media.entry_index = (material.texture_type_flags & uint(ray::TextureTypeBits::GridDensity)) != 0
+                                     ? InstanceIndex()
+                                     : utils::MAX_UINT16;
     payload.media = next_media;
 
     // determine next media-op. a transmission event touches the media stack only when it crosses a
@@ -542,7 +548,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             payload.radiance +=
                     payload.beta * ray::nee_surface(light_index, material, trace_data, topLevelAS, u_textures,
                                                     payload.position, shading_normal, V, eta, segment_sigma_t,
-                                                    roulette.prob, rng_state);
+                                                    segment_entry_index, roulette.prob, rng_state);
         }
 
         // negated form also stops NaN-pdfs, which would poison beta and MIS weights
@@ -647,7 +653,7 @@ void hit_light_body(inout ray::payload_t payload, light_attributes_t attributes)
     // estimators integrate it identically. a scatter before the body continues the path instead of
     // reaching it, exactly as a scatter before a surface does
     bool sample_medium =
-            ray::media_segment(payload, RayTCurrent(), nullptr, trace_data, topLevelAS, u_textures, rng_state);
+            ray::media_segment(payload, RayTCurrent(), trace_data, topLevelAS, u_textures, rng_state);
 
     if(!sample_medium)
     {

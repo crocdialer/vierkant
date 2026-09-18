@@ -3,8 +3,9 @@ module ray_common;
 import "../utils/packed_vertex.slang";
 import "../utils/octahedral_map.slang";
 import "../utils/color.slang";
+import "../utils/constants.slang";
+import "../utils/transform.slang";
 import "pixel_data.slang";
-import "types.slang";
 
 namespace ray
 {
@@ -38,6 +39,109 @@ public struct RayCone
 {
     public float spread_angle;
     public float width;
+};
+
+public struct aabb_t
+{
+    public float min_x, min_y, min_z;
+    public float max_x, max_y, max_z;
+
+    public float3 half_extents() { return float3(max_x - min_x, max_y - min_y, max_z - min_z) * 0.5f; }
+};
+
+//! entry_t holds properties for geometric entries with common attributes
+public struct entry_t
+{
+    // per entry
+    public float4x4 texture_matrix;
+    public utils::transform_t transform;
+    public utils::transform_t inv_transform;
+    public aabb_t aabb;
+    public uint material_index;
+    public int vertex_offset;
+    public uint base_index;
+
+    // per mesh
+    public uint buffer_index;
+
+    int pad[2];
+};
+
+//! texture-type flag bits
+public enum TextureTypeBits : uint
+{
+    Color = 0x001,
+    Normal = 0x002,
+    AoRoughMetal = 0x004,
+    Emission = 0x008,
+    Displacement = 0x010,
+    Thickness = 0x020,
+    Transmission = 0x040,
+    Clearcoat = 0x080,
+    SheenColor = 0x100,
+    SheenRoughness = 0x200,
+    Iridescence = 0x400,
+    Environment = 0x800,
+    DiffuseTransmission = 0x8000,
+    DiffuseTransmissionColor = 0x10000,
+    GridDensity = 0x20000,
+};
+
+public uint tex_offset(uint type, uint flags) { return countbits(flags & (type - 1)); }
+
+//! blend-mode definitions
+public enum BlendMode : uint
+{
+    Opaque = 0,
+    Blend = 1,
+    Mask = 2,
+};
+
+//! material_t groups all material-properties for path-tracing
+public struct material_t
+{
+    public float4 color;
+    public float4 emission;
+    public float metalness;
+    public float roughness;
+    public float transmission;
+    public bool null_surface;
+    public float3 attenuation_color;
+    public float attenuation_distance;
+    public float ior;
+    public float clearcoat;
+    public float clearcoat_roughness;
+    public float sheen_roughness;
+    public float4 sheen_color;
+
+    public float iridescence_strength;
+    public float iridescence_ior;
+    public float2 iridescence_thickness_range;
+
+    public uint albedo_index;
+    public uint normalmap_index;
+    public uint emission_index;
+    public uint ao_rough_metal_index;
+
+    public uint transmission_index;
+    public uint texture_type_flags;
+    public BlendMode blend_mode;
+    public float alpha_cutoff;
+
+    public bool two_sided;
+    public float phase_asymmetry_g;
+    public float scatter_factor;
+
+    public float dispersion;
+
+    public float3 scatter_color;
+    public float diffuse_transmission;
+    public float3 diffuse_transmission_color;
+    public uint diffuse_transmission_index;
+    public uint diffuse_transmission_color_index;
+    public uint grid_density_sampler_index;
+
+    public uint pad0, pad1;
 };
 
 public static const uint MISS_INDEX_DEFAULT = 0;
@@ -154,11 +258,13 @@ public struct media_t
 
     //! emitted radiance Le. volumetric emission is sigma_a * Le, so it requires absorption
     public float3 emission = float3(0);
-    float pad;
+
+    //! scene-entry of the volume this medium came from, MAX_UINT16 when it has none
+    public uint entry_index = utils::MAX_UINT16;
 };
 
 //! media_t in the payload's storage-form: sigma_s/sigma_a/emission as rgb9e5, ior + phase_g as half2.
-//! 16B instead of 48B - used for the raygen media-stack, which is live across every TraceRay.
+//! 20B instead of 48B - used for the raygen media-stack, which is live across every TraceRay.
 public struct packed_media_t
 {
     public uint sigma_s;
@@ -166,12 +272,15 @@ public struct packed_media_t
     public uint emission;
     public uint ior_phase;
 
+    //! scene-entry of the volume this medium came from, MAX_UINT16 when it has none
+    public uint entry_index;
+
     public float ior() { return f16tof32(ior_phase & 0xFFFFu); }
 };
 
 //! vacuum/air in packed form: pack_rgb9e5(0) is 0, f32tof16(1.0) is 0x3C00. an empty media-stack
 //! resolves to this, so air never occupies a slot
-public static const packed_media_t VACUUM_MEDIA = {0u, 0u, 0u, 0x3C00u};
+public static const packed_media_t VACUUM_MEDIA = {0u, 0u, 0u, 0x3C00u, utils::MAX_UINT16};
 
 public packed_media_t pack_media(media_t m)
 {
@@ -180,6 +289,7 @@ public packed_media_t pack_media(media_t m)
     p.sigma_a = utils::pack_rgb9e5(m.sigma_a);
     p.emission = utils::pack_rgb9e5(m.emission);
     p.ior_phase = f32tof16(m.ior) | (f32tof16(m.phase_g) << 16);
+    p.entry_index = m.entry_index;
     return p;
 }
 
@@ -191,7 +301,7 @@ public media_t unpack_media(packed_media_t p)
     m.emission = utils::unpack_rgb9e5(p.emission);
     m.ior = f16tof32(p.ior_phase & 0xFFFFu);
     m.phase_g = f16tof32(p.ior_phase >> 16);
-    m.pad = 0;
+    m.entry_index = p.entry_index;
     return m;
 }
 
@@ -303,6 +413,9 @@ public struct payload_t
     //! media ior (lo) + phase_g (hi), half2
     public uint packed_media_ior_phase;
 
+    //! scene-entry of the volume the medium came from, MAX_UINT16 when it has none
+    public uint media_entry_index;
+
     //! object/entity
     public property uint entity_index
     {
@@ -396,6 +509,7 @@ public struct payload_t
             p.sigma_a = packed_sigma_a;
             p.emission = packed_emission;
             p.ior_phase = packed_media_ior_phase;
+            p.entry_index = media_entry_index;
             return p;
         }
         set
@@ -404,6 +518,7 @@ public struct payload_t
             packed_sigma_a = newValue.sigma_a;
             packed_emission = newValue.emission;
             packed_media_ior_phase = newValue.ior_phase;
+            media_entry_index = newValue.entry_index;
         }
     }
 

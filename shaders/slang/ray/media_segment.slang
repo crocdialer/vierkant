@@ -1,30 +1,18 @@
 module media_segment;
 
 import ray_common;
-import types;
 import direct_lighting;
+import media_density;
 import "../utils/random.slang";
 import "../utils/sampling.slang";
-import "../utils/simplex.slang";
 import "../utils/transform.slang";
 import "../utils/phase_function.slang";
+import "../utils/constants.slang";
 
 namespace ray
 {
 
 float channel_avg(float3 v) { return (v.x + v.y + v.z) / 3.0; }
-
-//! transform into the entry's unit-aabb space, where the density-grid is defined
-utils::transform_t to_aabb_norm(Ptr<entry_t, Access::Read> entry)
-{
-    float3 aabb_size = float3(entry->aabb.max_x - entry->aabb.min_x, entry->aabb.max_y - entry->aabb.min_y,
-                              entry->aabb.max_z - entry->aabb.min_z);
-    utils::transform_t ret = entry->inv_transform;
-    ret.scale_x /= aabb_size.x;
-    ret.scale_y /= aabb_size.y;
-    ret.scale_z /= aabb_size.z;
-    return ret;
-}
 
 /**
  * @brief   'media_segment' integrates the participating medium a segment travels through.
@@ -35,12 +23,15 @@ utils::transform_t to_aabb_norm(Ptr<entry_t, Access::Read> entry)
  * shared by the geometry- and the light-body closest-hit, so both estimators integrate
  * the same medium.
  *
- * @param   segment_end  distance to the surface or light-body this segment ends on
- * @param   entry        scene-entry of that surface. only the wip grid-density branch reads it,
- *                       so a light-body hit passes null
+ * @param   payload         current payload
+ * @param   segment_end     distance to the surface or light-body this segment ends on
+ * @param   trace_data_t    user-provided trace-data, entry-point for everything else
+ * @param   as              a raytracing acceleration-structure
+ * @param   textures        global texture-array
+ * @param   rng_state       in/out state for RNG
  * @return  true when the path scattered before reaching 'segment_end'
  */
-public bool media_segment(inout payload_t payload, float segment_end, Ptr<entry_t, Access::Read> entry,
+public bool media_segment(inout payload_t payload, float segment_end,
                           trace_data_t trace_data, RaytracingAccelerationStructure as, Sampler2D textures[],
                           inout uint rng_state)
 {
@@ -50,6 +41,7 @@ public bool media_segment(inout payload_t payload, float segment_end, Ptr<entry_
     // the medium this segment travels through: shadow-rays leaving it are attenuated by it.
     // kept, because payload.media is replaced with the medium behind the surface further down
     const float3 segment_sigma_t = sigma_t;
+    const uint segment_entry_index = payload.media.entry_index;
 
     // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
     bool has_lights = trace_data.params.num_lights > 0;
@@ -58,7 +50,10 @@ public bool media_segment(inout payload_t payload, float segment_end, Ptr<entry_
     {
         float t = 0;
         int channel = int(min(utils::rnd(rng_state) * 3, 2));
-        const bool homogenous_medium = true;
+
+        // a medium without bounds cannot define a density-grid, so it stays analytic - and with
+        // MEDIA_HETEROGENEOUS off, all of them do
+        const bool homogenous_medium = !MEDIA_HETEROGENEOUS || payload.media.entry_index == utils::MAX_UINT16;
 
         float3 sigma_s = payload.media.sigma_s;
 
@@ -121,40 +116,50 @@ public bool media_segment(inout payload_t payload, float segment_end, Ptr<entry_
         }
         else
         {
-            // NOTE: wip grid-density media with monochromatic attenuation
-            const float inv_max_density = 1.0;
-            utils::transform_t to_media = to_aabb_norm(entry);
+            // the volume this medium came from, recorded when the path entered it
+            let entry = trace_data.entries + payload.media.entry_index;
 
-            Ray ray_local = payload.ray;
-            float scale = length(float3(to_media.scale_x, to_media.scale_y, to_media.scale_z));
-            ray_local.origin = utils::apply_transform(to_media, ray_local.origin);
-            ray_local.direction = scale * utils::apply_rotation(to_media, ray_local.direction);
+            Ray ray_local = to_media_ray(entry, payload.ray);
 
-            // event-ratios at a real collision are density-independent (both coefficients scale with density)
-            float3 scatter_ratio = sigma_s / max(sigma_t, float3(EPS));
+            // one achromatic majorant bounds every channel, the same one media_transmittance
+            // ratio-tracks against, so both estimators integrate the field the same way
+            const float majorant = max3(sigma_t) * MEDIA_MAX_DENSITY;
 
+            // weighted delta tracking: a real collision ends the walk, a null one reweights per
+            // channel. analog tracking would carry the extinction in the collision-probability of
+            // a single channel and attenuate achromatically
             while(true)
             {
-                t -= log(1 - utils::rnd(rng_state)) * inv_max_density / sigma_t[channel];
+                t -= log(1 - utils::rnd(rng_state)) / majorant;
                 if(t >= segment_end) { break; }
 
-                float3 p = ray_local.origin + t * ray_local.direction;
-                float density =
-                        clamp(0.5 * (utils::simplex(float4(4 * p, trace_data.params.time * 0.1)) + 1.0), 0.0, 1.0);
-                if(density * inv_max_density > utils::rnd(rng_state))
+                float density = media_density(ray_local.origin + t * ray_local.direction,
+                                              trace_data.params.time);
+                float3 sigma_t_density = sigma_t * density;
+
+                // channel-average, never 1: a hero-channel probability reaches 1 on the majorant's
+                // own channel, leaving no null collision to carry the other channels
+                float p_real = channel_avg(sigma_t_density) / majorant;
+
+                if(utils::rnd(rng_state) < p_real)
                 {
-                    // real collision: weighted event-split instead of analog absorb-vs-scatter.
-                    // emission via collision-estimator (sigma_a/sigma_t * Le), then continue as
-                    // scattering with throughput scaled by the single-scattering albedo
+                    // real collision: emission via collision-estimator (sigma_a * Le), then
+                    // continue as scattering. both divided by the density of the event
+                    float inv_pdf = 1.0 / max(majorant * p_real, PDF_EPS);
+
                     if(any(payload.media.emission > float3(0)))
                     {
-                        payload.radiance += payload.beta * (float3(1) - scatter_ratio) * payload.media.emission;
+                        payload.radiance +=
+                                payload.beta * payload.media.sigma_a * density * payload.media.emission * inv_pdf;
                     }
-                    payload.beta *= scatter_ratio;
+                    payload.beta *= sigma_s * density * inv_pdf;
 
                     sample_medium = true;
                     break;
                 }
+
+                // null collision: the per-channel share of the majorant the real extinction left unused
+                payload.beta *= (float3(majorant) - sigma_t_density) / max(majorant * (1.0 - p_real), PDF_EPS);
             }
         }
 
@@ -170,7 +175,8 @@ public bool media_segment(inout payload_t payload, float segment_end, Ptr<entry_
 
             float3 pos = payload.ray.origin + payload.ray.direction * t_eq;
             float3 nee = nee_volume(light_index, pos, payload.ray.direction, trace_data, as, textures,
-                                    payload.media.phase_g, segment_sigma_t, nee_prob, rng_state);
+                                    payload.media.phase_g, segment_sigma_t, segment_entry_index, nee_prob,
+                                    rng_state);
             payload.radiance += seg_beta * beam_tr * sigma_s * w * nee / eq_pdf;
         }
 
@@ -185,7 +191,8 @@ public bool media_segment(inout payload_t payload, float segment_end, Ptr<entry_
                 float w = equiangular ? power_heuristic(dist_pdf, equiangular_pdf(eq, t)) : 1.0;
                 payload.radiance += payload.beta * w *
                                     nee_volume(light_index, payload.ray.origin, payload.ray.direction, trace_data, as,
-                                               textures, g, segment_sigma_t, nee_prob, rng_state);
+                                               textures, g, segment_sigma_t, segment_entry_index, nee_prob,
+                                               rng_state);
             }
 
             float phase_pdf;

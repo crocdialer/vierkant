@@ -1,9 +1,10 @@
 module visibility_test;
 
 import ray_common;
-import types;
+import media_density;
 import "../utils/packed_vertex.slang";
 import "../utils/random.slang";
+import "../utils/constants.slang";
 
 namespace ray
 {
@@ -106,7 +107,7 @@ public bool visibility_test(Ray ray, RaytracingAccelerationStructure as, uint ex
 //! rng is only drawn for Blend alpha-cutout (as in visibility_test), so transmission-free scenes keep the same budget.
 public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, uint extra_ray_flags,
                                  trace_data_t trace_data, Sampler2D textures[], uint skip_light_index,
-                                 float3 media_sigma_t, inout uint rng_state)
+                                 float3 media_sigma_t, uint media_entry_index, inout uint rng_state)
 {
     RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER> query;
     query.TraceRayInline(as, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | extra_ray_flags, 0xFF,
@@ -120,6 +121,12 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
     // nearest boundary the ray leaves the medium it started in through. staying at tmax means it never
     // left, and then the starting medium attenuates the whole segment
     float exit_t = ray.tmax;
+
+    // the starting medium is ratio-tracked below instead of accumulated analytically, so its own
+    // boundary is matched by instance rather than inferred from the signed sum
+    const bool tracked_medium =
+            MEDIA_HETEROGENEOUS && media_entry_index != utils::MAX_UINT16 && any(media_sigma_t > float3(0));
+    float tracked_exit_t = ray.tmax;
 
     while(query.Proceed())
     {
@@ -145,9 +152,16 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
         {
             if(!isinf(material.attenuation_distance))
             {
-                float3 sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
                 float t = query.CandidateTriangleRayT();
                 bool front_face = query.CandidateTriangleFrontFace();
+
+                // the tracked medium's own walls: record the exit, contribute no analytic depth
+                if(tracked_medium && query.CandidateInstanceIndex() == media_entry_index)
+                {
+                    if(!front_face) { tracked_exit_t = min(tracked_exit_t, t); }
+                    continue;
+                }
+                float3 sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
                 optical_depth += front_face ? -sigma_t * t : sigma_t * t;
                 if(!front_face) { exit_t = min(exit_t, t); }
             }
@@ -204,7 +218,19 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
 
     // a ray that never left its starting medium has no exit to pair with, so nothing above accounted for
     // it. one that did left an unpaired exit, which already carries the implicit entry at t = 0
-    if(exit_t == ray.tmax) { optical_depth += media_sigma_t * (ray.tmax - ray.tmin); }
+    if(!tracked_medium && exit_t == ray.tmax) { optical_depth += media_sigma_t * (ray.tmax - ray.tmin); }
+
+    // the starting medium, integrated through the same density-field its distance-sampling uses
+    if(tracked_medium)
+    {
+        // march from tmin, which is the self-intersection offset rather than a real interval start
+        Ray media_ray = ray;
+        media_ray.origin += ray.tmin * ray.direction;
+
+        let entry = trace_data.entries + media_entry_index;
+        transmittance *= media_transmittance(entry, media_ray, tracked_exit_t - ray.tmin, media_sigma_t,
+                                             trace_data.params.time, rng_state);
+    }
 
     // clamp to >= 0: an unpaired entry (a medium entered and never left) must not amplify
     return transmittance * exp(-max(optical_depth, float3(0)));

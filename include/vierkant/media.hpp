@@ -12,6 +12,9 @@ namespace vierkant
 //! maximum number of nested media a path can track (matches ray_common.slang's MAX_MEDIA_STACK_SIZE)
 constexpr uint32_t MAX_MEDIA_STACK_SIZE = 4;
 
+//! a medium with no originating scene-entry (matches utils::MAX_UINT16 in the shaders)
+constexpr uint32_t NO_ENTRY_INDEX = 0xFFFFu;
+
 //! participating-medium description (matches the shader-side ray::media_t)
 struct alignas(16) media_t
 {
@@ -22,7 +25,9 @@ struct alignas(16) media_t
 
     //! emitted radiance Le. volumetric emission is sigma_a * Le, so it requires absorption
     glm::vec3 emission = glm::vec3(0.f);
-    float pad = 0.f;
+
+    //! scene-entry of the volume this medium came from, NO_ENTRY_INDEX when it has none
+    uint32_t entry_index = NO_ENTRY_INDEX;
 };
 
 //! material-facing volume parameters (subset of vierkant::Material), the input the user/geometry
