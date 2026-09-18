@@ -51,9 +51,9 @@ public bool media_segment(inout payload_t payload, float segment_end,
         float t = 0;
         int channel = int(min(utils::rnd(rng_state) * 3, 2));
 
-        // a medium without a scene-entry has no bounds to define a density-grid in, so it stays
-        // analytic. camera-seeded media are the case that has none
-        const bool homogenous_medium = true;//payload.media.entry_index == utils::MAX_UINT16;
+        // a medium without bounds cannot define a density-grid, so it stays analytic - and with
+        // MEDIA_HETEROGENEOUS off, all of them do
+        const bool homogenous_medium = !MEDIA_HETEROGENEOUS || payload.media.entry_index == utils::MAX_UINT16;
 
         float3 sigma_s = payload.media.sigma_s;
 

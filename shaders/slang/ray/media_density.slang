@@ -8,6 +8,21 @@ import "../utils/transform.slang";
 namespace ray
 {
 
+/**
+ * @brief   master switch for heterogeneous media, read by every site that would pull the
+ *          density-field into the megakernel.
+ *
+ * false compiles out both the grid-density distance-sampling in media_segment and the ratio-tracked
+ * transmittance below. that has to be compile-time: the helpers inline into closest_hit and all
+ * three NEE call sites, so they raise the register high-water mark for every ray whether or not a
+ * runtime gate ever lets them execute.
+ *
+ * TEMPORARY. a scene can hold a heterogeneous cloud and homogeneous fog at once, so this must
+ * become the per-material runtime gate (material's density-sampler) once that costs little enough
+ * to leave compiled in - which is what replacing the procedural placeholder with a texture buys.
+ */
+public static const bool MEDIA_HETEROGENEOUS = false;
+
 //! the wip density-field is clamped to [0, 1], so 1 bounds it everywhere. a real grid replaces this
 //! with its own majorant, per volume or per macrocell
 public static const float MEDIA_MAX_DENSITY = 1.0;

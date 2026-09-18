@@ -124,7 +124,8 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
 
     // the starting medium is ratio-tracked below instead of accumulated analytically, so its own
     // boundary is matched by instance rather than inferred from the signed sum
-    bool tracked_medium = media_entry_index != utils::MAX_UINT16 && any(media_sigma_t > float3(0));
+    const bool tracked_medium =
+            MEDIA_HETEROGENEOUS && media_entry_index != utils::MAX_UINT16 && any(media_sigma_t > float3(0));
     float tracked_exit_t = ray.tmax;
 
     while(query.Proceed())
