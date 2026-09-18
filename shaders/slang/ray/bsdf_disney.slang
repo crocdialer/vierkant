@@ -24,11 +24,11 @@
 
 module bsdf_disney;
 
+import ray_common;
 import "../utils/random.slang";
 import "../utils/bsdf.slang";
 import "../utils/sampling.slang";
 import "../utils/constants.slang";
-import "types.slang";
 
 namespace ray
 {

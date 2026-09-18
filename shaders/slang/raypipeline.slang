@@ -1,6 +1,5 @@
 module raypipeline;
 
-import "ray/types";
 import "ray/ray_common";
 import "ray/pixel_data";
 import "ray/bsdf_disney";

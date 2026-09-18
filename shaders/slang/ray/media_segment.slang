@@ -1,7 +1,6 @@
 module media_segment;
 
 import ray_common;
-import types;
 import direct_lighting;
 import "../utils/random.slang";
 import "../utils/sampling.slang";

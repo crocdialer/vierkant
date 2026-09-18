@@ -1,9 +1,8 @@
 module direct_lighting;
 
-import "visibility_test.slang";
-import "bsdf_disney.slang";
-import "types.slang";
-import "ray_common.slang";
+import visibility_test;
+import bsdf_disney;
+import ray_common;
 import "../utils/random.slang";
 import "../utils/constants.slang";
 import "../utils/sampling.slang";

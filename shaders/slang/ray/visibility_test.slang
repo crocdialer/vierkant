@@ -1,7 +1,6 @@
 module visibility_test;
 
 import ray_common;
-import types;
 import "../utils/packed_vertex.slang";
 import "../utils/random.slang";
 
