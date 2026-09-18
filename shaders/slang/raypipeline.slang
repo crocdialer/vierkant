@@ -425,11 +425,11 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     // null-surface volumes route material-emission into the medium (emitted radiance Le)
     next_media.emission = material.null_surface ? material.emission.a * material.emission.rgb : float3(0);
 
-    // the volume's own entry, so a segment inside it can reach its aabb without a hit to ask
-    //next_media.entry_index = InstanceIndex();
-
-    // TODO: use flag instead
-    next_media.entry_index = material.grid_density_sampler_index != 0 ? InstanceIndex() : utils::MAX_UINT16;
+    // the volume's own entry, so a segment inside it can reach its aabb without a hit to ask.
+    // only a density-grid needs it, and without one the medium stays analytic
+    next_media.entry_index = (material.texture_type_flags & uint(ray::TextureTypeBits::GridDensity)) != 0
+                                     ? InstanceIndex()
+                                     : utils::MAX_UINT16;
     payload.media = next_media;
 
     // determine next media-op. a transmission event touches the media stack only when it crosses a

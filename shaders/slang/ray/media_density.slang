@@ -21,7 +21,7 @@ namespace ray
  * become the per-material runtime gate (material's density-sampler) once that costs little enough
  * to leave compiled in - which is what replacing the procedural placeholder with a texture buys.
  */
-public static const bool MEDIA_HETEROGENEOUS = true;
+public static const bool MEDIA_HETEROGENEOUS = false;
 
 //! the wip density-field is clamped to [0, 1], so 1 bounds it everywhere. a real grid replaces this
 //! with its own majorant, per volume or per macrocell

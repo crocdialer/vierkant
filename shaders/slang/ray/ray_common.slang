@@ -84,6 +84,7 @@ public enum TextureTypeBits : uint
     Environment = 0x800,
     DiffuseTransmission = 0x8000,
     DiffuseTransmissionColor = 0x10000,
+    GridDensity = 0x20000,
 };
 
 public uint tex_offset(uint type, uint flags) { return countbits(flags & (type - 1)); }

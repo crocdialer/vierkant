@@ -600,8 +600,12 @@ static std::vector<camera_medium_t> detect_camera_media(const std::vector<vierka
                 params.emission_color = mat->emission;
                 params.emission_intensity = mat->emissive_strength;
             }
+            // same bit closest_hit gates on: only a density-grid needs the volume's ray-entry
+            const bool grid_density = mat->texture_data.contains(vierkant::TextureType::GridDensity);
+
             const glm::vec3 &h = world_obb.half_lengths;
-            const uint32_t entry_index = find_entry_index(accel, object->id(), i);
+            const uint32_t entry_index =
+                    grid_density ? find_entry_index(accel, object->id(), i) : vierkant::NO_ENTRY_INDEX;
             found.emplace_back(8.f * h.x * h.y * h.z, camera_medium_t{params, entry_index});
             break;
         }
