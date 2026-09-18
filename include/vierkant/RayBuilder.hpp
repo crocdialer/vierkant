@@ -114,6 +114,9 @@ public:
 
         //! color texture (glTF diffuseTransmissionColorTexture); rgb tints the color
         uint32_t diffuse_transmission_color_index = 0;
+
+        //! grid-density 3D-texture
+        uint32_t grid_density_sampler_index = 0;
     };
 
     //! used for both bottom and toplevel acceleration-structures

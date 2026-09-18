@@ -363,7 +363,8 @@ public float light_pick_pdf(trace_data_t trace_data, uint index)
 //! requires trace_data.params.num_lights > 0
 public float3 nee_surface(uint index, material_t material, trace_data_t trace_data,
                           RaytracingAccelerationStructure as, Sampler2D textures[], float3 pos, float3 N, float3 V,
-                          float eta, float3 media_sigma_t, float nee_prob, inout uint rng_state)
+                          float eta, float3 media_sigma_t, uint media_entry_index, float nee_prob,
+                          inout uint rng_state)
 {
     float pick_pdf = light_pick_pdf(trace_data, index);
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
@@ -379,7 +380,8 @@ public float3 nee_surface(uint index, material_t material, trace_data_t trace_da
     r.tmax = ls.dist;
 
     float3 radiance = float3(0);
-    float3 transmittance = transmittance_test(r, as, 0, trace_data, textures, index, media_sigma_t, rng_state);
+    float3 transmittance =
+            transmittance_test(r, as, 0, trace_data, textures, index, media_sigma_t, media_entry_index, rng_state);
     if(any(transmittance > 0.0))
     {
         float bsdf_pdf = 0.0;
@@ -404,7 +406,8 @@ public float3 nee_surface(uint index, material_t material, trace_data_t trace_da
 //! requires trace_data.num_lights > 0
 public float3 nee_volume(uint index, float3 pos, float3 dir, trace_data_t trace_data,
                          RaytracingAccelerationStructure as, Sampler2D textures[], float phase_g,
-                         float3 media_sigma_t, float nee_prob, inout uint rng_state)
+                         float3 media_sigma_t, uint media_entry_index, float nee_prob,
+                         inout uint rng_state)
 {
     float pick_pdf = light_pick_pdf(trace_data, index);
     float2 Xi = float2(utils::rnd(rng_state), utils::rnd(rng_state));
@@ -419,7 +422,8 @@ public float3 nee_volume(uint index, float3 pos, float3 dir, trace_data_t trace_
     r.direction = ls.direction;
     r.tmin = EPS;
     r.tmax = ls.dist;
-    float3 transmittance = transmittance_test(r, as, 0, trace_data, textures, index, media_sigma_t, rng_state);
+    float3 transmittance =
+            transmittance_test(r, as, 0, trace_data, textures, index, media_sigma_t, media_entry_index, rng_state);
     if(!any(transmittance > 0.0)) { return float3(0); }
 
     float phase = utils::phase_hg(dot(dir, ls.direction), phase_g);

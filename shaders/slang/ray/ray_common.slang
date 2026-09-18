@@ -138,8 +138,9 @@ public struct material_t
     public float3 diffuse_transmission_color;
     public uint diffuse_transmission_index;
     public uint diffuse_transmission_color_index;
+    public uint grid_density_sampler_index;
 
-    public uint pad0, pad1, pad2;
+    public uint pad0, pad1;
 };
 
 public static const uint MISS_INDEX_DEFAULT = 0;

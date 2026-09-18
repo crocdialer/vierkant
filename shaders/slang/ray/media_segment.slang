@@ -2,9 +2,9 @@ module media_segment;
 
 import ray_common;
 import direct_lighting;
+import media_density;
 import "../utils/random.slang";
 import "../utils/sampling.slang";
-import "../utils/simplex.slang";
 import "../utils/transform.slang";
 import "../utils/phase_function.slang";
 import "../utils/constants.slang";
@@ -13,18 +13,6 @@ namespace ray
 {
 
 float channel_avg(float3 v) { return (v.x + v.y + v.z) / 3.0; }
-
-//! transform into the entry's unit-aabb space, where the density-grid is defined
-utils::transform_t to_aabb_norm(Ptr<entry_t, Access::Read> entry)
-{
-    float3 aabb_size = float3(entry->aabb.max_x - entry->aabb.min_x, entry->aabb.max_y - entry->aabb.min_y,
-                              entry->aabb.max_z - entry->aabb.min_z);
-    utils::transform_t ret = entry->inv_transform;
-    ret.scale_x /= aabb_size.x;
-    ret.scale_y /= aabb_size.y;
-    ret.scale_z /= aabb_size.z;
-    return ret;
-}
 
 /**
  * @brief   'media_segment' integrates the participating medium a segment travels through.
@@ -53,6 +41,7 @@ public bool media_segment(inout payload_t payload, float segment_end,
     // the medium this segment travels through: shadow-rays leaving it are attenuated by it.
     // kept, because payload.media is replaced with the medium behind the surface further down
     const float3 segment_sigma_t = sigma_t;
+    const uint segment_entry_index = payload.media.entry_index;
 
     // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
     bool has_lights = trace_data.params.num_lights > 0;
@@ -64,7 +53,7 @@ public bool media_segment(inout payload_t payload, float segment_end,
 
         // a medium without a scene-entry has no bounds to define a density-grid in, so it stays
         // analytic. camera-seeded media are the case that has none
-        bool homogenous_medium = payload.media.entry_index == utils::MAX_UINT16;
+        const bool homogenous_medium = true;//payload.media.entry_index == utils::MAX_UINT16;
 
         float3 sigma_s = payload.media.sigma_s;
 
@@ -130,26 +119,23 @@ public bool media_segment(inout payload_t payload, float segment_end,
             // the volume this medium came from, recorded when the path entered it
             let entry = trace_data.entries + payload.media.entry_index;
 
-            // NOTE: wip grid-density media with monochromatic attenuation
-            const float inv_max_density = 1.0;
-            utils::transform_t to_media = to_aabb_norm(entry);
-
-            Ray ray_local = payload.ray;
-            float scale = length(float3(to_media.scale_x, to_media.scale_y, to_media.scale_z));
-            ray_local.origin = utils::apply_transform(to_media, ray_local.origin);
-            ray_local.direction = scale * utils::apply_rotation(to_media, ray_local.direction);
+            // NOTE: wip grid-density media with monochromatic attenuation. the NEE transmittance in
+            // visibility_test ratio-tracks the same field, which is chromatic - only this
+            // distance-sample carries the single-channel restriction
+            const float inv_max_density = 1.0 / MEDIA_MAX_DENSITY;
+            Ray ray_local = to_media_ray(entry, payload.ray);
 
             // event-ratios at a real collision are density-independent (both coefficients scale with density)
             float3 scatter_ratio = sigma_s / max(sigma_t, float3(EPS));
 
             while(true)
             {
-                t -= log(1 - utils::rnd(rng_state)) * inv_max_density / sigma_t[channel];
+                // max(): a channel with zero extinction would make the step 0/0 and never advance
+                t -= log(1 - utils::rnd(rng_state)) * inv_max_density / max(sigma_t[channel], EPS);
                 if(t >= segment_end) { break; }
 
-                float3 p = ray_local.origin + t * ray_local.direction;
-                float density =
-                        clamp(0.5 * (utils::simplex(float4(4 * p, trace_data.params.time * 0.1)) + 1.0), 0.0, 1.0);
+                float density = media_density(ray_local.origin + t * ray_local.direction,
+                                              trace_data.params.time);
                 if(density * inv_max_density > utils::rnd(rng_state))
                 {
                     // real collision: weighted event-split instead of analog absorb-vs-scatter.
@@ -179,7 +165,8 @@ public bool media_segment(inout payload_t payload, float segment_end,
 
             float3 pos = payload.ray.origin + payload.ray.direction * t_eq;
             float3 nee = nee_volume(light_index, pos, payload.ray.direction, trace_data, as, textures,
-                                    payload.media.phase_g, segment_sigma_t, nee_prob, rng_state);
+                                    payload.media.phase_g, segment_sigma_t, segment_entry_index, nee_prob,
+                                    rng_state);
             payload.radiance += seg_beta * beam_tr * sigma_s * w * nee / eq_pdf;
         }
 
@@ -194,7 +181,8 @@ public bool media_segment(inout payload_t payload, float segment_end,
                 float w = equiangular ? power_heuristic(dist_pdf, equiangular_pdf(eq, t)) : 1.0;
                 payload.radiance += payload.beta * w *
                                     nee_volume(light_index, payload.ray.origin, payload.ray.direction, trace_data, as,
-                                               textures, g, segment_sigma_t, nee_prob, rng_state);
+                                               textures, g, segment_sigma_t, segment_entry_index, nee_prob,
+                                               rng_state);
             }
 
             float phase_pdf;

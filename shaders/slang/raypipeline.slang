@@ -379,6 +379,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     // the medium this segment travels through: shadow-rays leaving it are attenuated by it.
     // kept, because payload.media is replaced with the medium behind the surface further down
     const float3 segment_sigma_t = payload.media.sigma_s + payload.media.sigma_a;
+    const uint segment_entry_index = payload.media.entry_index;
 
     bool sample_medium =
             ray::media_segment(payload, RayTCurrent(), trace_data, topLevelAS, u_textures, rng_state);
@@ -425,7 +426,10 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     next_media.emission = material.null_surface ? material.emission.a * material.emission.rgb : float3(0);
 
     // the volume's own entry, so a segment inside it can reach its aabb without a hit to ask
-    next_media.entry_index = InstanceIndex();
+    //next_media.entry_index = InstanceIndex();
+
+    // TODO: use flag instead
+    next_media.entry_index = material.grid_density_sampler_index != 0 ? InstanceIndex() : utils::MAX_UINT16;
     payload.media = next_media;
 
     // determine next media-op. a transmission event touches the media stack only when it crosses a
@@ -544,7 +548,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
             payload.radiance +=
                     payload.beta * ray::nee_surface(light_index, material, trace_data, topLevelAS, u_textures,
                                                     payload.position, shading_normal, V, eta, segment_sigma_t,
-                                                    roulette.prob, rng_state);
+                                                    segment_entry_index, roulette.prob, rng_state);
         }
 
         // negated form also stops NaN-pdfs, which would poison beta and MIS weights
