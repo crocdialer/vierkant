@@ -3,6 +3,7 @@ module ray_common;
 import "../utils/packed_vertex.slang";
 import "../utils/octahedral_map.slang";
 import "../utils/color.slang";
+import "../utils/constants.slang";
 import "pixel_data.slang";
 import "types.slang";
 
@@ -154,11 +155,13 @@ public struct media_t
 
     //! emitted radiance Le. volumetric emission is sigma_a * Le, so it requires absorption
     public float3 emission = float3(0);
-    float pad;
+
+    //! scene-entry of the volume this medium came from, MAX_UINT16 when it has none
+    public uint entry_index = utils::MAX_UINT16;
 };
 
 //! media_t in the payload's storage-form: sigma_s/sigma_a/emission as rgb9e5, ior + phase_g as half2.
-//! 16B instead of 48B - used for the raygen media-stack, which is live across every TraceRay.
+//! 20B instead of 48B - used for the raygen media-stack, which is live across every TraceRay.
 public struct packed_media_t
 {
     public uint sigma_s;
@@ -166,12 +169,15 @@ public struct packed_media_t
     public uint emission;
     public uint ior_phase;
 
+    //! scene-entry of the volume this medium came from, MAX_UINT16 when it has none
+    public uint entry_index;
+
     public float ior() { return f16tof32(ior_phase & 0xFFFFu); }
 };
 
 //! vacuum/air in packed form: pack_rgb9e5(0) is 0, f32tof16(1.0) is 0x3C00. an empty media-stack
 //! resolves to this, so air never occupies a slot
-public static const packed_media_t VACUUM_MEDIA = {0u, 0u, 0u, 0x3C00u};
+public static const packed_media_t VACUUM_MEDIA = {0u, 0u, 0u, 0x3C00u, utils::MAX_UINT16};
 
 public packed_media_t pack_media(media_t m)
 {
@@ -180,6 +186,7 @@ public packed_media_t pack_media(media_t m)
     p.sigma_a = utils::pack_rgb9e5(m.sigma_a);
     p.emission = utils::pack_rgb9e5(m.emission);
     p.ior_phase = f32tof16(m.ior) | (f32tof16(m.phase_g) << 16);
+    p.entry_index = m.entry_index;
     return p;
 }
 
@@ -191,7 +198,7 @@ public media_t unpack_media(packed_media_t p)
     m.emission = utils::unpack_rgb9e5(p.emission);
     m.ior = f16tof32(p.ior_phase & 0xFFFFu);
     m.phase_g = f16tof32(p.ior_phase >> 16);
-    m.pad = 0;
+    m.entry_index = p.entry_index;
     return m;
 }
 
@@ -303,6 +310,9 @@ public struct payload_t
     //! media ior (lo) + phase_g (hi), half2
     public uint packed_media_ior_phase;
 
+    //! scene-entry of the volume the medium came from, MAX_UINT16 when it has none
+    public uint media_entry_index;
+
     //! object/entity
     public property uint entity_index
     {
@@ -396,6 +406,7 @@ public struct payload_t
             p.sigma_a = packed_sigma_a;
             p.emission = packed_emission;
             p.ior_phase = packed_media_ior_phase;
+            p.entry_index = media_entry_index;
             return p;
         }
         set
@@ -404,6 +415,7 @@ public struct payload_t
             packed_sigma_a = newValue.sigma_a;
             packed_emission = newValue.emission;
             packed_media_ior_phase = newValue.ior_phase;
+            media_entry_index = newValue.entry_index;
         }
     }
 

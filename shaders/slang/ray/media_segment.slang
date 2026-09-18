@@ -8,6 +8,7 @@ import "../utils/sampling.slang";
 import "../utils/simplex.slang";
 import "../utils/transform.slang";
 import "../utils/phase_function.slang";
+import "../utils/constants.slang";
 
 namespace ray
 {
@@ -35,12 +36,15 @@ utils::transform_t to_aabb_norm(Ptr<entry_t, Access::Read> entry)
  * shared by the geometry- and the light-body closest-hit, so both estimators integrate
  * the same medium.
  *
- * @param   segment_end  distance to the surface or light-body this segment ends on
- * @param   entry        scene-entry of that surface. only the wip grid-density branch reads it,
- *                       so a light-body hit passes null
+ * @param   payload         current payload
+ * @param   segment_end     distance to the surface or light-body this segment ends on
+ * @param   trace_data_t    user-provided trace-data, entry-point for everything else
+ * @param   as              a raytracing acceleration-structure
+ * @param   textures        global texture-array
+ * @param   rng_state       in/out state for RNG
  * @return  true when the path scattered before reaching 'segment_end'
  */
-public bool media_segment(inout payload_t payload, float segment_end, Ptr<entry_t, Access::Read> entry,
+public bool media_segment(inout payload_t payload, float segment_end,
                           trace_data_t trace_data, RaytracingAccelerationStructure as, Sampler2D textures[],
                           inout uint rng_state)
 {
@@ -58,7 +62,10 @@ public bool media_segment(inout payload_t payload, float segment_end, Ptr<entry_
     {
         float t = 0;
         int channel = int(min(utils::rnd(rng_state) * 3, 2));
-        const bool homogenous_medium = true;
+
+        // a medium without a scene-entry has no bounds to define a density-grid in, so it stays
+        // analytic. camera-seeded media are the case that has none
+        bool homogenous_medium = payload.media.entry_index == utils::MAX_UINT16;
 
         float3 sigma_s = payload.media.sigma_s;
 
@@ -121,6 +128,9 @@ public bool media_segment(inout payload_t payload, float segment_end, Ptr<entry_
         }
         else
         {
+            // the volume this medium came from, recorded when the path entered it
+            let entry = trace_data.entries + payload.media.entry_index;
+
             // NOTE: wip grid-density media with monochromatic attenuation
             const float inv_max_density = 1.0;
             utils::transform_t to_media = to_aabb_norm(entry);

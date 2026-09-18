@@ -382,7 +382,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     const float3 segment_sigma_t = payload.media.sigma_s + payload.media.sigma_a;
 
     bool sample_medium =
-            ray::media_segment(payload, RayTCurrent(), entry, trace_data, topLevelAS, u_textures, rng_state);
+            ray::media_segment(payload, RayTCurrent(), trace_data, topLevelAS, u_textures, rng_state);
 
     // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
     bool has_lights = trace_data.params.num_lights > 0;
@@ -424,6 +424,9 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
     // null-surface volumes route material-emission into the medium (emitted radiance Le)
     next_media.emission = material.null_surface ? material.emission.a * material.emission.rgb : float3(0);
+
+    // the volume's own entry, so a segment inside it can reach its aabb without a hit to ask
+    next_media.entry_index = InstanceIndex();
     payload.media = next_media;
 
     // determine next media-op. a transmission event touches the media stack only when it crosses a
@@ -647,7 +650,7 @@ void hit_light_body(inout ray::payload_t payload, light_attributes_t attributes)
     // estimators integrate it identically. a scatter before the body continues the path instead of
     // reaching it, exactly as a scatter before a surface does
     bool sample_medium =
-            ray::media_segment(payload, RayTCurrent(), nullptr, trace_data, topLevelAS, u_textures, rng_state);
+            ray::media_segment(payload, RayTCurrent(), trace_data, topLevelAS, u_textures, rng_state);
 
     if(!sample_medium)
     {
