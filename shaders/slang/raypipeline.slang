@@ -642,7 +642,7 @@ void hit_light_body(inout ray::payload_t payload, light_attributes_t attributes)
     payload.position = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
     payload.entity_index = ray::LIGHT_ENTITY_INDEX_TOP - light_index;
     payload.media_op = ray::MediaOp::NoOp;
-    
+
     // the medium up to the body, through the same routine the geometry closest-hit runs, so both
     // estimators integrate it identically. a scatter before the body continues the path instead of
     // reaching it, exactly as a scatter before a surface does
