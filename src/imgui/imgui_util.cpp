@@ -573,8 +573,9 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
         ImGui::DragFloat("attenuation distance", &medium.attenuation_distance, 0.01f, 0.001f, 1000.f);
         ImGui::SliderFloat("scatter factor", &medium.scatter_factor, 0.f, 1.f);
         ImGui::ColorEdit3("scatter color", &medium.scatter_color[0]);
-        ImGui::SliderFloat("phase g", &medium.phase_asymmetry_g, -0.99f, 0.99f);
-        ImGui::SliderFloat("medium ior", &medium.ior, 1.f, 3.f);
+        ImGui::SliderFloat("phase g", &medium.phase_asymmetry_g, -vierkant::MAX_PHASE_ASYMMETRY_G,
+                           vierkant::MAX_PHASE_ASYMMETRY_G);
+        ImGui::SliderFloat("medium ior", &medium.ior, 1.f, vierkant::MAX_IOR);
     }
 
     // optional directional sunlight (disc-light). direction is normalized before tracing.
@@ -1155,7 +1156,8 @@ bool draw_material_ui(vierkant::material_t &material,
     changed |= ImGui::ColorEdit3("attenuation color", glm::value_ptr(material.attenuation_color));
 
     // phase_asymmetry_g
-    changed |= ImGui::SliderFloat("phase_asymmetry_g", &material.phase_asymmetry_g, -1.f, 1.f);
+    changed |= ImGui::SliderFloat("phase_asymmetry_g", &material.phase_asymmetry_g,
+                                  -vierkant::MAX_PHASE_ASYMMETRY_G, vierkant::MAX_PHASE_ASYMMETRY_G);
 
     // scatter_factor
     changed |= ImGui::SliderFloat("scatter_factor", &material.scatter_factor, 0.f, 1.f);
@@ -1164,7 +1166,7 @@ bool draw_material_ui(vierkant::material_t &material,
     changed |= ImGui::ColorEdit3("scatter_color", glm::value_ptr(material.scatter_color));
 
     // index of refraction - ior
-    changed |= ImGui::InputFloat("ior", &material.ior);
+    changed |= ImGui::SliderFloat("ior", &material.ior, 1.f, vierkant::MAX_IOR);
 
     // chromatic dispersion (glTF KHR_materials_dispersion)
     changed |= ImGui::SliderFloat("dispersion", &material.dispersion, 0.f, 1.f);

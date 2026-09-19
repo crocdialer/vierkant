@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <vierkant/media.hpp>
 
 namespace vierkant
@@ -17,8 +18,8 @@ media_t to_media(const medium_params_t &params)
     media_t media = {};
     media.sigma_s = rho_ss * sigma_t;
     media.sigma_a = (1.f - rho_ss) * sigma_t;
-    media.phase_g = params.phase_asymmetry_g;
-    media.ior = params.ior;
+    media.phase_g = std::clamp(params.phase_asymmetry_g, -MAX_PHASE_ASYMMETRY_G, MAX_PHASE_ASYMMETRY_G);
+    media.ior = std::clamp(params.ior, 1.f, MAX_IOR);
     media.emission = params.emission_color * params.emission_intensity;
     return media;
 }
