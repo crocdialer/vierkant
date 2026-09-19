@@ -146,7 +146,8 @@ static inline float light_power(const light_t &light, const glm::vec3 &reference
         return luminance * solid_angle;
     }
 
-    // area seen from the reference point, 1 for delta positions. extents as in sample_light()
+    // illuminance-factor at the reference point: area for area-lights, cone-attenuation for spots,
+    // 1 for the remaining delta positions. extents and attenuation as in sample_light()
     float projected_area = 1.f;
 
     switch(type)
@@ -157,6 +158,18 @@ static inline float light_power(const light_t &light, const glm::vec3 &reference
         // rect: full width x height. tube: the side-on rectangle 2r x length
         case LightType::Rect:
         case LightType::Tube: projected_area = 4.f * light.size_x * light.size_y; break;
+
+        // spot: the cone's angular attenuation, zero outside the cone
+        case LightType::Spot:
+        {
+            const glm::vec3 to_reference = reference_pos - light.position;
+            const float dist = glm::length(to_reference);
+            const float cos_dir = dist > 0.f ? glm::dot(light.direction, to_reference / dist) : 1.f;
+            const float attenuation =
+                    std::clamp(cos_dir * light.spot_angle_scale + light.spot_angle_offset, 0.f, 1.f);
+            projected_area = attenuation * attenuation;
+            break;
+        }
 
         default: break;
     }
