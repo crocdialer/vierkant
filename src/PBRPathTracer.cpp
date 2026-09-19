@@ -355,6 +355,14 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
     m_statistics.push_back(frame_context.statistics);
     while(m_statistics.size() > frame_context.settings.timing_history_size) { m_statistics.pop_front(); }
 
+    spdlog::trace("pathtracer timings (ms) | raytrace {:.3f} | denoise {:.3f} | bloom {:.3f} | tonemap {:.3f} | "
+                  "mesh_compute {:.3f} | update_bottom {:.3f} | update_top {:.3f} | total {:.3f} | cpu {:.3f} | "
+                  "batch {} | lights {}",
+                  timings.raytrace_ms, timings.denoise_ms, timings.bloom_ms, timings.tonemap_ms,
+                  timings.raybuilder_timings.mesh_compute_ms, timings.raybuilder_timings.update_bottom_ms,
+                  timings.raybuilder_timings.update_top_ms, timings.total_ms, timings.cpu_ms, m_batch_index,
+                  frame_context.lights.size());
+
     // reset query-pool
     vkResetQueryPool(m_device->handle(), frame_context.query_pool.get(), 0, query_count);
 

@@ -1363,7 +1363,7 @@ bool VierkantEd::parse_override_settings(int argc, char *argv[])
     options.add_options()("help", "print this help message");
     options.add_options()("w,width", "window width in px", cxxopts::value<uint32_t>());
     options.add_options()("h,height", "window height in px", cxxopts::value<uint32_t>());
-    options.add_options()("v,verbose", "verbose printing");
+    options.add_options()("v,verbose", "verbose printing (-v: debug, -vv: trace)");
     options.add_options()("q,quiet", "minimal printing");
     options.add_options()("log-file", "enable logging to a file", cxxopts::value<std::string>());
     options.add_options()("f,fullscreen", "enable fullscreen");
@@ -1480,7 +1480,12 @@ bool VierkantEd::parse_override_settings(int argc, char *argv[])
     if(result.count("no-validation")) { m_settings.use_validation = false; }
     if(result.count("labels")) { m_settings.use_debug_labels = true; }
     if(result.count("no-labels")) { m_settings.use_debug_labels = false; }
-    if(result.count("verbose")) { m_settings.log_level = spdlog::level::debug; }
+    // -v: debug, -vv: trace. cxxopts counts repeated short flags, so no value-type is needed - and
+    // giving this flag one is what breaks the grouping
+    if(auto verbosity = result.count("verbose"))
+    {
+        m_settings.log_level = verbosity > 1 ? spdlog::level::trace : spdlog::level::debug;
+    }
     if(result.count("quiet")) { m_settings.log_level = spdlog::level::info; }
     if(result.count("raytracing"))
     {
