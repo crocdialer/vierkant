@@ -159,7 +159,8 @@ static inline float light_power(const light_t &light, const glm::vec3 &reference
         case LightType::Rect:
         case LightType::Tube: projected_area = 4.f * light.size_x * light.size_y; break;
 
-        // spot: the cone's angular attenuation, zero outside the cone
+        // spot: the cone's angular attenuation, floored by the fraction of the sphere the cone covers.
+        // exact where the reference point is lit, power-proportional where it is not, never zero
         case LightType::Spot:
         {
             const glm::vec3 to_reference = reference_pos - light.position;
@@ -167,7 +168,8 @@ static inline float light_power(const light_t &light, const glm::vec3 &reference
             const float cos_dir = dist > 0.f ? glm::dot(light.direction, to_reference / dist) : 1.f;
             const float attenuation =
                     std::clamp(cos_dir * light.spot_angle_scale + light.spot_angle_offset, 0.f, 1.f);
-            projected_area = attenuation * attenuation;
+            const float cos_outer = -light.spot_angle_offset / light.spot_angle_scale;
+            projected_area = std::max(attenuation * attenuation, 0.5f * (1.f - cos_outer));
             break;
         }
 
