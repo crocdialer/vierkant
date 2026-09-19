@@ -15,6 +15,13 @@ constexpr uint32_t MAX_MEDIA_STACK_SIZE = 4;
 //! a medium with no originating scene-entry (matches utils::MAX_UINT16 in the shaders)
 constexpr uint32_t NO_ENTRY_INDEX = 0xFFFFu;
 
+//! the Henyey-Greenstein phase-function degenerates at |g| == 1, the shader's phase_g encoding
+//! reaches 0.992. clamped here so host and shader describe the same medium.
+constexpr float MAX_PHASE_ASYMMETRY_G = 0.99f;
+
+//! top code of the shader's 9-bit ior encoding (1 + c/256), clamped here for the same reason
+constexpr float MAX_IOR = 1.f + 511.f / 256.f;
+
 //! participating-medium description (matches the shader-side ray::media_t)
 struct alignas(16) media_t
 {

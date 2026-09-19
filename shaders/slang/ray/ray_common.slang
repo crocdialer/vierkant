@@ -260,24 +260,34 @@ public struct media_t
     public uint entry_index = utils::MAX_UINT16;
 };
 
-//! media_t in the payload's storage-form: sigma_s/sigma_a/emission as rgb9e5, ior + phase_g as half2.
-//! 20B instead of 48B - used for the raygen media-stack, which is live across every TraceRay.
+//! ior is bounded to [1, 2.996] on a 1/256 grid, so a 9-bit unorm resolves it finer than fp16 would
+//! with 5 of its bits spent on an exponent that never changes
+static const float IOR_SCALE = 256.0;
+static const uint IOR_MAX_CODE = 511u;
+
+//! phase_g is stored as sign + log2(1 - |g|), because the HG lobe's sensitivity lives in 1 - |g|.
+//! 6 magnitude bits over 7 octaves reach |g| = 0.992
+static const float PHASE_OCTAVES = 7.0;
+static const uint PHASE_MAX_CODE = 63u;
+
+//! media_t in the payload's storage-form: sigma_s/sigma_a/emission as rgb9e5, ior + phase_g +
+//! entry_index in one dword. 16B instead of 48B - used for the raygen media-stack, which is live
+//! across every TraceRay.
 public struct packed_media_t
 {
     public uint sigma_s;
     public uint sigma_a;
     public uint emission;
-    public uint ior_phase;
 
-    //! scene-entry of the volume this medium came from, MAX_UINT16 when it has none
-    public uint entry_index;
+    //! entry_index[15:0] | ior[24:16] | phase_g magnitude[30:25] | phase_g sign[31]
+    public uint ior_phase_entry;
 
-    public float ior() { return f16tof32(ior_phase & 0xFFFFu); }
+    public float ior() { return 1.0 + float((ior_phase_entry >> 16) & IOR_MAX_CODE) / IOR_SCALE; }
 };
 
-//! vacuum/air in packed form: pack_rgb9e5(0) is 0, f32tof16(1.0) is 0x3C00. an empty media-stack
-//! resolves to this, so air never occupies a slot
-public static const packed_media_t VACUUM_MEDIA = {0u, 0u, 0u, 0x3C00u, utils::MAX_UINT16};
+//! vacuum/air in packed form: pack_rgb9e5(0) is 0, ior-code 0 is 1.0, phase-code 0 is 0.0. an empty
+//! media-stack resolves to this, so air never occupies a slot
+public static const packed_media_t VACUUM_MEDIA = {0u, 0u, 0u, utils::MAX_UINT16};
 
 public packed_media_t pack_media(media_t m)
 {
@@ -285,8 +295,16 @@ public packed_media_t pack_media(media_t m)
     p.sigma_s = utils::pack_rgb9e5(m.sigma_s);
     p.sigma_a = utils::pack_rgb9e5(m.sigma_a);
     p.emission = utils::pack_rgb9e5(m.emission);
-    p.ior_phase = f32tof16(m.ior) | (f32tof16(m.phase_g) << 16);
-    p.entry_index = m.entry_index;
+
+    uint ior_code = uint(clamp(round((m.ior - 1.0) * IOR_SCALE), 0.0, float(IOR_MAX_CODE)));
+
+    // log2(1 - |g|) over [-PHASE_OCTAVES, 0], inverted so code 0 is g == 0
+    float phase_mag = log2(max(1.0 - abs(m.phase_g), exp2(-PHASE_OCTAVES)));
+    uint phase_code = uint(clamp(round(-phase_mag * (float(PHASE_MAX_CODE) / PHASE_OCTAVES)), 0.0,
+                                 float(PHASE_MAX_CODE)));
+    uint phase_sign = m.phase_g < 0.0 ? 0x80000000u : 0u;
+
+    p.ior_phase_entry = (m.entry_index & utils::MAX_UINT16) | (ior_code << 16) | (phase_code << 25) | phase_sign;
     return p;
 }
 
@@ -296,9 +314,12 @@ public media_t unpack_media(packed_media_t p)
     m.sigma_s = utils::unpack_rgb9e5(p.sigma_s);
     m.sigma_a = utils::unpack_rgb9e5(p.sigma_a);
     m.emission = utils::unpack_rgb9e5(p.emission);
-    m.ior = f16tof32(p.ior_phase & 0xFFFFu);
-    m.phase_g = f16tof32(p.ior_phase >> 16);
-    m.entry_index = p.entry_index;
+    m.ior = p.ior();
+
+    float phase_mag = 1.0 - exp2(-float((p.ior_phase_entry >> 25) & PHASE_MAX_CODE) *
+                                 (PHASE_OCTAVES / float(PHASE_MAX_CODE)));
+    m.phase_g = (p.ior_phase_entry & 0x80000000u) != 0u ? -phase_mag : phase_mag;
+    m.entry_index = p.ior_phase_entry & utils::MAX_UINT16;
     return m;
 }
 
@@ -407,11 +428,8 @@ public struct payload_t
     public uint packed_sigma_a;
     public uint packed_emission;
 
-    //! media ior (lo) + phase_g (hi), half2
-    public uint packed_media_ior_phase;
-
-    //! scene-entry of the volume the medium came from, MAX_UINT16 when it has none
-    public uint media_entry_index;
+    //! media entry_index[15:0] | ior[24:16] | phase_g magnitude[30:25] | phase_g sign[31]
+    public uint packed_media_ior_phase_entry;
 
     //! object/entity
     public property uint entity_index
@@ -505,8 +523,7 @@ public struct payload_t
             p.sigma_s = packed_sigma_s;
             p.sigma_a = packed_sigma_a;
             p.emission = packed_emission;
-            p.ior_phase = packed_media_ior_phase;
-            p.entry_index = media_entry_index;
+            p.ior_phase_entry = packed_media_ior_phase_entry;
             return p;
         }
         set
@@ -514,8 +531,7 @@ public struct payload_t
             packed_sigma_s = newValue.sigma_s;
             packed_sigma_a = newValue.sigma_a;
             packed_emission = newValue.emission;
-            packed_media_ior_phase = newValue.ior_phase;
-            media_entry_index = newValue.entry_index;
+            packed_media_ior_phase_entry = newValue.ior_phase_entry;
         }
     }
 
