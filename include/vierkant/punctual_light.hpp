@@ -163,6 +163,9 @@ static inline float light_power(const light_t &light, const glm::vec3 &reference
         // exact where the reference point is lit, power-proportional where it is not, never zero
         case LightType::Spot:
         {
+            // no usable cone-description (a default-constructed light_t): no discount, and no 0/0
+            if(light.spot_angle_scale <= 0.f) { break; }
+
             const glm::vec3 to_reference = reference_pos - light.position;
             const float dist = glm::length(to_reference);
             const float cos_dir = dist > 0.f ? glm::dot(light.direction, to_reference / dist) : 1.f;
