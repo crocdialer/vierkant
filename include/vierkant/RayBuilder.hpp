@@ -3,6 +3,9 @@
 //
 #pragma once
 
+#include "media.hpp"
+
+
 #include <vierkant/Device.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Scene.hpp>
@@ -52,19 +55,27 @@ public:
 
         uint32_t null_surface = false;
 
-        glm::vec3 attenuation_color = glm::vec3(1.f);
+        uint32_t texture_type_flags = 0;
 
-        float attenuation_distance = std::numeric_limits<float>::infinity();
+        uint32_t blend_mode = static_cast<uint32_t>(vierkant::BlendMode::Opaque);
 
-        float ior = 1.5f;
+        float alpha_cutoff = 0.5f;
 
-        float clearcoat_factor = 0.f;
+        uint32_t two_sided = false;
 
-        float clearcoat_roughness_factor = 0.f;
+        //! chromatic dispersion strength (glTF KHR_materials_dispersion; 0 = none)
+        float dispersion = 0.f;
+
+        float clearcoat = 0.f;
+
+        float clearcoat_roughness = 0.f;
+
+        // padding
+        uint32_t unused_0 = 0;
+
+        glm::vec3 sheen_color = glm::vec3(0.f);
 
         float sheen_roughness = 0.f;
-
-        glm::vec4 sheen_color = glm::vec4(0.f);
 
         float iridescence_strength = 0.f;
 
@@ -72,6 +83,15 @@ public:
 
         // range of thin-film thickness in nanometers (nm)
         glm::vec2 iridescence_thickness_range = {100.f, 400.f};
+
+        //! tint for diffuse-transmitted light (glTF diffuseTransmissionColorFactor)
+        glm::vec3 diffuse_transmission_color = glm::vec3(1.f);
+
+        //! diffuse (Lambertian) transmission strength (glTF KHR_materials_diffuse_transmission)
+        float diffuse_transmission = 0.f;
+
+        //! precomputed media-parameters. media.ior doubles as the surface-ior
+        vierkant::media_t media = {.ior = 1.5f};
 
         uint32_t albedo_index = 0;
 
@@ -82,32 +102,6 @@ public:
         uint32_t ao_rough_metal_index = 0;
 
         uint32_t transmission_index = 0;
-
-        uint32_t texture_type_flags = 0;
-
-        uint32_t blend_mode = static_cast<uint32_t>(vierkant::BlendMode::Opaque);
-
-        float alpha_cutoff = 0.5f;
-
-        uint32_t two_sided = false;
-
-        //! phase-function asymmetry parameter (forward- vs. back-scattering) [-1, 1]
-        float phase_asymmetry_g = 0.f;
-
-        //! overall scattering strength [0, 1] (glTF KHR_materials_scatter scatterFactor)
-        float scatter_factor = 0.f;
-
-        //! chromatic dispersion strength (glTF KHR_materials_dispersion; 0 = none)
-        float dispersion = 0.f;
-
-        //! multi-scatter albedo / scattering tint (glTF multiscatterColorFactor)
-        glm::vec3 scatter_color = glm::vec3(1.f);
-
-        //! diffuse (Lambertian) transmission strength (glTF KHR_materials_diffuse_transmission)
-        float diffuse_transmission = 0.f;
-
-        //! tint for diffuse-transmitted light (glTF diffuseTransmissionColorFactor)
-        glm::vec3 diffuse_transmission_color = glm::vec3(1.f);
 
         //! factor texture (glTF diffuseTransmissionTexture); only the alpha channel scales the factor
         uint32_t diffuse_transmission_index = 0;

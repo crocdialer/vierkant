@@ -399,31 +399,24 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     bool dispersive = material.dispersion > 0.0 && material.transmission > 0.0;
     float disp_lambda = payload.disp_lambda;
     if(dispersive && disp_lambda < 0.0) { disp_lambda = lerp(400.0, 700.0, utils::rnd(rng_state)); }
-    float surf_ior = dispersive ? utils::cauchy_ior(material.ior, material.dispersion, disp_lambda) : material.ior;
+    float surf_ior = dispersive ? utils::cauchy_ior(material.media.ior, material.dispersion, disp_lambda)
+                                : material.media.ior;
 
     float eta = backface ? surf_ior / payload.last_ior : payload.media.ior / surf_ior;
     eta += ray::EPS;
 
-    float3 sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
-    sigma_t = backface ? float3(0) : sigma_t;
+    // total extinction of the medium behind this surface (host-side vierkant::to_media)
+    float3 mat_sigma_t = material.media.sigma_s + material.media.sigma_a;
 
-    // volumetric scattering (glTF KHR_materials_scatter / KHR_materials_volume_scatter):
-    // attenuation_color/distance give the total extinction sigma_t. scatter_color is the
-    // multi-scatter albedo (rho_ms), scaled by scatter_factor; convert to the single-scatter
-    // albedo (rho_ss) the medium needs via the Kulla-Conty (2017) inversion, per channel.
-    float3 rho_ms = material.scatter_factor * material.scatter_color;
-    float3 kc = 4.09712 + 4.20863 * rho_ms - sqrt(9.59217 + 41.6808 * rho_ms + 17.7126 * rho_ms * rho_ms);
-    float3 rho_ss = 1.0 - kc * kc;
-
-    // batch media-writes through a local: one payload decode/encode instead of five
-    ray::media_t next_media = payload.media;
-    next_media.sigma_s = rho_ss * sigma_t;
-    next_media.sigma_a = (1.0 - rho_ss) * sigma_t;
-    next_media.phase_g = material.phase_asymmetry_g;
-    next_media.ior = sample_surface ? material.ior : next_media.ior;
+    // batch media-writes through a local: one payload decode/encode instead of five.
+    // sigma_s/sigma_a/phase_g/ior arrive precomputed, only the per-hit fields are set here
+    ray::media_t next_media = material.media;
+    next_media.sigma_s = backface ? float3(0) : next_media.sigma_s;
+    next_media.sigma_a = backface ? float3(0) : next_media.sigma_a;
+    next_media.ior = sample_surface ? material.media.ior : payload.media.ior;
 
     // null-surface volumes route material-emission into the medium (emitted radiance Le)
-    next_media.emission = material.null_surface ? material.emission.a * material.emission.rgb : float3(0);
+    next_media.emission = material.null_surface ? material.media.emission : float3(0);
 
     // the volume's own entry, so a segment inside it can reach its aabb without a hit to ask.
     // only a density-grid needs it, and without one the medium stays analytic
@@ -435,7 +428,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     // determine next media-op. a transmission event touches the media stack only when it crosses a
     // real boundary: a volume (Beer-Lambert / scattering interior) or a specular-refractive surface
     // (IOR tracking for eta). thin-walled diffuse transmission (no volume, no specular) just crosses.
-    bool has_volume = !isinf(material.attenuation_distance);
+    bool has_volume = any(mat_sigma_t > float3(0));
     bool media_boundary = has_volume || material.transmission > 0.0;
     payload.media_op = (sample_medium || !media_boundary)
                                ? ray::MediaOp::NoOp

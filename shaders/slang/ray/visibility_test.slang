@@ -150,7 +150,8 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
         // same signed entry/exit depth as the glass interiors below, and no per-interface tint
         if(material.null_surface)
         {
-            if(!isinf(material.attenuation_distance))
+            float3 sigma_t = material.media.sigma_s + material.media.sigma_a;
+            if(any(sigma_t > float3(0)))
             {
                 float t = query.CandidateTriangleRayT();
                 bool front_face = query.CandidateTriangleFrontFace();
@@ -161,7 +162,6 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
                     if(!front_face) { tracked_exit_t = min(tracked_exit_t, t); }
                     continue;
                 }
-                float3 sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
                 optical_depth += front_face ? -sigma_t * t : sigma_t * t;
                 if(!front_face) { exit_t = min(exit_t, t); }
             }
@@ -174,10 +174,10 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
             // per-interface tint (thin transmission factor * base colour)
             transmittance *= material.transmission * material.color.rgb;
 
-            // volume absorption for glass with a finite attenuation distance (isinf -> no interior medium)
-            if(!isinf(material.attenuation_distance))
+            // volume absorption for glass with an interior medium (zero extinction -> none)
+            float3 sigma_t = material.media.sigma_s + material.media.sigma_a;
+            if(any(sigma_t > float3(0)))
             {
-                float3 sigma_t = -log(material.attenuation_color) / material.attenuation_distance;
                 float t = query.CandidateTriangleRayT();
                 bool front_face = query.CandidateTriangleFrontFace();
                 optical_depth += front_face ? -sigma_t * t : sigma_t * t;

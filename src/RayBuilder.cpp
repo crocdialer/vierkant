@@ -212,9 +212,8 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const SceneConstPt
         geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
         // only fully-blocking geometry is fixed-function opaque; transmissive/null-surface materials must remain
         // non-opaque so transmittance shadow rays can pass through them (see transmittance_test())
-        const bool opaque = params.allow_opaque && material &&
-                            material->blend_mode == vierkant::BlendMode::Opaque && material->transmission == 0.f &&
-                            !material->null_surface;
+        const bool opaque = params.allow_opaque && material && material->blend_mode == vierkant::BlendMode::Opaque &&
+                            material->transmission == 0.f && !material->null_surface;
         geometry.flags = opaque ? VK_GEOMETRY_OPAQUE_BIT_KHR : 0;
         geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
         geometry.geometry.triangles = triangles;
@@ -558,22 +557,25 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                     material.roughness = mat->roughness;
                     material.metalness = mat->metalness;
                     material.transmission = mat->transmission;
-                    material.ior = mat->ior;
+
+                    material.media = to_media({.attenuation_color = mat->attenuation_color,
+                                               .attenuation_distance = mat->attenuation_distance,
+                                               .scatter_factor = mat->scatter_factor,
+                                               .scatter_color = mat->scatter_color,
+                                               .phase_asymmetry_g = mat->phase_asymmetry_g,
+                                               .ior = mat->ior,
+                                               .emission_color = mat->emission,
+                                               .emission_intensity = mat->emissive_strength});
                     material.dispersion = mat->dispersion;
-                    material.attenuation_distance = mat->attenuation_distance;
-                    material.attenuation_color = mat->attenuation_color;
-                    material.clearcoat_factor = mat->clearcoat_factor;
-                    material.clearcoat_roughness_factor = mat->clearcoat_roughness_factor;
-                    material.sheen_color = {mat->sheen_color, 0.f};
+                    material.clearcoat = mat->clearcoat_factor;
+                    material.clearcoat_roughness = mat->clearcoat_roughness_factor;
+                    material.sheen_color = mat->sheen_color;
                     material.sheen_roughness = mat->sheen_roughness;
 
                     material.blend_mode = static_cast<uint32_t>(mat->blend_mode);
                     material.alpha_cutoff = mat->alpha_cutoff;
                     material.two_sided = mat->twosided;
                     material.null_surface = mat->null_surface;
-                    material.phase_asymmetry_g = mat->phase_asymmetry_g;
-                    material.scatter_factor = mat->scatter_factor;
-                    material.scatter_color = mat->scatter_color;
                     material.diffuse_transmission = mat->diffuse_transmission;
                     material.diffuse_transmission_color = mat->diffuse_transmission_color;
 
@@ -943,8 +945,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     // command-buffer, semaphore or submit of its own, and its cost lands inside update_bottom_ms
     if(params.lights)
     {
-        build_light_acceleration(context->light_acceleration, *params.lights,
-                                 context->cmd_build_bottom_start.handle());
+        build_light_acceleration(context->light_acceleration, *params.lights, context->cmd_build_bottom_start.handle());
     }
 
     context->cmd_build_bottom_start.submit(m_queue, false, VK_NULL_HANDLE, {build_bottom_semaphore_info});
@@ -1121,7 +1122,7 @@ static VkAabbPositionsKHR light_aabb(const vierkant::light_t &l)
 }
 
 void RayBuilder::build_light_acceleration(light_acceleration_asset_t &asset,
-                                         const std::vector<vierkant::light_t> &lights, VkCommandBuffer cmd)
+                                          const std::vector<vierkant::light_t> &lights, VkCommandBuffer cmd)
 {
     // one box per light keeps primitive-indices equal to light-indices. no lights: one inactive box
     std::vector<VkAabbPositionsKHR> aabbs;
