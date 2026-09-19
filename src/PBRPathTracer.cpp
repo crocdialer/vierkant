@@ -355,6 +355,14 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
     m_statistics.push_back(frame_context.statistics);
     while(m_statistics.size() > frame_context.settings.timing_history_size) { m_statistics.pop_front(); }
 
+    spdlog::trace("pathtracer timings (ms) | raytrace {:.3f} | denoise {:.3f} | bloom {:.3f} | tonemap {:.3f} | "
+                  "mesh_compute {:.3f} | update_bottom {:.3f} | update_top {:.3f} | total {:.3f} | cpu {:.3f} | "
+                  "batch {} | lights {}",
+                  timings.raytrace_ms, timings.denoise_ms, timings.bloom_ms, timings.tonemap_ms,
+                  timings.raybuilder_timings.mesh_compute_ms, timings.raybuilder_timings.update_bottom_ms,
+                  timings.raybuilder_timings.update_top_ms, timings.total_ms, timings.cpu_ms, m_batch_index,
+                  frame_context.lights.size());
+
     // reset query-pool
     vkResetQueryPool(m_device->handle(), frame_context.query_pool.get(), 0, query_count);
 
@@ -725,10 +733,15 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.trace_params.num_directional_lights = frame_context.num_directional_lights;
 
     // selection-distribution for next-event-estimation, rebuilt per frame (O(num_lights))
-    // reference the weights at the focus-point rather than the camera, that is where we are looking
+    // reference the weights for view-axis -> scene-center
     const auto cam_transform = cam->global_transform();
-    const glm::vec3 focus_pos = cam_transform.translation +
-                                (cam_transform.rotation * glm::vec3(0.f, 0.f, -1.f)) * camera_params.focal_distance;
+    const glm::vec3 view_dir = cam_transform.rotation * glm::vec3(0.f, 0.f, -1.f);
+    const auto scene_aabb = scene->root()->aabb();
+    const float reference_distance =
+            scene_aabb.valid()
+                    ? std::max(0.f, glm::dot(scene_aabb.center() - cam_transform.translation, view_dir))
+                    : 0.f;
+    const glm::vec3 focus_pos = cam_transform.translation + view_dir * reference_distance;
     auto light_alias_table =
             vierkant::create_light_alias_table(lights, focus_pos, frame_context.settings.light_selection_uniform_mix);
     if(!light_alias_table.empty()) { frame_context.light_alias_buffer->set_data(light_alias_table); }

@@ -639,8 +639,10 @@ void hit_light_body(inout ray::payload_t payload, light_attributes_t attributes)
     ray::light_t light = trace_data.lights[light_index];
     uint rng_state = payload.rng_state;
 
+    payload.cone = propagate(payload.cone, 0.0, RayTCurrent());
     payload.position = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
     payload.entity_index = ray::LIGHT_ENTITY_INDEX_TOP - light_index;
+    payload.media_op = ray::MediaOp::NoOp;
 
     // the medium up to the body, through the same routine the geometry closest-hit runs, so both
     // estimators integrate it identically. a scatter before the body continues the path instead of
