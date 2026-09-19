@@ -97,51 +97,48 @@ public enum BlendMode : uint
     Mask = 2,
 };
 
+
 //! material_t groups all material-properties for path-tracing
 public struct material_t
 {
     public float4 color;
     public float4 emission;
+
     public float metalness;
     public float roughness;
     public float transmission;
     public bool null_surface;
-    public float3 attenuation_color;
-    public float attenuation_distance;
-    public float ior;
+
+    public uint texture_type_flags;
+    public BlendMode blend_mode;
+    public float alpha_cutoff;
+    public bool two_sided;
+
+    public float dispersion;
     public float clearcoat;
     public float clearcoat_roughness;
+    private uint unused_0;
+
+    public float3 sheen_color;
     public float sheen_roughness;
-    public float4 sheen_color;
 
     public float iridescence_strength;
     public float iridescence_ior;
     public float2 iridescence_thickness_range;
 
+    public float3 diffuse_transmission_color;
+    public float diffuse_transmission;
+
+    public media_t media;
+
     public uint albedo_index;
     public uint normalmap_index;
     public uint emission_index;
     public uint ao_rough_metal_index;
-
     public uint transmission_index;
-    public uint texture_type_flags;
-    public BlendMode blend_mode;
-    public float alpha_cutoff;
-
-    public bool two_sided;
-    public float phase_asymmetry_g;
-    public float scatter_factor;
-
-    public float dispersion;
-
-    public float3 scatter_color;
-    public float diffuse_transmission;
-    public float3 diffuse_transmission_color;
     public uint diffuse_transmission_index;
     public uint diffuse_transmission_color_index;
     public uint grid_density_sampler_index;
-
-    public uint pad0, pad1;
 };
 
 public static const uint MISS_INDEX_DEFAULT = 0;
