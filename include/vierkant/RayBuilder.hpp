@@ -41,6 +41,12 @@ public:
         uint32_t buffer_index = 0;
     };
 
+    //! material-features a scene uses -> map to specialization-constant
+    enum class MaterialFeature : uint32_t
+    {
+        DiffuseTransmission = 0x01,
+    };
+
     struct alignas(16) material_struct_t
     {
         glm::vec4 color = glm::vec4(1);
@@ -198,6 +204,9 @@ public:
 
         //! buffer containing material-information
         vierkant::BufferPtr material_buffer = nullptr;
+
+        //! MaterialFeature bits used by any material in 'material_buffer'
+        uint32_t material_features = 0;
 
         //! array containing all textures for a scene
         std::vector<vierkant::ImagePtr> textures;

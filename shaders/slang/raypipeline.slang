@@ -500,7 +500,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         }
 
         // diffuse-transmission factor texture: only the alpha channel scales the factor
-        if((material.texture_type_flags & uint(ray::TextureTypeBits::DiffuseTransmission)) != 0)
+        if(ray::FEATURE_DIFFUSE_TRANSMISSION &&
+           (material.texture_type_flags & uint(ray::TextureTypeBits::DiffuseTransmission)) != 0)
         {
             float dt_a = sample_texture_lod(u_textures[NonUniformResourceIndex(material.diffuse_transmission_index)],
                                             v.tex_coord, NoV, payload.cone.width, triangle_lod)
@@ -509,7 +510,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
         }
 
         // diffuse-transmission color texture: only the rgb channels tint the color
-        if((material.texture_type_flags & uint(ray::TextureTypeBits::DiffuseTransmissionColor)) != 0)
+        if(ray::FEATURE_DIFFUSE_TRANSMISSION &&
+           (material.texture_type_flags & uint(ray::TextureTypeBits::DiffuseTransmissionColor)) != 0)
         {
             float3 dt_rgb =
                     sample_texture_lod(u_textures[NonUniformResourceIndex(material.diffuse_transmission_color_index)],

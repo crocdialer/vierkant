@@ -10,6 +10,10 @@ import "pixel_data.slang";
 namespace ray
 {
 
+//! per-scene material-feature switches. constant-id is the bit-index in RayBuilder::MaterialFeature
+[[vk::constant_id(0)]]
+public const bool FEATURE_DIFFUSE_TRANSMISSION = true;
+
 public static const float EPS = 1e-4;
 public static const float PDF_EPS = 1e-3;
 

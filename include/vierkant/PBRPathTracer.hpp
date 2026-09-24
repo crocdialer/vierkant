@@ -412,6 +412,9 @@ private:
 
     size_t m_batch_index = 0;
 
+    //! MaterialFeature mask the pipeline is specialized with
+    uint32_t m_material_features = 0;
+
     //! projection-view of the most recently traced frame. unset means: no drift measurable (yet)
     std::optional<glm::mat4> m_prev_projection_view;
 

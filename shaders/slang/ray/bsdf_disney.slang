@@ -234,7 +234,7 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
         {
             // split the diffuse base into reflection (BRDF) and Lambertian transmission (BTDF).
             // dt == 0 short-circuits -> no extra rng, opaque path stays bit-identical.
-            float dt = material.diffuse_transmission;
+            float dt = FEATURE_DIFFUSE_TRANSMISSION ? material.diffuse_transmission : 0.0;
             if(dt > 0.0 && utils::rnd(rng_state) < dt)
             {
                 // cosine lobe on the opposite hemisphere (no Snell bend, no Fresnel)
@@ -343,7 +343,7 @@ public float3 eval_disney(material_t material, float3 L, float3 N, float3 V, flo
 
     if(trans_weight < 1.0)
     {
-        float dt = material.diffuse_transmission;
+        float dt = FEATURE_DIFFUSE_TRANSMISSION ? material.diffuse_transmission : 0.0;
 
         brdf += (1.0 - dt) * EvalDiffuse(material.roughness, material.sheen_roughness, material.color.rgb,
                                          material.sheen_color.rgb, material.metalness, V, N, L, H, m_pdf);

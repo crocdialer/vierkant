@@ -401,6 +401,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
     std::vector<entry_t> entries;
     std::vector<material_struct_t> materials;
+    uint32_t material_features = 0;
     std::vector<vierkant::ImagePtr> textures = {m_placeholder_solid_white};
     std::unordered_map<const vierkant::Image *, uint32_t> texture_indices;
 
@@ -635,6 +636,11 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                     }
                 }
 
+                // textures only scale the factor, so a zero factor stays zero
+                if(material.diffuse_transmission > 0.f)
+                {
+                    material_features |= static_cast<uint32_t>(MaterialFeature::DiffuseTransmission);
+                }
                 materials.push_back(material);
             }
 
@@ -731,6 +737,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
     ret.top_lvl = create_acceleration_asset(create_info);
     m_device->set_object_name(reinterpret_cast<uint64_t>(ret.top_lvl.structure.get()),
                               VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR, "RayBuilder::toplevel");
+
+    ret.material_features = material_features;
 
     // needed to access buffer/vertex/index/material in closest-hit shader
     if(params.use_scene_assets)
