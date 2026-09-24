@@ -396,7 +396,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     // per path and refract with a Cauchy eta(lambda). Locked into the payload on the first
     // transmission so entry/exit refractions of the same object stay consistent. dispersion == 0
     // keeps the scalar-ior path unchanged.
-    bool dispersive = material.dispersion > 0.0 && material.transmission > 0.0;
+    bool dispersive = ray::FEATURE_DISPERSION && material.dispersion > 0.0 && material.transmission > 0.0;
     float disp_lambda = payload.disp_lambda;
     if(dispersive && disp_lambda < 0.0) { disp_lambda = lerp(400.0, 700.0, utils::rnd(rng_state)); }
     float surf_ior = dispersive ? utils::cauchy_ior(material.media.ior, material.dispersion, disp_lambda)
@@ -411,16 +411,18 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     // batch media-writes through a local: one payload decode/encode instead of five.
     // sigma_s/sigma_a/phase_g/ior arrive precomputed, only the per-hit fields are set here
     ray::media_t next_media = material.media;
-    next_media.sigma_s = backface ? float3(0) : next_media.sigma_s;
-    next_media.sigma_a = backface ? float3(0) : next_media.sigma_a;
+    bool carries_media = ray::FEATURE_MEDIA && !backface;
+    next_media.sigma_s = carries_media ? next_media.sigma_s : float3(0);
+    next_media.sigma_a = carries_media ? next_media.sigma_a : float3(0);
     next_media.ior = sample_surface ? material.media.ior : payload.media.ior;
 
     // null-surface volumes route material-emission into the medium (emitted radiance Le)
-    next_media.emission = material.null_surface ? material.media.emission : float3(0);
+    next_media.emission = (ray::FEATURE_MEDIA && material.null_surface) ? material.media.emission : float3(0);
 
     // the volume's own entry, so a segment inside it can reach its aabb without a hit to ask.
     // only a density-grid needs it, and without one the medium stays analytic
-    next_media.entry_index = (material.texture_type_flags & uint(ray::TextureTypeBits::GridDensity)) != 0
+    next_media.entry_index = (ray::FEATURE_MEDIA &&
+                              (material.texture_type_flags & uint(ray::TextureTypeBits::GridDensity)) != 0)
                                      ? InstanceIndex()
                                      : utils::MAX_UINT16;
     payload.media = next_media;
@@ -428,8 +430,8 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
     // determine next media-op. a transmission event touches the media stack only when it crosses a
     // real boundary: a volume (Beer-Lambert / scattering interior) or a specular-refractive surface
     // (IOR tracking for eta). thin-walled diffuse transmission (no volume, no specular) just crosses.
-    bool has_volume = any(mat_sigma_t > float3(0));
-    bool media_boundary = has_volume || material.transmission > 0.0;
+    bool has_volume = ray::FEATURE_MEDIA && any(mat_sigma_t > float3(0));
+    bool media_boundary = has_volume || (ray::FEATURE_TRANSMISSION && material.transmission > 0.0);
     payload.media_op = (sample_medium || !media_boundary)
                                ? ray::MediaOp::NoOp
                                : (backface ? ray::MediaOp::Leave : ray::MediaOp::Enter);

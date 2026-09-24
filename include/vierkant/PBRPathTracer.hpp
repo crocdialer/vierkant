@@ -84,6 +84,9 @@ public:
         //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
         bool suppress_refractive_caustics = false;
 
+        //! debug: keep every material-feature compiled in, whatever the scene uses
+        bool force_all_material_features = false;
+
         //! draw the skybox, if any
         bool draw_skybox = true;
 

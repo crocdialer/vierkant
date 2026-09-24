@@ -14,6 +14,25 @@ namespace ray
 [[vk::constant_id(0)]]
 public const bool FEATURE_DIFFUSE_TRANSMISSION = true;
 
+[[vk::constant_id(1)]]
+public const bool FEATURE_SHEEN = true;
+
+[[vk::constant_id(2)]]
+public const bool FEATURE_IRIDESCENCE = true;
+
+[[vk::constant_id(3)]]
+public const bool FEATURE_CLEARCOAT = true;
+
+[[vk::constant_id(4)]]
+public const bool FEATURE_DISPERSION = true;
+
+[[vk::constant_id(5)]]
+public const bool FEATURE_TRANSMISSION = true;
+
+//! participating media. the media-stack itself is not gated: transmission uses it to track ior
+[[vk::constant_id(6)]]
+public const bool FEATURE_MEDIA = true;
+
 public static const float EPS = 1e-4;
 public static const float PDF_EPS = 1e-3;
 

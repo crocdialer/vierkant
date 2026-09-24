@@ -641,6 +641,29 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                 {
                     material_features |= static_cast<uint32_t>(MaterialFeature::DiffuseTransmission);
                 }
+                if(glm::any(glm::greaterThan(material.sheen_color, glm::vec3(0.f))))
+                {
+                    material_features |= static_cast<uint32_t>(MaterialFeature::Sheen);
+                }
+                if(material.iridescence_strength > 0.f)
+                {
+                    material_features |= static_cast<uint32_t>(MaterialFeature::Iridescence);
+                }
+                if(material.clearcoat > 0.f) { material_features |= static_cast<uint32_t>(MaterialFeature::Clearcoat); }
+                if(material.dispersion > 0.f)
+                {
+                    material_features |= static_cast<uint32_t>(MaterialFeature::Dispersion);
+                }
+                if(material.transmission > 0.f)
+                {
+                    material_features |= static_cast<uint32_t>(MaterialFeature::Transmission);
+                }
+                // null-surfaces included: they exist to carry a medium, even a currently empty one
+                if(material.null_surface ||
+                   glm::any(glm::greaterThan(material.media.sigma_s + material.media.sigma_a, glm::vec3(0.f))))
+                {
+                    material_features |= static_cast<uint32_t>(MaterialFeature::Media);
+                }
                 materials.push_back(material);
             }
 

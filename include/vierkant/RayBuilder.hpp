@@ -45,7 +45,16 @@ public:
     enum class MaterialFeature : uint32_t
     {
         DiffuseTransmission = 0x01,
+        Sheen = 0x02,
+        Iridescence = 0x04,
+        Clearcoat = 0x08,
+        Dispersion = 0x10,
+        Transmission = 0x20,
+        Media = 0x40,
     };
+
+    //! number of MaterialFeature bits
+    static constexpr uint32_t num_material_features = 7;
 
     struct alignas(16) material_struct_t
     {

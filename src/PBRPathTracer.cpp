@@ -856,16 +856,21 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
     frame_context.scene_ray_acceleration =
             m_ray_builder.build_scene_acceleration(frame_context.scene_acceleration_context, build_scene_params);
 
-    // compile out material-features this scene has no material for. constant-id 0: diffuse-transmission
-    const uint32_t material_features = frame_context.scene_ray_acceleration.material_features;
+    // compile out material-features this scene has no material for; constant-id == bit-index
+    const uint32_t material_features = frame_context.settings.force_all_material_features
+                                               ? ~0u
+                                               : frame_context.scene_ray_acceleration.material_features;
     vierkant::pipeline_specialization specialization;
-    specialization.set(0, VkBool32((material_features &
-                                    static_cast<uint32_t>(RayBuilder::MaterialFeature::DiffuseTransmission)) != 0));
+    for(uint32_t bit = 0; bit < RayBuilder::num_material_features; ++bit)
+    {
+        specialization.set(bit, VkBool32((material_features >> bit) & 1u));
+    }
     frame_context.tracable.pipeline_info.specialization = std::move(specialization);
 
     // different mask, different estimator: accumulated samples are stale
     if(material_features != m_material_features)
     {
+        spdlog::debug("material-features: {:#x}", material_features);
         m_material_features = material_features;
         m_batch_index = 0;
         m_prev_projection_view = {};

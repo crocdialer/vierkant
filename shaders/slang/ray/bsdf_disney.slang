@@ -155,7 +155,7 @@ float3 EvalDiffuse(float roughness, float sheen_roughness, float3 color, float3 
     float Fd90 = 0.5 + 2.0 * LoH * LoH * roughness;
     float Fd = lerp(1.0, Fd90, FL) * lerp(1.0, Fd90, FV);
 
-    float3 Fsheen = FH * sheen_roughness * sheen_color;
+    float3 Fsheen = FEATURE_SHEEN ? FH * sheen_roughness * sheen_color : float3(0.0);
     return utils::ONE_OVER_PI * (Fd * color + Fsheen) * (1.0 - metalness);
 }
 
@@ -167,10 +167,10 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
     ret.transmission = false;
 
     float diffuseRatio = 0.5 * (1.0 - material.metalness);
-    float trans_weight = (1.0 - material.metalness) * material.transmission;
+    float trans_weight = FEATURE_TRANSMISSION ? (1.0 - material.metalness) * material.transmission : 0.0;
 
     material.roughness = max(0.001, material.roughness * material.roughness);
-    material.sheen_roughness = max(0.001, material.sheen_roughness);
+    if(FEATURE_SHEEN) { material.sheen_roughness = max(0.001, material.sheen_roughness); }
 
     float3 spec_color = lerp(float3(0.08), material.color.rgb, material.metalness);
 
@@ -192,7 +192,7 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
         {
             ret.direction = normalize(R);
 
-            if(utils::rnd(rng_state) < material.iridescence_strength)
+            if(FEATURE_IRIDESCENCE && utils::rnd(rng_state) < material.iridescence_strength)
             {
                 ret.F = EvalDielectricReflectionIridescence(
                         material.roughness, material.color.rgb, material.iridescence_ior,
@@ -203,7 +203,7 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
             {
                 ret.F = EvalDielectricReflection(material.roughness, material.color.rgb, eta, V, N, ret.direction,
                                                  H_vndf, ret.pdf);
-                ret.pdf *= 1.0 - material.iridescence_strength;
+                ret.pdf *= FEATURE_IRIDESCENCE ? 1.0 - material.iridescence_strength : 1.0;
             }
         }
         else// Transmission
@@ -256,14 +256,14 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
         }
         else// specular
         {
-            float primarySpecRatio = 1.0 / (1.0 + material.clearcoat);
+            float primarySpecRatio = FEATURE_CLEARCOAT ? 1.0 / (1.0 + material.clearcoat) : 1.0;
 
             // primary specular
-            if(utils::rnd(rng_state) < primarySpecRatio)
+            if(!FEATURE_CLEARCOAT || utils::rnd(rng_state) < primarySpecRatio)
             {
                 ret.direction = normalize(reflect(-V, H_vndf));
 
-                if(utils::rnd(rng_state) < material.iridescence_strength)
+                if(FEATURE_IRIDESCENCE && utils::rnd(rng_state) < material.iridescence_strength)
                 {
                     ret.F = EvalSpecularIridescence(material.roughness, material.iridescence_ior,
                                                     material.iridescence_thickness_range.y, spec_color, V, N,
@@ -273,7 +273,8 @@ public bsdf_sample_t sample_disney(material_t material, float3 N, float3 V, floa
                 else
                 {
                     ret.F = EvalSpecular(material.roughness, spec_color, V, N, ret.direction, H_vndf, ret.pdf);
-                    ret.pdf *= primarySpecRatio * (1.0 - diffuseRatio) * (1.0 - material.iridescence_strength);
+                    ret.pdf *= primarySpecRatio * (1.0 - diffuseRatio) *
+                               (FEATURE_IRIDESCENCE ? 1.0 - material.iridescence_strength : 1.0);
                 }
             }
             else// clearcoat
@@ -308,11 +309,11 @@ public float3 eval_disney(material_t material, float3 L, float3 N, float3 V, flo
     if(refl && dot(N, H) <= 0.0) { pdf = 0.0; return float3(0.0); }
 
     float diffuseRatio = 0.5 * (1.0 - material.metalness);
-    float primarySpecRatio = 1.0 / (1.0 + material.clearcoat);
-    float trans_weight = (1.0 - material.metalness) * material.transmission;
+    float primarySpecRatio = FEATURE_CLEARCOAT ? 1.0 / (1.0 + material.clearcoat) : 1.0;
+    float trans_weight = FEATURE_TRANSMISSION ? (1.0 - material.metalness) * material.transmission : 0.0;
 
     material.roughness = max(0.001, material.roughness * material.roughness);
-    material.sheen_roughness = max(0.001, material.sheen_roughness);
+    if(FEATURE_SHEEN) { material.sheen_roughness = max(0.001, material.sheen_roughness); }
 
     float3 spec_color = lerp(float3(0.08), material.color.rgb, material.metalness);
 
@@ -326,14 +327,18 @@ public float3 eval_disney(material_t material, float3 L, float3 N, float3 V, flo
     {
         if(refl)
         {
+            float irid = FEATURE_IRIDESCENCE ? material.iridescence_strength : 0.0;
             bsdf += EvalDielectricReflection(material.roughness, material.color.rgb, eta, V, N, L, H, m_pdf) *
-                    (1.0 - material.iridescence_strength);
-            bsdfPdf += m_pdf * (1.0 - material.iridescence_strength);
-            bsdf += EvalDielectricReflectionIridescence(
-                            material.roughness, material.color.rgb, material.iridescence_ior,
-                            material.iridescence_thickness_range.y, spec_color, eta, V, N, L, H, m_pdf) *
-                    material.iridescence_strength;
-            bsdfPdf += m_pdf * material.iridescence_strength;
+                    (1.0 - irid);
+            bsdfPdf += m_pdf * (1.0 - irid);
+            if(FEATURE_IRIDESCENCE)
+            {
+                bsdf += EvalDielectricReflectionIridescence(
+                                material.roughness, material.color.rgb, material.iridescence_ior,
+                                material.iridescence_thickness_range.y, spec_color, eta, V, N, L, H, m_pdf) *
+                        irid;
+                bsdfPdf += m_pdf * irid;
+            }
         }
         else
         {
@@ -357,16 +362,23 @@ public float3 eval_disney(material_t material, float3 L, float3 N, float3 V, flo
             brdfPdf += cosT * utils::ONE_OVER_PI * diffuseRatio * dt;
         }
 
-        brdf += EvalSpecular(material.roughness, spec_color, V, N, L, H, m_pdf) * (1.0 - material.iridescence_strength);
-        brdfPdf += m_pdf * primarySpecRatio * (1.0 - diffuseRatio) * (1.0 - material.iridescence_strength);
+        float irid = FEATURE_IRIDESCENCE ? material.iridescence_strength : 0.0;
+        brdf += EvalSpecular(material.roughness, spec_color, V, N, L, H, m_pdf) * (1.0 - irid);
+        brdfPdf += m_pdf * primarySpecRatio * (1.0 - diffuseRatio) * (1.0 - irid);
 
-        brdf += EvalSpecularIridescence(material.roughness, material.iridescence_ior,
-                                        material.iridescence_thickness_range.y, spec_color, V, N, L, H, m_pdf) *
-                material.iridescence_strength;
-        brdfPdf += m_pdf * primarySpecRatio * (1.0 - diffuseRatio) * material.iridescence_strength;
+        if(FEATURE_IRIDESCENCE)
+        {
+            brdf += EvalSpecularIridescence(material.roughness, material.iridescence_ior,
+                                            material.iridescence_thickness_range.y, spec_color, V, N, L, H, m_pdf) *
+                    irid;
+            brdfPdf += m_pdf * primarySpecRatio * (1.0 - diffuseRatio) * irid;
+        }
 
-        brdf += EvalClearcoat(material.clearcoat_roughness, material.clearcoat, V, N, L, H, m_pdf);
-        brdfPdf += m_pdf * (1.0 - primarySpecRatio) * (1.0 - diffuseRatio);
+        if(FEATURE_CLEARCOAT)
+        {
+            brdf += EvalClearcoat(material.clearcoat_roughness, material.clearcoat, V, N, L, H, m_pdf);
+            brdfPdf += m_pdf * (1.0 - primarySpecRatio) * (1.0 - diffuseRatio);
+        }
     }
 
     pdf = lerp(brdfPdf, bsdfPdf, trans_weight);
