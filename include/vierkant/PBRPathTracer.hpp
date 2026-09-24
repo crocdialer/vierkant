@@ -84,6 +84,9 @@ public:
         //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
         bool suppress_refractive_caustics = false;
 
+        //! debug: keep every material-feature compiled in, whatever the scene uses
+        bool force_all_material_features = false;
+
         //! draw the skybox, if any
         bool draw_skybox = true;
 
@@ -411,6 +414,9 @@ private:
     vierkant::RayBuilder m_ray_builder;
 
     size_t m_batch_index = 0;
+
+    //! MaterialFeature mask the pipeline is specialized with
+    uint32_t m_material_features = 0;
 
     //! projection-view of the most recently traced frame. unset means: no drift measurable (yet)
     std::optional<glm::mat4> m_prev_projection_view;

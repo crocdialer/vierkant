@@ -151,7 +151,7 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
         if(material.null_surface)
         {
             float3 sigma_t = material.media.sigma_s + material.media.sigma_a;
-            if(any(sigma_t > float3(0)))
+            if(FEATURE_MEDIA && any(sigma_t > float3(0)))
             {
                 float t = query.CandidateTriangleRayT();
                 bool front_face = query.CandidateTriangleFrontFace();
@@ -169,14 +169,14 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
         }
 
         // transmissive geometry: attenuate and pass through (no rng draw)
-        if(material.transmission > 0.0)
+        if(FEATURE_TRANSMISSION && material.transmission > 0.0)
         {
             // per-interface tint (thin transmission factor * base colour)
             transmittance *= material.transmission * material.color.rgb;
 
             // volume absorption for glass with an interior medium (zero extinction -> none)
             float3 sigma_t = material.media.sigma_s + material.media.sigma_a;
-            if(any(sigma_t > float3(0)))
+            if(FEATURE_MEDIA && any(sigma_t > float3(0)))
             {
                 float t = query.CandidateTriangleRayT();
                 bool front_face = query.CandidateTriangleFrontFace();
@@ -218,7 +218,10 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
 
     // a ray that never left its starting medium has no exit to pair with, so nothing above accounted for
     // it. one that did left an unpaired exit, which already carries the implicit entry at t = 0
-    if(!tracked_medium && exit_t == ray.tmax) { optical_depth += media_sigma_t * (ray.tmax - ray.tmin); }
+    if(FEATURE_MEDIA && !tracked_medium && exit_t == ray.tmax)
+    {
+        optical_depth += media_sigma_t * (ray.tmax - ray.tmin);
+    }
 
     // the starting medium, integrated through the same density-field its distance-sampling uses
     if(tracked_medium)
@@ -233,7 +236,7 @@ public float3 transmittance_test(Ray ray, RaytracingAccelerationStructure as, ui
     }
 
     // clamp to >= 0: an unpaired entry (a medium entered and never left) must not amplify
-    return transmittance * exp(-max(optical_depth, float3(0)));
+    return FEATURE_MEDIA ? transmittance * exp(-max(optical_depth, float3(0))) : transmittance;
 }
 
 }// namespace ray

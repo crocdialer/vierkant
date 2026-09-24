@@ -46,7 +46,7 @@ public bool media_segment(inout payload_t payload, float segment_end,
     // NEE/direct-lighting toward gathered lights[] (sun folded in as directional disc-light)
     bool has_lights = trace_data.params.num_lights > 0;
 
-    if(any(sigma_t > float3(0)))
+    if(FEATURE_MEDIA && any(sigma_t > float3(0)))
     {
         float t = 0;
         int channel = int(min(utils::rnd(rng_state) * 3, 2));
