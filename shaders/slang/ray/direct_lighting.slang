@@ -59,6 +59,118 @@ float3 cookie_factor(light_t l, float3 dir_to_light, Sampler2D textures[])
     return textures[NonUniformResourceIndex(l.texture_index)].SampleLevel(uv, 0).rgb;
 }
 
+//! spherical-rectangle frame for one shading point, the setup for uniform solid-angle sampling.
+//! mirrors vierkant::spherical_rect_setup() / sample_spherical_rect() in punctual_light.hpp
+public struct spherical_rect_t
+{
+    //! the shading point the rect is seen from
+    public float3 origin;
+
+    //! rect-local frame: x/y span the rect, z is its emitting normal
+    public float3 x, y, z;
+
+    //! rect-extents relative to 'origin', in that frame
+    public float x0, x1, y0, y1, z0;
+
+    //! edge-normal z-components and the azimuthal offset, carried from setup into sampling
+    public float b0, b1, k;
+
+    //! subtended solid angle. the sampling pdf is its reciprocal
+    public float solid_angle;
+
+    //! false when the point sees the rect's back, lies in its plane, or subtends too little to sample
+    public bool valid;
+};
+
+//! smallest subtended solid angle sampled in solid angle; below it, area-sampling takes over.
+//! the test is applied to the distance-based estimate, never to the computed angle - see below
+public static const float SPHERICAL_RECT_MIN_SOLID_ANGLE = 1.e-3;
+
+//! build the spherical-rectangle frame for a Rect light seen from 'P'
+public spherical_rect_t spherical_rect_setup(light_t l, float3 P)
+{
+    spherical_rect_t ret;
+    ret.valid = false;
+    ret.origin = P;
+    ret.x0 = ret.x1 = ret.y0 = ret.y1 = 0.0;
+    ret.b0 = ret.b1 = ret.k = ret.solid_angle = 0.0;
+
+    // 'direction' and 'tangent' come from one rotation, so the frame is orthonormal and z == cross(x, y)
+    ret.x = l.tangent;
+    ret.y = cross(l.direction, l.tangent);
+    ret.z = l.direction;
+
+    // corner-origin of the rect; size_x/size_y are half-extents
+    float3 d = l.position - l.size_x * ret.x - l.size_y * ret.y - P;
+    ret.z0 = dot(d, ret.z);
+
+    // the rect emits along 'direction' only: z0 >= 0 is its back side or its own plane
+    if(!(ret.z0 < 0.0)) { return ret; }
+
+    // decide on a distance-based estimate of the subtended angle, not on the computed one. the four
+    // edge-angles below cancel catastrophically for a distant rect and their sum floors at ~2.4e-7,
+    // so a threshold on the result can never fire. area/d^2 tracks the true angle to ~0.2% and is
+    // computed from raw dot-products, so it stays meaningful exactly where the other one stops
+    float3 to_center = l.position - P;
+    float approx_solid_angle = 4.0 * l.size_x * l.size_y / max(dot(to_center, to_center), 1.e-12);
+    if(approx_solid_angle < SPHERICAL_RECT_MIN_SOLID_ANGLE) { return ret; }
+
+    ret.x0 = dot(d, ret.x);
+    ret.y0 = dot(d, ret.y);
+    ret.x1 = ret.x0 + 2.0 * l.size_x;
+    ret.y1 = ret.y0 + 2.0 * l.size_y;
+
+    // inner angles of the spherical quad, from the four edge-plane normals
+    float3 v00 = float3(ret.x0, ret.y0, ret.z0);
+    float3 v01 = float3(ret.x0, ret.y1, ret.z0);
+    float3 v10 = float3(ret.x1, ret.y0, ret.z0);
+    float3 v11 = float3(ret.x1, ret.y1, ret.z0);
+
+    float3 n0 = normalize(cross(v00, v10));
+    float3 n1 = normalize(cross(v10, v11));
+    float3 n2 = normalize(cross(v11, v01));
+    float3 n3 = normalize(cross(v01, v00));
+
+    float g0 = acos(clamp(-dot(n0, n1), -1.0, 1.0));
+    float g1 = acos(clamp(-dot(n1, n2), -1.0, 1.0));
+    float g2 = acos(clamp(-dot(n2, n3), -1.0, 1.0));
+    float g3 = acos(clamp(-dot(n3, n0), -1.0, 1.0));
+
+    ret.b0 = n0.z;
+    ret.b1 = n2.z;
+    ret.k = 2.0 * utils::PI - g2 - g3;
+    ret.solid_angle = g0 + g1 - ret.k;
+    ret.valid = ret.solid_angle > 0.0;
+    return ret;
+}
+
+//! sample a point on the rect, uniform in solid angle as seen from 'sr.origin'. requires sr.valid
+public float3 sample_spherical_rect(spherical_rect_t sr, float2 Xi)
+{
+    // azimuthal angle -> the x-coordinate of the sampled direction
+    float au = Xi.x * sr.solid_angle + sr.k;
+    float sin_au = sin(au);
+
+    // the limit of a vanishing sine is |fu| -> inf, which drives cu to 0; clamping reaches it without a NaN
+    sin_au = abs(sin_au) < 1.e-10 ? (sin_au < 0.0 ? -1.e-10 : 1.e-10) : sin_au;
+    float fu = (cos(au) * sr.b0 - sr.b1) / sin_au;
+
+    float cu = (fu >= 0.0 ? 1.0 : -1.0) / sqrt(fu * fu + sr.b0 * sr.b0);
+    cu = clamp(cu, -1.0, 1.0);
+
+    float xu = -(cu * sr.z0) / max(sqrt(1.0 - cu * cu), 1.e-10);
+    xu = clamp(xu, sr.x0, sr.x1);
+
+    // marginal along y at xu
+    float d2 = xu * xu + sr.z0 * sr.z0;
+    float h0 = sr.y0 / sqrt(d2 + sr.y0 * sr.y0);
+    float h1 = sr.y1 / sqrt(d2 + sr.y1 * sr.y1);
+    float hv = h0 + Xi.y * (h1 - h0), hv2 = hv * hv;
+    float yv = hv2 < 1.0 - 1.e-6 ? hv * sqrt(d2 / (1.0 - hv2)) : sr.y1;
+
+    return sr.origin + xu * sr.x + yv * sr.y + sr.z0 * sr.z;
+}
+
 //! sample an incident direction and unshadowed radiance for one light
 public light_sample_t sample_light(light_t l, float3 P, float2 Xi, Sampler2D textures[])
 {
@@ -108,19 +220,47 @@ public light_sample_t sample_light(light_t l, float3 P, float2 Xi, Sampler2D tex
             ret.dist = b - sqrt(max(b * b - d2 + r2, 0.0));
         }
     }
-    else if(l.type == LightType::Rect || l.type == LightType::Disk || l.type == LightType::Tube)
+    else if(l.type == LightType::Rect)
+    {
+        // uniform in solid angle: the pdf is constant over the rect, which matches a near-flat
+        // integrand far better than an area-sample's d^2/cos. one-sided, emitting along l.direction
+        spherical_rect_t sr = spherical_rect_setup(l, P);
+
+        if(!(sr.z0 < 0.0))
+        {
+            // back side or the rect's own plane: no valid sample, black (nee_* skips the shadow ray)
+            ret.radiance = float3(0);
+            ret.direction = float3(0, 0, 1);
+            ret.dist = EPS;
+        }
+        else if(sr.valid)
+        {
+            float3 to_q = sample_spherical_rect(sr, Xi) - P;
+            ret.dist = max(length(to_q), EPS);
+            ret.direction = to_q / ret.dist;
+            ret.pdf = 1.0 / sr.solid_angle;
+        }
+        else
+        {
+            // subtends too little to sample in solid angle: uniform-area instead. light_pdf() branches
+            // on the same predicate, computed by the same setup, so the two cannot disagree
+            float3 to_q = l.position + (2.0 * Xi.x - 1.0) * l.size_x * sr.x +
+                          (2.0 * Xi.y - 1.0) * l.size_y * sr.y - P;
+            float d2 = dot(to_q, to_q);
+            ret.dist = max(sqrt(d2), EPS);
+            ret.direction = to_q / ret.dist;
+
+            float cos_light = dot(sr.z, -ret.direction);
+            ret.pdf = d2 / (4.0 * l.size_x * l.size_y * max(cos_light, EPS));
+            if(cos_light <= 0.0) { ret.radiance = float3(0); }
+        }
+    }
+    else if(l.type == LightType::Disk || l.type == LightType::Tube)
     {
         // uniform-area sample Q on the light surface with emit-normal n, area-pdf converted to solid-angle below.
-        // rect/disk are one-sided and emit along l.direction (glTF propagation convention)
+        // a disk is one-sided and emits along l.direction (glTF propagation convention)
         float3 Q, n;
-        if(l.type == LightType::Rect)
-        {
-            float3 bitangent = cross(l.direction, l.tangent);
-            Q = l.position + (2.0 * Xi.x - 1.0) * l.size_x * l.tangent + (2.0 * Xi.y - 1.0) * l.size_y * bitangent;
-            n = l.direction;
-            ret.pdf = 1.0 / (4.0 * l.size_x * l.size_y);
-        }
-        else if(l.type == LightType::Disk)
+        if(l.type == LightType::Disk)
         {
             // disks are rotation-symmetric: any fixed frame around the normal works
             Q = l.position + mul(float3(l.size_x * utils::sample_unit_disc(Xi), 0.0), utils::local_frame(l.direction));
@@ -285,15 +425,24 @@ public float light_pdf(light_t l, float3 P, float3 dir)
                                                                : (1.0 + cos_sigma) / (2.0 * utils::PI * sin2_sigma);
         }
         case LightType::Rect:
+        {
+            // mirrors sample_light(): constant over the subtended solid angle, with the same
+            // area-sampling fallback, taken on the same predicate from the same setup
+            light_hit_t hit = intersect_light(l, P, dir);
+            if(hit.t <= 0.0) { return 0.0; }
+
+            spherical_rect_t sr = spherical_rect_setup(l, P);
+            if(sr.valid) { return 1.0 / sr.solid_angle; }
+            return hit.t * hit.t / (4.0 * l.size_x * l.size_y * hit.cos_light);
+        }
         case LightType::Disk:
         case LightType::Tube:
         {
             // uniform-area strategies: convert the area-pdf at the front-facing hit
             light_hit_t hit = intersect_light(l, P, dir);
             if(hit.t <= 0.0) { return 0.0; }
-            float area = l.type == LightType::Rect   ? 4.0 * l.size_x * l.size_y
-                         : l.type == LightType::Disk ? utils::PI * l.size_x * l.size_x
-                                                     : 4.0 * utils::PI * l.size_x * l.size_y;
+            float area = l.type == LightType::Disk ? utils::PI * l.size_x * l.size_x
+                                                   : 4.0 * utils::PI * l.size_x * l.size_y;
             return hit.t * hit.t / (area * hit.cos_light);
         }
         default: return 0.0;// punctual delta lights: never bsdf-reachable
