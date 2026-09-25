@@ -872,8 +872,6 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
     {
         spdlog::debug("material-features: {:#x}", material_features);
         m_material_features = material_features;
-        m_batch_index = 0;
-        m_prev_projection_view = {};
     }
 
     // projector-cookies are appended behind the material-textures the ray-builder collected,
