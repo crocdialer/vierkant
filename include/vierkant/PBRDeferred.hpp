@@ -230,21 +230,6 @@ private:
         MAX_VALUE
     };
 
-    struct alignas(16) camera_params_t
-    {
-        glm::mat4 view = glm::mat4(1);
-        glm::mat4 projection = glm::mat4(1);
-
-        glm::vec2 sample_offset;
-        float near;
-        float far;
-
-        // left/right/top/bottom frustum planes
-        glm::vec4 frustum;
-
-        VkBool32 ortho = false;
-    };
-
     struct alignas(16) depth_of_field_params_t
     {
         float focal_distance;
@@ -275,7 +260,7 @@ private:
         uint64_t current_semaphore_value = 0;
         SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
         Rasterizer::indirect_draw_bundle_t indirect_draw_params_main = {}, indirect_draw_params_post = {};
-        camera_params_t camera_params;
+        Rasterizer::camera_t camera_params;
 
         vierkant::Semaphore timeline;
         vierkant::Framebuffer g_buffer_main, g_buffer_post;
@@ -298,7 +283,7 @@ private:
 
         vierkant::mesh_compute_context_handle mesh_compute_context;
         vierkant::mesh_compute_result_t mesh_compute_result;
-        vierkant::BufferPtr g_buffer_camera_ubo;
+        vierkant::BufferPtr taa_camera_ubo;
 
         // lighting
         vierkant::BufferPtr lighting_param_ubo;

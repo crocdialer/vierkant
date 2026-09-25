@@ -63,11 +63,28 @@ public:
 
     static_assert(sizeof(mesh_buffers_t) == 32, "unexpected mesh_buffers_t size");
 
-    //! frame-global buffers, provided as device-addresses in a single UBO (set 0, binding 0)
+    //! camera-parameters, must match utils::camera_t
+    struct alignas(16) camera_t
+    {
+        glm::mat4 view = glm::mat4(1);
+        glm::mat4 projection = glm::mat4(1);
+
+        glm::vec2 sample_offset;
+        float near;
+        float far;
+
+        // left/right/top/bottom frustum planes
+        glm::vec4 frustum;
+
+        VkBool32 ortho = false;
+    };
+    static_assert(sizeof(camera_t) == 176, "unexpected camera_t size");
+
+    //! frame-global data in a single UBO (set 0, binding 0): cameras and buffer device-addresses
     struct render_data_t
     {
-        //! address of a pair of camera_params_t: current and previous frame
-        VkDeviceAddress cameras = 0;
+        //! current and previous frame
+        std::array<camera_t, 2> cameras = {};
 
         VkDeviceAddress mesh_draws = 0;
         VkDeviceAddress materials = 0;
@@ -75,7 +92,7 @@ public:
         VkDeviceAddress draw_commands = 0;
         VkDeviceAddress meshlet_visibilities = 0;
     };
-    static_assert(sizeof(render_data_t) == 48, "unexpected render_data_t size");
+    static_assert(sizeof(render_data_t) == 400, "unexpected render_data_t size");
 
     struct mesh_entry_t
     {
@@ -222,8 +239,8 @@ public:
     //! optional cull-delegate
     indirect_draw_delegate_t draw_indirect_delegate;
 
-    //! address of a pair of camera-params (current/previous). provided by the caller, per frame.
-    VkDeviceAddress camera_buffer_address = 0;
+    //! current and previous camera, provided by the caller, per frame.
+    std::array<camera_t, 2> cameras = {};
 
     Rasterizer() = default;
 

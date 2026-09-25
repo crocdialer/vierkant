@@ -28,13 +28,13 @@ renderer::g_buffer_vertex_data_t vertex_main(uint vertex_id: SV_VertexID, uint b
     renderer::g_buffer_vertex_data_t vertex_out;
     float3 world_pos = utils::apply_transform(m.transform, v.position);
     vertex_out.current_position =
-            mul(render_data.cameras->camera.projection, mul(render_data.cameras->camera.view, float4(world_pos, 1.0)));
+            mul(render_data.cameras.camera.projection, mul(render_data.cameras.camera.view, float4(world_pos, 1.0)));
     float3 last_world_pos = utils::apply_transform(m_last.transform, v.position);
     vertex_out.last_position =
-            mul(render_data.cameras->last_camera.projection, mul(render_data.cameras->last_camera.view, float4(last_world_pos, 1.0)));
+            mul(render_data.cameras.last_camera.projection, mul(render_data.cameras.last_camera.view, float4(last_world_pos, 1.0)));
 
     float4 jittered_position = vertex_out.current_position;
-    jittered_position.xy += 2.0 * render_data.cameras->camera.sample_offset * jittered_position.w;
+    jittered_position.xy += 2.0 * render_data.cameras.camera.sample_offset * jittered_position.w;
     sv_position = jittered_position;
 
     vertex_out.tex_coord = mul(m.texture, float4(v.tex_coord, 0, 1)).xy;

@@ -77,14 +77,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         resize_storage(frame_context, create_info.settings.resolution, create_info.settings.output_resolution);
 
-        // must match renderer::camera_data_t, which the g-buffer shaders read via device-address
-        static_assert(sizeof(camera_params_t) == 176, "unexpected camera_params_t size");
-
-        // sized for the current/previous pair up front, so the device-address never moves
-        frame_context.g_buffer_camera_ubo =
-                vierkant::Buffer::create(m_device, nullptr, 2 * sizeof(camera_params_t),
-                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
+        frame_context.taa_camera_ubo =
+                vierkant::Buffer::create(m_device, nullptr, 2 * sizeof(Rasterizer::camera_t),
+                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         frame_context.lighting_param_ubo =
                 vierkant::Buffer::create(device, nullptr, sizeof(environment_lighting_ubo_t),
@@ -654,8 +649,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frustumY /= glm::length(frustumY.xyz());
         frame_context.camera_params.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
     }
-    camera_params_t cameras[2] = {frame_context.camera_params, last_frame_context.camera_params};
-    frame_context.g_buffer_camera_ubo->set_data(&cameras, sizeof(cameras));
+    const std::array<Rasterizer::camera_t, 2> cameras = {frame_context.camera_params, last_frame_context.camera_params};
+    frame_context.taa_camera_ubo->set_data(cameras.data(), sizeof(cameras));
 
     // decide on indirect rendering-path
     bool use_gpu_culling = frame_context.settings.indirect_draw &&
@@ -737,8 +732,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_main.disable_material = m_g_renderer_post.disable_material = frame_context.settings.disable_material;
     m_g_renderer_main.debug_draw_flags = m_g_renderer_post.debug_draw_flags = frame_context.settings.debug_draw_flags;
     m_g_renderer_main.indirect_draw = m_g_renderer_post.indirect_draw = frame_context.settings.indirect_draw;
-    m_g_renderer_main.camera_buffer_address = m_g_renderer_post.camera_buffer_address =
-            frame_context.g_buffer_camera_ubo->device_address();
+    m_g_renderer_main.cameras = m_g_renderer_post.cameras = cameras;
     m_g_renderer_main.use_mesh_shader = m_g_renderer_post.use_mesh_shader = frame_context.settings.use_meshlet_pipeline;
 
     // draw last visible objects
@@ -1193,7 +1187,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const Object3DPtr &cam, const vierk
         drawable.descriptors[0].images = {output_img, depth,
                                           frame_context.g_buffer_post.color_attachment(G_BUFFER_MOTION), history_color,
                                           history_depth};
-        drawable.descriptors[1].buffers = {frame_context.g_buffer_camera_ubo};
+        drawable.descriptors[1].buffers = {frame_context.taa_camera_ubo};
         output_img = pingpong_render(drawable, SemaphoreValue::TAA, frame_context.taa_buffer);
     }
 

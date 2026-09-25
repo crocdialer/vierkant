@@ -150,7 +150,7 @@ void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept
     std::swap(lhs.m_current_index, rhs.m_current_index);
     std::swap(lhs.m_push_constant_range, rhs.m_push_constant_range);
     std::swap(lhs.m_start_time, rhs.m_start_time);
-    std::swap(lhs.camera_buffer_address, rhs.camera_buffer_address);
+    std::swap(lhs.cameras, rhs.cameras);
 
     std::swap(lhs.use_mesh_shader, rhs.use_mesh_shader);
     std::swap(lhs.use_gpu_timestamps, rhs.use_gpu_timestamps);
@@ -185,6 +185,9 @@ VkCommandBuffer Rasterizer::render(const vierkant::Framebuffer &framebuffer, boo
     // re-use prior assets and command-buffer, run delegate for buffer-updates
     if(recycle_commands && frame_assets.command_buffer)
     {
+        // cameras can change on recycled frames, they sit at offset 0
+        if(frame_assets.render_data_ubo) { frame_assets.render_data_ubo->set_data(cameras.data(), sizeof(cameras)); }
+
         // invoke delegate
         if(indirect_draw && draw_indirect_delegate) { draw_indirect_delegate(frame_assets.indirect_indexed_bundle); }
         return frame_assets.command_buffer.handle();
@@ -242,6 +245,9 @@ void Rasterizer::render(const rendering_info_t &rendering_info)
     // re-use prior assets and command-buffer, run delegate for buffer-updates
     if(rendering_info.recycle_commands && rendering_info.command_buffer)
     {
+        // cameras can change on recycled frames, they sit at offset 0
+        if(frame_assets.render_data_ubo) { frame_assets.render_data_ubo->set_data(cameras.data(), sizeof(cameras)); }
+
         // invoke delegate
         if(indirect_draw && draw_indirect_delegate) { draw_indirect_delegate(frame_assets.indirect_indexed_bundle); }
         return;
@@ -495,7 +501,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         render_data.draw_commands = draw_buffer_indexed ? draw_buffer_indexed->device_address() : 0;
         render_data.meshlet_visibilities =
                 bundle.meshlet_visibilities ? bundle.meshlet_visibilities->device_address() : 0;
-        render_data.cameras = camera_buffer_address;
+        render_data.cameras = cameras;
 
         if(!frame_assets.render_data_ubo)
         {
