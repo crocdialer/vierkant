@@ -256,10 +256,10 @@ public struct camera_data_t
     public utils::camera_t last_camera;
 };
 
-// frame-global buffers, provided as device-addresses in a single UBO (set 0, binding 0)
+// frame-global data in a single UBO (set 0, binding 0): cameras and buffer device-addresses
 public struct render_data_t
 {
-    public Ptr<camera_data_t, Access.Read> cameras;
+    public camera_data_t cameras;
     public Ptr<mesh_draw_t, Access.Read> mesh_draws;
     public Ptr<material_t, Access.Read> materials;
     public Ptr<mesh_buffers_t, Access.Read> mesh_buffers;

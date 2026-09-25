@@ -80,7 +80,7 @@ void task_main(uint3 dispatchThreadID: SV_DispatchThreadID, uint ti: SV_GroupThr
         {
             renderer::mesh_draw_t draw = render_data.mesh_draws[draw_command.object_index];
             renderer::mesh_buffers_t mesh_buffers = render_data.mesh_buffers[draw.mesh_buffer_index];
-            float4x4 m = mul(render_data.cameras->camera.view, utils::mat4_cast(draw.current_matrices.transform));
+            float4x4 m = mul(render_data.cameras.camera.view, utils::mat4_cast(draw.current_matrices.transform));
 
             float3 cone_axis_raw = float3(mesh_buffers.meshlets[mi].cone_axis[0], mesh_buffers.meshlets[mi].cone_axis[1],
                                           mesh_buffers.meshlets[mi].cone_axis[2]) /
@@ -95,19 +95,19 @@ void task_main(uint3 dispatchThreadID: SV_DispatchThreadID, uint ti: SV_GroupThr
             visible = render_data.materials[draw.material_index].two_sided ||
                       !cone_cull(center, radius, cone_axis_raw, cone_cutoff, float3(0));
 
-            bool inside_frustum = render_data.cameras->camera.ortho
-                                          ? !utils::frustum_cull_ortho(center, radius, render_data.cameras->camera.frustum)
-                                          : !utils::frustum_cull(center, radius, render_data.cameras->camera.frustum);
+            bool inside_frustum = render_data.cameras.camera.ortho
+                                          ? !utils::frustum_cull_ortho(center, radius, render_data.cameras.camera.frustum)
+                                          : !utils::frustum_cull(center, radius, render_data.cameras.camera.frustum);
             visible = visible && inside_frustum;
 
             float4 aabb;
             bool sphere_visible =
-                    !render_data.cameras->camera.ortho &&
-                    utils::project_sphere(center, radius, render_data.cameras->camera.near, render_data.cameras->camera.projection[0][0],
-                                          render_data.cameras->camera.projection[1][1], aabb);
-            if(render_data.cameras->camera.ortho)
-                sphere_visible = utils::project_sphere_ortho(center, radius, render_data.cameras->camera.near,
-                                                             render_data.cameras->camera.frustum, aabb);
+                    !render_data.cameras.camera.ortho &&
+                    utils::project_sphere(center, radius, render_data.cameras.camera.near, render_data.cameras.camera.projection[0][0],
+                                          render_data.cameras.camera.projection[1][1], aabb);
+            if(render_data.cameras.camera.ortho)
+                sphere_visible = utils::project_sphere_ortho(center, radius, render_data.cameras.camera.near,
+                                                             render_data.cameras.camera.frustum, aabb);
 
             uint pw, ph;
             u_depth_pyramid.GetDimensions(pw, ph);
@@ -127,9 +127,9 @@ void task_main(uint3 dispatchThreadID: SV_DispatchThreadID, uint ti: SV_GroupThr
                 float level = floor(log2(max(width, height)));
 
                 float depth = u_depth_pyramid.SampleLevel((aabb.xy + aabb.zw) * 0.5, level).x;
-                depth = render_data.cameras->camera.ortho
-                                ? lerp(render_data.cameras->camera.far, render_data.cameras->camera.near, depth)
-                                : clamp(render_data.cameras->camera.near / depth, render_data.cameras->camera.near, render_data.cameras->camera.far);
+                depth = render_data.cameras.camera.ortho
+                                ? lerp(render_data.cameras.camera.far, render_data.cameras.camera.near, depth)
+                                : clamp(render_data.cameras.camera.near / depth, render_data.cameras.camera.near, render_data.cameras.camera.far);
                 visible = (-center.z - radius) <= depth;
             }
 
