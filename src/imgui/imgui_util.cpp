@@ -115,7 +115,16 @@ bool draw_id_combo(const char *label, Id &id, const std::unordered_map<Id, T> &a
     return changed;
 }
 
+//! set dirty-flags on an object, adding a flag_component_t if needed
+void mark_dirty(const vierkant::Object3DPtr &object, uint32_t flags)
+{
+    if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>()) { flag_cmp_ptr->flags |= flags; }
+    else { object->add_component<flag_component_t>().flags |= flags; }
+}
+
 void draw_object_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &object);
+
+void draw_selection_ui(const vierkant::ScenePtr &scene, const std::set<vierkant::Object3DPtr> &selection);
 
 void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &object,
                   vierkant::mesh_component_t &mesh_component);
@@ -803,7 +812,8 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
         ImGui::Separator();
         if(selection)
         {
-            for(auto &obj: *selection) { draw_object_ui(scene, obj); }
+            if(selection->size() == 1) { draw_object_ui(scene, *selection->begin()); }
+            else if(selection->size() > 1) { draw_selection_ui(scene, *selection); }
         }
 
         ImGui::EndTabItem();
@@ -1373,15 +1383,7 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
                 }
                 if(mesh_component.entry_indices->size() == mesh->entries.size()) { mesh_component.entry_indices = {}; }
 
-                if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>())
-                {
-                    flag_cmp_ptr->flags |= flag_component_t::DIRTY_MESH;
-                }
-                else
-                {
-                    auto &flag_cmp = object->add_component<flag_component_t>();
-                    flag_cmp.flags |= flag_component_t::DIRTY_MESH;
-                }
+                mark_dirty(object, flag_component_t::DIRTY_MESH);
             }
             ImGui::SameLine();
 
@@ -1414,8 +1416,11 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
                         // set new material-id as override
                         material_id = new_mat_id;
 
-                        // avoid overflow
-                        mesh_component.material_ids->resize(e.material_index + 1);
+                        // avoid overflow, only ever grow (shrinking drops the other slots)
+                        if(e.material_index >= mesh_component.material_ids->size())
+                        {
+                            mesh_component.material_ids->resize(e.material_index + 1);
+                        }
                         mesh_component.material_ids.value()[e.material_index] = new_mat_id;
                         material_changed = true;
                     }
@@ -1473,18 +1478,7 @@ void draw_mesh_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &
         ImGui::TreePop();
     }
 
-    if(material_changed)
-    {
-        if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>())
-        {
-            flag_cmp_ptr->flags |= flag_component_t::DIRTY_MATERIAL;
-        }
-        else
-        {
-            auto &flag_cmp = object->add_component<vierkant::flag_component_t>();
-            flag_cmp.flags |= flag_component_t::DIRTY_MATERIAL;
-        }
-    }
+    if(material_changed) { mark_dirty(object, flag_component_t::DIRTY_MATERIAL); }
 
     // animation
     if(!mesh->node_animations.empty() && ImGui::TreeNode("animation") && object->has_component<animation_component_t>())
@@ -1573,6 +1567,69 @@ bool draw_transform(vierkant::transform_t &t, const std::string &label = "transf
     return changed;
 }
 
+//! mesh-objects in the subtrees of 'objects', skipping editor-layer objects and sub-scenes
+std::set<vierkant::Object3DPtr> collect_mesh_objects(const std::set<vierkant::Object3DPtr> &objects)
+{
+    std::set<vierkant::Object3DPtr> ret;
+    vierkant::LambdaVisitor visitor;
+
+    for(const auto &object: objects)
+    {
+        visitor.traverse(*object, [&ret](vierkant::Object3D &obj) -> bool {
+            if(obj.layers & vierkant::LAYER_EDITOR) { return false; }
+
+            auto *subscene_cmp = obj.get_component_ptr<vierkant::subscene_component_t>();
+            if(subscene_cmp && subscene_cmp->scene_id) { return false; }
+
+            auto *mesh_cmp = obj.get_component_ptr<vierkant::mesh_component_t>();
+            if(mesh_cmp && mesh_cmp->mesh) { ret.insert(obj.shared_from_this()); }
+            return true;
+        });
+    }
+    return ret;
+}
+
+//! assign one material to all slots of all provided mesh-objects
+void draw_material_assign_ui(const vierkant::ScenePtr &scene, const std::set<vierkant::Object3DPtr> &mesh_objects)
+{
+    ImGui::Text("%zu mesh objects", mesh_objects.size());
+
+    // preview a material shared by all slots of all meshes, nil otherwise
+    std::optional<vierkant::MaterialId> common_id;
+    for(const auto &object: mesh_objects)
+    {
+        const auto &mesh_cmp = object->get_component<vierkant::mesh_component_t>();
+        for(const auto &id: mesh_cmp.material_ids ? *mesh_cmp.material_ids : mesh_cmp.mesh->material_ids)
+        {
+            if(!common_id) { common_id = id; }
+            else if(*common_id != id) { common_id = vierkant::MaterialId::nil(); }
+        }
+    }
+    auto picked_id = common_id.value_or(vierkant::MaterialId::nil());
+
+    ImGui::BeginDisabled(mesh_objects.empty());
+    if(draw_id_combo("material", picked_id, scene->asset_provider()->materials()))
+    {
+        for(const auto &object: mesh_objects)
+        {
+            auto &mesh_cmp = object->get_component<vierkant::mesh_component_t>();
+            mesh_cmp.material_ids = std::vector<vierkant::MaterialId>(mesh_cmp.mesh->material_ids.size(), picked_id);
+            mark_dirty(object, flag_component_t::DIRTY_MATERIAL);
+        }
+    }
+    ImGui::EndDisabled();
+}
+
+void draw_selection_ui(const vierkant::ScenePtr &scene, const std::set<vierkant::Object3DPtr> &selection)
+{
+    constexpr char window_name[] = "selection";
+    scoped_child_window_t child_window(window_name);
+
+    ImGui::Text("%zu objects selected", selection.size());
+    ImGui::Separator();
+    draw_material_assign_ui(scene, collect_mesh_objects(selection));
+}
+
 void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
 {
     constexpr char window_name[] = "object";
@@ -1589,6 +1646,19 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
     }
     ImGui::BulletText("id: %d", object->id());
     ImGui::Separator();
+
+    // groups: act on mesh-objects in the subtree
+    if(!object->children.empty())
+    {
+        auto mesh_objects = collect_mesh_objects({object});
+        bool has_mesh_children = mesh_objects.size() > mesh_objects.count(object);
+
+        if(has_mesh_children && ImGui::TreeNode("children"))
+        {
+            draw_material_assign_ui(scene, mesh_objects);
+            ImGui::TreePop();
+        }
+    }
 
     // bounds
     if(ImGui::TreeNode("bounds (m)"))
@@ -1675,18 +1745,7 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
         }
     }
 
-    if(light_changed)
-    {
-        if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>())
-        {
-            flag_cmp_ptr->flags |= flag_component_t::DIRTY_LIGHT;
-        }
-        else
-        {
-            auto &flag_cmp = object->add_component<vierkant::flag_component_t>();
-            flag_cmp.flags |= flag_component_t::DIRTY_LIGHT;
-        }
-    }
+    if(light_changed) { mark_dirty(object, flag_component_t::DIRTY_LIGHT); }
 
     bool has_physics = object->has_component<vierkant::physics_component_t>();
     if(ImGui::Checkbox("physics", &has_physics))
