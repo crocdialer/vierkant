@@ -446,13 +446,8 @@ public struct payload_t
     //! solid-angle pdf of the bsdf/phase sample that spawned this ray; <= 0: no MIS competitor (camera ray, NEE off)
     public float prev_bsdf_pdf;
 
-    //! media sigma_s / sigma_a / emission, rgb9e5
-    public uint packed_sigma_s;
-    public uint packed_sigma_a;
-    public uint packed_emission;
-
-    //! media entry_index[15:0] | ior[24:16] | phase_g magnitude[30:25] | phase_g sign[31]
-    public uint packed_media_ior_phase_entry;
+    //! current media, packed
+    public packed_media_t packed_media;
 
     //! object/entity
     public property uint entity_index
@@ -535,27 +530,6 @@ public struct payload_t
     {
         get { return f16tof32(packed_ior_lambda >> 16); }
         set { packed_ior_lambda = (packed_ior_lambda & 0xFFFFu) | (f32tof16(newValue) << 16); }
-    }
-
-    //! media in storage-form, moved without a decode/encode roundtrip
-    public property packed_media_t packed_media
-    {
-        get
-        {
-            packed_media_t p;
-            p.sigma_s = packed_sigma_s;
-            p.sigma_a = packed_sigma_a;
-            p.emission = packed_emission;
-            p.ior_phase_entry = packed_media_ior_phase_entry;
-            return p;
-        }
-        set
-        {
-            packed_sigma_s = newValue.sigma_s;
-            packed_sigma_a = newValue.sigma_a;
-            packed_emission = newValue.emission;
-            packed_media_ior_phase_entry = newValue.ior_phase_entry;
-        }
     }
 
     public property media_t media
