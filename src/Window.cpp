@@ -179,7 +179,7 @@ void Window::init_handles(int width, int height, const std::string &title, GLFWm
     glfwSetWindowCloseCallback(m_handle, &Window::glfw_close_cb);
     glfwSetMouseButtonCallback(m_handle, &Window::glfw_mouse_button_cb);
     glfwSetCursorPosCallback(m_handle, &Window::glfw_mouse_move_cb);
-    glfwSetScrollCallback(m_handle, &Window::glfw_mouse_wheel_cb);
+    glfwSetScrollSourceCallback(m_handle, &Window::glfw_mouse_wheel_cb);
     glfwSetKeyCallback(m_handle, &Window::glfw_key_cb);
     glfwSetCharCallback(m_handle, &Window::glfw_char_cb);
     glfwSetDropCallback(m_handle, &Window::glfw_file_drop_cb);
@@ -559,7 +559,7 @@ void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, in
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y)
+void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y, int source)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -573,8 +573,14 @@ void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double off
             glfwGetCursorPos(window, &posX, &posY);
             uint32_t button_mods, key_mods = 0;
             get_modifiers(window, button_mods, key_mods);
-            auto offset_abs = glm::abs(offset);
-            bool is_trackpad = offset_abs != glm::vec2(0.f, 1.f) && offset_abs != glm::vec2(1.f, 0.f);
+            bool is_trackpad = source == GLFW_SCROLL_SOURCE_TRACKPAD;
+
+            // platform did not report the source, guess from fractional offsets
+            if(source == GLFW_SCROLL_SOURCE_UNKNOWN)
+            {
+                auto offset_abs = glm::abs(offset);
+                is_trackpad = offset_abs != glm::vec2(0.f, 1.f) && offset_abs != glm::vec2(1.f, 0.f);
+            }
             uint32_t all_mods = button_mods | key_mods | (is_trackpad ? MouseEvent::TRACKPAD : 0);
             MouseEvent e(all_mods, static_cast<int>(posX), static_cast<int>(posY), key_mods, offset);
 

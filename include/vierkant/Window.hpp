@@ -298,7 +298,7 @@ private:
 
     static void glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int modifier_mask);
 
-    static void glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y);
+    static void glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y, int source);
 
     static void glfw_key_cb(GLFWwindow *window, int key, int scancode, int action, int modifier_mask);
 
