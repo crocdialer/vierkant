@@ -1,6 +1,7 @@
 [submodule "extern/glfw"]
 	path = extern/glfw
-	url = https://github.com/glfw/glfw.git
+	url = https://github.com/crocdialer/glfw.git
+	branch = fabian_detect_trackpad_input
 	shallow = true
 [submodule "extern/glm"]
 	path = extern/glm
