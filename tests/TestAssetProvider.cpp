@@ -118,3 +118,34 @@ TEST(TestAssetProvider, populate_sampler_override)
     framebuffer.submit({cmd_buffer}, test_context.device->queue(), render_result.semaphore_infos);
     framebuffer.wait_fence();
 }
+
+// prune keeps the {tex, nil} base of a live sampled texture; a hand-assigned texture-id resolves to it
+TEST(TestAssetProvider, prune_keeps_base_texture)
+{
+    vulkan_test_context_t test_context;
+
+    const auto tex_id = vierkant::TextureId::random();
+    const auto sampler_id = vierkant::SamplerId::random();
+    auto assets = create_test_assets(tex_id, sampler_id, vierkant::MaterialId::random());
+
+    vierkant::model::load_mesh_params_t load_params = {};
+    load_params.device = test_context.device;
+    load_params.load_queue = test_context.device->queue();
+    auto result = vierkant::model::load_mesh(load_params, assets);
+    ASSERT_TRUE(result.mesh);
+
+    auto provider = vierkant::AssetProvider::create();
+    provider->populate(result);
+
+    // an unreferenced texture is still pruned
+    const vierkant::texture_key_t unused_key = {vierkant::TextureId::random(), vierkant::SamplerId::nil()};
+    provider->add_texture(unused_key, provider->texture({tex_id, vierkant::SamplerId::nil()}));
+
+    auto scene = vierkant::Scene::create({}, provider);
+    scene->add_object(scene->create_mesh_object({result.mesh}));
+    scene->prune_assets();
+
+    EXPECT_TRUE(provider->texture({tex_id, sampler_id}));
+    EXPECT_TRUE(provider->texture({tex_id, vierkant::SamplerId::nil()}));
+    EXPECT_FALSE(provider->texture(unused_key));
+}

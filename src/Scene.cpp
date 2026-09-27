@@ -240,6 +240,12 @@ void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_l
         return true;
     });
 
+    // keep the {texture_id, nil} base of each sampled permutation, a hand-assigned texture resolves to it
+    for(const auto &key: std::vector(live.textures.begin(), live.textures.end()))
+    {
+        if(key.sampler_id) { live.textures.insert({key.texture_id, vierkant::SamplerId::nil()}); }
+    }
+
     m_asset_provider->prune(live);
 }
 
