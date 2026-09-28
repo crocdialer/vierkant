@@ -81,9 +81,6 @@ public:
         //! starved of samples. 1 is plain uniform picking
         float light_selection_uniform_mix = 0.5f;
 
-        //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
-        bool suppress_refractive_caustics = false;
-
         //! debug: keep every material-feature compiled in, whatever the scene uses
         bool force_all_material_features = false;
 
@@ -309,9 +306,6 @@ private:
         //! debug: force a single direct-light estimator (0: MIS, 1: NEE-only, 2: BSDF-only)
         uint32_t mis_mode = 0;
 
-        //! drop hit-side light adds on refractive-caustic paths ("no refractive caustics")
-        uint32_t suppress_refractive_caustics = 0;
-
         //! maximum tolerable smear, as a fraction of image-height. 0 -> no per-pixel drift-limit
         float max_accumulation_drift = 0.f;
 
@@ -368,7 +362,7 @@ private:
 
     //! offset of the last member, pinned so an insertion above cannot silently shift the layout
     //! away from ray::trace_data_t in ray_common.slang (checked against spirv-dis)
-    static_assert(offsetof(trace_data_t, out_pixels) == 592,
+    static_assert(offsetof(trace_data_t, out_pixels) == 576,
                   "trace_data_t layout must match shader-side (ray_common.slang)");
 
     struct alignas(16) composition_ubo_t

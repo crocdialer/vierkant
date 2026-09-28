@@ -693,7 +693,6 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.trace_params.nee_beta_scale = frame_context.settings.nee_beta_scale;
     trace_data.trace_params.disable_material = frame_context.settings.disable_material;
     trace_data.trace_params.mis_mode = frame_context.settings.mis_mode;
-    trace_data.trace_params.suppress_refractive_caustics = frame_context.settings.suppress_refractive_caustics;
     trace_data.trace_params.max_accumulation_drift = frame_context.settings.max_accumulation_drift;
     trace_data.trace_params.draw_skybox = frame_context.settings.draw_skybox;
     trace_data.trace_params.environment = scene->environment_factor;

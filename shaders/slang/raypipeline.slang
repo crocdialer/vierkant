@@ -559,12 +559,7 @@ void closest_hit(inout ray::payload_t payload, BuiltInTriangleIntersectionAttrib
 
         // solid-angle pdf of this bounce for MIS at the next vertex (<= 0: no NEE competitor here)
         payload.prev_bsdf_pdf = has_lights ? bsdf_sample.pdf / roulette.reachable_prob : 0.0;
-        bool specular = bsdf_sample.pdf < ray::REGULARIZE_PDF_THRESHOLD;
-        payload.regularize = payload.regularize || specular;
-
-        // refractive-caustic marker: only specular vertices carry it; any non-specular (NEE-effective)
-        // bounce clears it, a specular transmission event sets it
-        payload.caustic_path = specular && (payload.caustic_path || bsdf_sample.transmission);
+        payload.regularize = payload.regularize || bsdf_sample.pdf < ray::REGULARIZE_PDF_THRESHOLD;
 
         float cos_theta = abs(dot(shading_normal, bsdf_sample.direction));
 
@@ -658,16 +653,12 @@ void hit_light_body(inout ray::payload_t payload, light_attributes_t attributes)
     {
         payload.ray.origin = payload.position;
 
-        // drop the light-body hit-add on refractive-caustic paths (see miss shaders)
-        if(!(trace_data.params.suppress_refractive_caustics && payload.caustic_path))
-        {
-            float p_nee = ray::light_pdf(light, WorldRayOrigin(), WorldRayDirection()) *
-                          ray::light_pick_pdf(trace_data, light_index);
-            float w = ray::mis_weight_hit(trace_data.params.mis_mode, payload.prev_bsdf_pdf, p_nee);
+        float p_nee = ray::light_pdf(light, WorldRayOrigin(), WorldRayDirection()) *
+                      ray::light_pick_pdf(trace_data, light_index);
+        float w = ray::mis_weight_hit(trace_data.params.mis_mode, payload.prev_bsdf_pdf, p_nee);
 
-            // payload.beta already carries the medium's transmittance
-            payload.radiance += payload.beta * w * light.color * light.intensity;
-        }
+        // payload.beta already carries the medium's transmittance
+        payload.radiance += payload.beta * w * light.color * light.intensity;
 
         // a light-body has no bsdf to continue with, so the path ends here
         payload.stop = true;
@@ -744,12 +735,7 @@ void miss_default(inout ray::payload_t payload)
 
     float3 col = utils::environment_white(payload.ray.direction);
     payload.radiance += trace_data.params.environment * payload.beta * col;
-
-    // drop the sun/light hit-add on refractive-caustic paths (S1 straight-line NEE carries that energy instead)
-    if(!(trace_data.params.suppress_refractive_caustics && payload.caustic_path))
-    {
-        payload.radiance += payload.beta * eval_distant_lights(payload.ray.direction, payload.prev_bsdf_pdf);
-    }
+    payload.radiance += payload.beta * eval_distant_lights(payload.ray.direction, payload.prev_bsdf_pdf);
 }
 
 [shader("miss")]
@@ -764,10 +750,5 @@ void miss_environment(inout ray::payload_t payload)
 
     payload.radiance +=
             trace_data.params.environment * payload.beta * u_sampler_cube.SampleLevel(WorldRayDirection(), lod).rgb;
-
-    // drop the sun/light hit-add on refractive-caustic paths (S1 straight-line NEE carries that energy instead)
-    if(!(trace_data.params.suppress_refractive_caustics && payload.caustic_path))
-    {
-        payload.radiance += payload.beta * eval_distant_lights(payload.ray.direction, payload.prev_bsdf_pdf);
-    }
+    payload.radiance += payload.beta * eval_distant_lights(payload.ray.direction, payload.prev_bsdf_pdf);
 }

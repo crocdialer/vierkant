@@ -550,7 +550,6 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     }
     // 0: light-selection fully weighted by estimated power, 1: uniform picking
     ImGui::SliderFloat("uniform light-mix", &path_tracer->settings.light_selection_uniform_mix, 0.f, 1.f);
-    ImGui::Checkbox("no refractive caustics", &path_tracer->settings.suppress_refractive_caustics);
     ImGui::Checkbox("denoiser", &path_tracer->settings.denoising);
     ImGui::Checkbox("tonemap", &path_tracer->settings.tonemap);
     ImGui::Checkbox("bloom", &path_tracer->settings.bloom);
