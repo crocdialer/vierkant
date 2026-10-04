@@ -38,12 +38,6 @@ public:
         //! request an HDR swapchain-format and colorspace
         bool use_hdr = false;
 
-        //! peak display-luminance in cd/m², used for HDR output
-        float peak_nits = 1000.f;
-
-        //! luminance of SDR reference-white in cd/m², used for HDR output
-        float paper_white_nits = 203.f;
-
         //! optional framebuffer_size, overriding the size queried from VkSurfaceKHR,
         //! NOTE: should not be required and mainly used to workaround a buggy display-stack
         std::optional<VkExtent2D> framebuffer_size;
@@ -132,16 +126,6 @@ public:
     [[nodiscard]] bool hdr_supported() const { return m_hdr_supported; }
 
     /**
-     * @return  peak display-luminance in cd/m², used for HDR output
-     */
-    [[nodiscard]] float peak_nits() const { return m_peak_nits; }
-
-    /**
-     * @return  luminance of SDR reference-white in cd/m², used for HDR output
-     */
-    [[nodiscard]] float paper_white_nits() const { return m_paper_white_nits; }
-
-    /**
      * @return  the current image index inside the SwapChain
      */
     [[nodiscard]] uint32_t image_index() const { return m_swapchain_image_index; }
@@ -173,10 +157,6 @@ private:
     bool m_use_v_sync = true;
 
     bool m_hdr_supported = false;
-
-    float m_peak_nits = 1000.f;
-
-    float m_paper_white_nits = 203.f;
 
     std::vector<vierkant::ImagePtr> m_images;
 

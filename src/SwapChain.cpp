@@ -85,8 +85,7 @@ bool has_stencil_component(VkFormat the_format)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SwapChain::SwapChain(DevicePtr device, const create_info_t &create_info)
-    : m_device(std::move(device)), m_use_v_sync(create_info.use_vsync), m_peak_nits(create_info.peak_nits),
-      m_paper_white_nits(create_info.paper_white_nits)
+    : m_device(std::move(device)), m_use_v_sync(create_info.use_vsync)
 {
     SwapChainSupportDetails swap_chain_support =
             query_swapchain_support(m_device->physical_device(), create_info.surface);
@@ -273,8 +272,6 @@ void swap(SwapChain &lhs, SwapChain &rhs) noexcept
     std::swap(lhs.m_swap_chain, rhs.m_swap_chain);
     std::swap(lhs.m_use_v_sync, rhs.m_use_v_sync);
     std::swap(lhs.m_hdr_supported, rhs.m_hdr_supported);
-    std::swap(lhs.m_peak_nits, rhs.m_peak_nits);
-    std::swap(lhs.m_paper_white_nits, rhs.m_paper_white_nits);
     std::swap(lhs.m_images, rhs.m_images);
     std::swap(lhs.m_framebuffers, rhs.m_framebuffers);
     std::swap(lhs.m_color_format, rhs.m_color_format);
