@@ -211,8 +211,14 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
 
     // create swapchain for this window
     auto fb_size = framebuffer_size();
-    m_swap_chain = SwapChain(device, m_surface, num_samples, v_sync, use_hdr,
-                             VkExtent2D{static_cast<uint32_t>(fb_size.x), static_cast<uint32_t>(fb_size.y)});
+    vierkant::SwapChain::create_info_t swapchain_info = {};
+    swapchain_info.surface = m_surface;
+    swapchain_info.num_samples = num_samples;
+    swapchain_info.use_vsync = v_sync;
+    swapchain_info.use_hdr = use_hdr;
+    swapchain_info.framebuffer_size =
+            VkExtent2D{static_cast<uint32_t>(fb_size.x), static_cast<uint32_t>(fb_size.y)};
+    m_swap_chain = SwapChain(device, swapchain_info);
 
     for(auto &pair: window_delegates)
     {

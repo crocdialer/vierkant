@@ -82,10 +82,10 @@ public:
         float motionblur_gain = 1.f;
 
         //! gamma correction of output
-        float gamma = 1.0;
+        float gamma = 2.2f;
 
         //! exposure setting for tone-mapping
-        float exposure = 2.0;
+        float exposure = 1.0;
 
         //! indirect drawing (required for gpu-driven 'object' frustum/occlusion culling)
         bool indirect_draw = true;

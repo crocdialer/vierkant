@@ -100,10 +100,10 @@ public:
         bool bloom = true;
 
         //! gamma correction of output
-        float gamma = 1.0;
+        float gamma = 2.2f;
 
         //! exposure setting for tone-mapping
-        float exposure = 2.0;
+        float exposure = 1.0;
 
         //! enable depth of field
         bool depth_of_field = false;

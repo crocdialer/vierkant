@@ -84,15 +84,18 @@ bool has_stencil_component(VkFormat the_format)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync,
-                     bool use_hdr, std::optional<VkExtent2D> extent)
-    : m_device(std::move(device)), m_use_v_sync(use_vsync)
+SwapChain::SwapChain(DevicePtr device, const create_info_t &create_info)
+    : m_device(std::move(device)), m_use_v_sync(create_info.use_vsync), m_peak_nits(create_info.peak_nits),
+      m_paper_white_nits(create_info.paper_white_nits)
 {
-    SwapChainSupportDetails swap_chain_support = query_swapchain_support(m_device->physical_device(), surface);
-    VkSurfaceFormatKHR surface_fmt = choose_swap_surface_format(swap_chain_support.formats, use_hdr, m_hdr_supported);
-    VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes, use_vsync);
+    SwapChainSupportDetails swap_chain_support =
+            query_swapchain_support(m_device->physical_device(), create_info.surface);
+    VkSurfaceFormatKHR surface_fmt =
+            choose_swap_surface_format(swap_chain_support.formats, create_info.use_hdr, m_hdr_supported);
+    VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes, create_info.use_vsync);
     auto caps = swap_chain_support.capabilities;
 
+    const auto &extent = create_info.framebuffer_size;
     VkExtent2D framebuffer_size = extent ? *extent : VkExtent2D{0, 0};
 
     if(!extent && caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
@@ -115,16 +118,16 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
         imageCount = max_image_count;
     }
 
-    VkSwapchainCreateInfoKHR create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    create_info.surface = surface;
+    VkSwapchainCreateInfoKHR swapchain_create_info = {};
+    swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchain_create_info.surface = create_info.surface;
 
-    create_info.minImageCount = imageCount;
-    create_info.imageFormat = surface_fmt.format;
-    create_info.imageColorSpace = surface_fmt.colorSpace;
-    create_info.imageExtent = framebuffer_size;
-    create_info.imageArrayLayers = 1;
-    create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchain_create_info.minImageCount = imageCount;
+    swapchain_create_info.imageFormat = surface_fmt.format;
+    swapchain_create_info.imageColorSpace = surface_fmt.colorSpace;
+    swapchain_create_info.imageExtent = framebuffer_size;
+    swapchain_create_info.imageArrayLayers = 1;
+    swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     auto indices = m_device->queue_family_indices();
     auto graphics_family = (uint32_t) indices[Device::Queue::GRAPHICS].index;
@@ -134,22 +137,22 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
 
     if(graphics_family != present_family)
     {
-        create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        create_info.queueFamilyIndexCount = 2;
-        create_info.pQueueFamilyIndices = queueFamilyIndices;
+        swapchain_create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        swapchain_create_info.queueFamilyIndexCount = 2;
+        swapchain_create_info.pQueueFamilyIndices = queueFamilyIndices;
     }
     else
     {
-        create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        swapchain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
 
-    create_info.preTransform = swap_chain_support.capabilities.currentTransform;
-    create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    create_info.presentMode = present_mode;
-    create_info.clipped = VK_TRUE;
-    create_info.oldSwapchain = VK_NULL_HANDLE;
+    swapchain_create_info.preTransform = swap_chain_support.capabilities.currentTransform;
+    swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchain_create_info.presentMode = present_mode;
+    swapchain_create_info.clipped = VK_TRUE;
+    swapchain_create_info.oldSwapchain = VK_NULL_HANDLE;
 
-    vkCheck(vkCreateSwapchainKHR(m_device->handle(), &create_info, nullptr, &m_swap_chain),
+    vkCheck(vkCreateSwapchainKHR(m_device->handle(), &swapchain_create_info, nullptr, &m_swap_chain),
             "failed to create swap chain!");
 
     vkGetSwapchainImagesKHR(m_device->handle(), m_swap_chain, &imageCount, nullptr);
@@ -182,7 +185,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     m_depth_format = find_depth_format(m_device->physical_device());
 
     // clamp number of samples to device limit
-    m_num_samples = std::clamp(num_samples, VK_SAMPLE_COUNT_1_BIT, m_device->max_usable_samples());
+    m_num_samples = std::clamp(create_info.num_samples, VK_SAMPLE_COUNT_1_BIT, m_device->max_usable_samples());
 
     // create framebuffers
     create_framebuffers();
@@ -270,6 +273,8 @@ void swap(SwapChain &lhs, SwapChain &rhs) noexcept
     std::swap(lhs.m_swap_chain, rhs.m_swap_chain);
     std::swap(lhs.m_use_v_sync, rhs.m_use_v_sync);
     std::swap(lhs.m_hdr_supported, rhs.m_hdr_supported);
+    std::swap(lhs.m_peak_nits, rhs.m_peak_nits);
+    std::swap(lhs.m_paper_white_nits, rhs.m_paper_white_nits);
     std::swap(lhs.m_images, rhs.m_images);
     std::swap(lhs.m_framebuffers, rhs.m_framebuffers);
     std::swap(lhs.m_color_format, rhs.m_color_format);
