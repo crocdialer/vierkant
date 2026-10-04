@@ -209,7 +209,7 @@ include(build_slang_shaders)
 get_slang_recursive(SLANG_SOURCE_FILES "shaders/slang")
 set(SLANG_SHADERS_CPP ${CMAKE_CURRENT_BINARY_DIR}/src/shaders_slang.cpp)
 
-add_custom_command(OUTPUT ${SLANG_SHADERS_CPP}
+add_custom_command(OUTPUT ${SLANG_SHADERS_CPP} ${CMAKE_CURRENT_BINARY_DIR}/include/${PROJECT_NAME}/shaders_slang.hpp
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMAND ${CMAKE_COMMAND} -D SLANG_SOURCE_ROOT="shaders/slang"
         -D SPIRV_OUTPUT_DIR="${PROJECT_BINARY_DIR}"
