@@ -218,9 +218,6 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     // TODO: VK_EXT_hdr_metadata
     // enable_extension(VK_EXT_HDR_METADATA_EXTENSION_NAME);
 
-    // TODO: VK_EXT_swapchain_colorspace
-    // enable_extension(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
-
     if(create_info.use_validation) { enable_extension(VK_KHR_SHADER_RELAXED_EXTENDED_INSTRUCTION_EXTENSION_NAME); }
 
     if(!vierkant::check_device_extension_support(create_info.physical_device, extensions))
