@@ -364,7 +364,6 @@ void draw_scene_renderer_settings_ui_intern(const PBRDeferredPtr &pbr_renderer)
     ImGui::Checkbox("ambient occlusion", &pbr_renderer->settings.ambient_occlusion);
     ImGui::Checkbox("use ray queries", &pbr_renderer->settings.use_ray_queries);
     ImGui::SliderFloat("max_ao_distance", &pbr_renderer->settings.max_ao_distance, 0.01f, 1.f);
-    ImGui::Checkbox("tonemap", &pbr_renderer->settings.tonemap);
     ImGui::Checkbox("bloom", &pbr_renderer->settings.bloom);
     ImGui::Checkbox("motionblur", &pbr_renderer->settings.motionblur);
     ImGui::Checkbox("depth of field", &pbr_renderer->settings.depth_of_field);
@@ -372,12 +371,6 @@ void draw_scene_renderer_settings_ui_intern(const PBRDeferredPtr &pbr_renderer)
 
     // motionblur gain
     ImGui::SliderFloat("motionblur gain", &pbr_renderer->settings.motionblur_gain, 0.f, 10.f);
-
-    // exposure
-    ImGui::SliderFloat("exposure", &pbr_renderer->settings.exposure, 0.f, 10.f);
-
-    // gamma
-    ImGui::SliderFloat("gamma", &pbr_renderer->settings.gamma, 0.f, 10.f);
 
     if(pbr_renderer)
     {
@@ -551,14 +544,7 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     // 0: light-selection fully weighted by estimated power, 1: uniform picking
     ImGui::SliderFloat("uniform light-mix", &path_tracer->settings.light_selection_uniform_mix, 0.f, 1.f);
     ImGui::Checkbox("denoiser", &path_tracer->settings.denoising);
-    ImGui::Checkbox("tonemap", &path_tracer->settings.tonemap);
     ImGui::Checkbox("bloom", &path_tracer->settings.bloom);
-
-    // exposure
-    ImGui::SliderFloat("exposure", &path_tracer->settings.exposure, 0.f, 10.f);
-
-    // gamma
-    ImGui::SliderFloat("gamma", &path_tracer->settings.gamma, 0.f, 10.f);
 
     ImGui::Checkbox("depth of field", &path_tracer->settings.depth_of_field);
     ImGui::Checkbox("suppress reset", &path_tracer->settings.suppress_reset);

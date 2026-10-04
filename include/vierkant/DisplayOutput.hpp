@@ -26,7 +26,7 @@ public:
     struct settings_t
     {
         //! exposure setting for tone-mapping
-        float exposure = 2.f;
+        float exposure = 1.f;
 
         //! gamma for SDR-encoding, also used to linearize the ui-image
         float gamma = 2.2f;

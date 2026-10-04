@@ -1191,8 +1191,8 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const Object3DPtr &cam, const vierk
         output_img = pingpong_render(drawable, SemaphoreValue::TAA, frame_context.taa_buffer);
     }
 
-    // tonemap / bloom
-    if(frame_context.settings.tonemap)
+    // bloom / motionblur
+    if(frame_context.settings.bloom || frame_context.settings.motionblur)
     {
         auto bloom_img = m_util_img_black;
 
@@ -1215,9 +1215,6 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const Object3DPtr &cam, const vierk
         }
 
         composition_ubo_t comp_ubo = {};
-        comp_ubo.exposure = frame_context.settings.exposure;
-        comp_ubo.gamma = frame_context.settings.gamma;
-
         using duration_t = std::chrono::duration<float>;
         comp_ubo.time_delta =
                 duration_t(frame_context.timestamp - m_frame_contexts[last_frame_index].timestamp).count();
@@ -1573,12 +1570,9 @@ bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_
     if(lhs.use_taa != rhs.use_taa) { return false; }
     if(lhs.ambient_occlusion != rhs.ambient_occlusion) { return false; }
     if(lhs.max_ao_distance != rhs.max_ao_distance) { return false; }
-    if(lhs.tonemap != rhs.tonemap) { return false; }
     if(lhs.bloom != rhs.bloom) { return false; }
     if(lhs.motionblur != rhs.motionblur) { return false; }
     if(lhs.motionblur_gain != rhs.motionblur_gain) { return false; }
-    if(lhs.gamma != rhs.gamma) { return false; }
-    if(lhs.exposure != rhs.exposure) { return false; }
     if(lhs.indirect_draw != rhs.indirect_draw) { return false; }
     if(lhs.use_meshlet_pipeline != rhs.use_meshlet_pipeline) { return false; }
     if(lhs.use_ray_queries != rhs.use_ray_queries) { return false; }

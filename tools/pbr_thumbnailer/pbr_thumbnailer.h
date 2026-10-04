@@ -25,6 +25,7 @@
 #include <crocore/Application.hpp>
 
 #include <filesystem>
+#include <vierkant/DisplayOutput.hpp>
 #include <vierkant/Scene.hpp>
 #include <vierkant/SceneRenderer.hpp>
 
@@ -91,6 +92,10 @@ private:
         // output rasterizer
         vierkant::Rasterizer renderer;
         vierkant::Framebuffer framebuffer;
+
+        // scene-linear render-target and display-pass into the output framebuffer
+        vierkant::Framebuffer scene_framebuffer;
+        vierkant::DisplayOutput display_output;
 
         vierkant::SceneRendererPtr scene_renderer = nullptr;
     };
