@@ -5,7 +5,8 @@ namespace vierkant
 {
 
 //////////////////////////////////////////////// SWAP CHAIN UTILS //////////////////////////////////////////////////////
-
+namespace
+{
 struct SwapChainSupportDetails
 {
     VkSurfaceCapabilitiesKHR capabilities = {};
@@ -39,29 +40,20 @@ SwapChainSupportDetails query_swapchain_support(VkPhysicalDevice the_device, VkS
 VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR> &formats, bool use_hdr,
                                               bool &supports_hdr)
 {
-    VkSurfaceFormatKHR best_match = {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
-    supports_hdr = false;
+    // HDR10 (BT.2020, ST 2084 PQ) in 10-bit UNORM, offered by all drivers supporting HDR10.
+    // requires the instance-extension VK_EXT_swapchain_colorspace
+    constexpr VkSurfaceFormatKHR hdr10_formats[] = {
+            {VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT},
+            {VK_FORMAT_A2R10G10B10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT}};
 
-    for(const auto &fmt: formats)
-    {
-        if(fmt.format == VK_FORMAT_R16G16B16A16_SFLOAT) { supports_hdr = true; }
+    const auto it = std::ranges::find_first_of(hdr10_formats, formats,
+                                               [](const VkSurfaceFormatKHR &lhs, const VkSurfaceFormatKHR &rhs) {
+                                                   return lhs.format == rhs.format && lhs.colorSpace == rhs.colorSpace;
+                                               });
+    supports_hdr = it != std::end(hdr10_formats);
 
-        if(fmt.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
-        {
-            supports_hdr = true;
-
-            if(use_hdr)
-            {
-                //! (VK_COLOR_SPACE_HDR10_ST2084_EXT) requires the extensions VK_EXT_swapchain_colorspace
-                if(/*fmt.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT ||*/
-                   (fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR && best_match.colorSpace <= fmt.colorSpace))
-                {
-                    best_match = fmt;
-                }
-            }
-        }
-    }
-    return best_match;
+    if(use_hdr && supports_hdr) { return *it; }
+    return {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
 }
 
 VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &modes, bool use_vsync)
@@ -79,20 +71,20 @@ VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &m
     return best_mode;
 }
 
-bool has_stencil_component(VkFormat the_format)
-{ return the_format == VK_FORMAT_D32_SFLOAT_S8_UINT || the_format == VK_FORMAT_D24_UNORM_S8_UINT; }
-
+}// unnamed namespace
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync,
-                     bool use_hdr, std::optional<VkExtent2D> extent)
-    : m_device(std::move(device)), m_use_v_sync(use_vsync)
+SwapChain::SwapChain(DevicePtr device, const create_info_t &create_info)
+    : m_device(std::move(device)), m_use_v_sync(create_info.use_vsync)
 {
-    SwapChainSupportDetails swap_chain_support = query_swapchain_support(m_device->physical_device(), surface);
-    VkSurfaceFormatKHR surface_fmt = choose_swap_surface_format(swap_chain_support.formats, use_hdr, m_hdr_supported);
-    VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes, use_vsync);
+    SwapChainSupportDetails swap_chain_support =
+            query_swapchain_support(m_device->physical_device(), create_info.surface);
+    VkSurfaceFormatKHR surface_fmt =
+            choose_swap_surface_format(swap_chain_support.formats, create_info.use_hdr, m_hdr_supported);
+    VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes, create_info.use_vsync);
     auto caps = swap_chain_support.capabilities;
 
+    const auto &extent = create_info.framebuffer_size;
     VkExtent2D framebuffer_size = extent ? *extent : VkExtent2D{0, 0};
 
     if(!extent && caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
@@ -115,16 +107,16 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
         imageCount = max_image_count;
     }
 
-    VkSwapchainCreateInfoKHR create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    create_info.surface = surface;
+    VkSwapchainCreateInfoKHR swapchain_create_info = {};
+    swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchain_create_info.surface = create_info.surface;
 
-    create_info.minImageCount = imageCount;
-    create_info.imageFormat = surface_fmt.format;
-    create_info.imageColorSpace = surface_fmt.colorSpace;
-    create_info.imageExtent = framebuffer_size;
-    create_info.imageArrayLayers = 1;
-    create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchain_create_info.minImageCount = imageCount;
+    swapchain_create_info.imageFormat = surface_fmt.format;
+    swapchain_create_info.imageColorSpace = surface_fmt.colorSpace;
+    swapchain_create_info.imageExtent = framebuffer_size;
+    swapchain_create_info.imageArrayLayers = 1;
+    swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     auto indices = m_device->queue_family_indices();
     auto graphics_family = (uint32_t) indices[Device::Queue::GRAPHICS].index;
@@ -134,22 +126,22 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
 
     if(graphics_family != present_family)
     {
-        create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        create_info.queueFamilyIndexCount = 2;
-        create_info.pQueueFamilyIndices = queueFamilyIndices;
+        swapchain_create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        swapchain_create_info.queueFamilyIndexCount = 2;
+        swapchain_create_info.pQueueFamilyIndices = queueFamilyIndices;
     }
     else
     {
-        create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        swapchain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
 
-    create_info.preTransform = swap_chain_support.capabilities.currentTransform;
-    create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    create_info.presentMode = present_mode;
-    create_info.clipped = VK_TRUE;
-    create_info.oldSwapchain = VK_NULL_HANDLE;
+    swapchain_create_info.preTransform = swap_chain_support.capabilities.currentTransform;
+    swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchain_create_info.presentMode = present_mode;
+    swapchain_create_info.clipped = VK_TRUE;
+    swapchain_create_info.oldSwapchain = VK_NULL_HANDLE;
 
-    vkCheck(vkCreateSwapchainKHR(m_device->handle(), &create_info, nullptr, &m_swap_chain),
+    vkCheck(vkCreateSwapchainKHR(m_device->handle(), &swapchain_create_info, nullptr, &m_swap_chain),
             "failed to create swap chain!");
 
     vkGetSwapchainImagesKHR(m_device->handle(), m_swap_chain, &imageCount, nullptr);
@@ -158,6 +150,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
 
     // retrieve color format
     m_color_format = surface_fmt.format;
+    m_color_space = surface_fmt.colorSpace;
 
     // surface extent
     m_extent = framebuffer_size;
@@ -182,7 +175,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     m_depth_format = find_depth_format(m_device->physical_device());
 
     // clamp number of samples to device limit
-    m_num_samples = std::clamp(num_samples, VK_SAMPLE_COUNT_1_BIT, m_device->max_usable_samples());
+    m_num_samples = std::clamp(create_info.num_samples, VK_SAMPLE_COUNT_1_BIT, m_device->max_usable_samples());
 
     // create framebuffers
     create_framebuffers();
@@ -272,7 +265,10 @@ void swap(SwapChain &lhs, SwapChain &rhs) noexcept
     std::swap(lhs.m_hdr_supported, rhs.m_hdr_supported);
     std::swap(lhs.m_images, rhs.m_images);
     std::swap(lhs.m_framebuffers, rhs.m_framebuffers);
+    std::swap(lhs.m_scene_framebuffers, rhs.m_scene_framebuffers);
+    std::swap(lhs.m_ui_framebuffers, rhs.m_ui_framebuffers);
     std::swap(lhs.m_color_format, rhs.m_color_format);
+    std::swap(lhs.m_color_space, rhs.m_color_space);
     std::swap(lhs.m_depth_format, rhs.m_depth_format);
     std::swap(lhs.m_extent, rhs.m_extent);
     std::swap(lhs.m_sync_objects, rhs.m_sync_objects);
@@ -285,6 +281,8 @@ void swap(SwapChain &lhs, SwapChain &rhs) noexcept
 void SwapChain::create_framebuffers()
 {
     m_framebuffers.clear();
+    m_scene_framebuffers.clear();
+    m_ui_framebuffers.clear();
 
     ImagePtr color_image;
 
@@ -319,7 +317,9 @@ void SwapChain::create_framebuffers()
     if(resolve) { attachments[vierkant::AttachmentType::Resolve] = {m_images.front()}; }
     m_framebuffers.resize(m_images.size());
 
+    // depth is cleared by the scene-layer
     vierkant::Framebuffer::create_info_t fb_create_info = {};
+    fb_create_info.begin_rendering_info.clear_depth_attachment = false;
     fb_create_info.end_rendering_info = {.final_layout_color = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
 
     for(size_t i = 0; i < m_images.size(); i++)
@@ -330,6 +330,48 @@ void SwapChain::create_framebuffers()
             attachments[vierkant::AttachmentType::Color] = {m_images[i]};
         }
         m_framebuffers[i] = vierkant::Framebuffer(m_device, attachments, fb_create_info);
+    }
+
+    // one set of layer-images, shared by all SwapChain-Images, sampled by the display-pass
+    auto create_layer_attachments = [this, resolve, &depth_image](VkFormat format) {
+        Image::Format layer_fmt;
+        layer_fmt.extent = {m_extent.width, m_extent.height, 1};
+        layer_fmt.format = format;
+        layer_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        layer_fmt.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+
+        vierkant::attachment_map_t layer_attachments;
+        layer_attachments[vierkant::AttachmentType::DepthStencil] = {depth_image};
+
+        if(resolve)
+        {
+            layer_attachments[vierkant::AttachmentType::Resolve] = {Image::create(m_device, layer_fmt)};
+            layer_fmt.sample_count = m_num_samples;
+            layer_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        }
+        layer_attachments[vierkant::AttachmentType::Color] = {Image::create(m_device, layer_fmt)};
+        return layer_attachments;
+    };
+
+    vierkant::Framebuffer::create_info_t layer_create_info = {};
+    layer_create_info.end_rendering_info = {.final_layout_color = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL};
+
+    auto scene_attachments = create_layer_attachments(VK_FORMAT_R16G16B16A16_SFLOAT);
+    m_scene_framebuffers.resize(m_images.size());
+    for(auto &fb: m_scene_framebuffers) { fb = vierkant::Framebuffer(m_device, scene_attachments, layer_create_info); }
+
+    // HDR10: ui-content cannot blend on PQ-values, needs its own layer
+    if(hdr())
+    {
+        auto ui_attachments = create_layer_attachments(VK_FORMAT_R8G8B8A8_UNORM);
+        layer_create_info.begin_rendering_info.clear_depth_attachment = false;
+        m_ui_framebuffers.resize(m_images.size());
+
+        for(auto &fb: m_ui_framebuffers)
+        {
+            fb = vierkant::Framebuffer(m_device, ui_attachments, layer_create_info);
+            fb.clear_color = glm::vec4(0.f);
+        }
     }
 }
 

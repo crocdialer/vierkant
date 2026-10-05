@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <set>
 
@@ -214,6 +215,16 @@ bool Instance::init(const create_info_t &create_info)
     if(create_info.use_validation_layers || create_info.use_debug_labels)
     {
         used_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+
+    // swapchain-colorspace extension (HDR output), depends on VK_KHR_surface
+    bool use_surface = std::ranges::any_of(used_extensions, [](const char *ext) {
+        return std::string_view(ext) == VK_KHR_SURFACE_EXTENSION_NAME;
+    });
+
+    if(use_surface && available_extensions.contains(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME))
+    {
+        used_extensions.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
     }
 
     // print instance-extension in use

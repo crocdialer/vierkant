@@ -214,9 +214,11 @@ VkCommandBuffer Rasterizer::render(const vierkant::Framebuffer &framebuffer, boo
     inheritance_rendering_info.colorAttachmentCount = framebuffer.color_attachment_formats().size();
     inheritance_rendering_info.depthAttachmentFormat = depth_attachment_format;
     inheritance_rendering_info.stencilAttachmentFormat = stencil_format;
-    inheritance_rendering_info.rasterizationSamples = framebuffer.num_attachments(AttachmentType::Color)
-                                                              ? framebuffer.color_attachment(0)->format().sample_count
-                                                              : VK_SAMPLE_COUNT_1_BIT;
+    // color_attachment() prefers resolve-attachments, sample-count comes from the multisampled one
+    inheritance_rendering_info.rasterizationSamples =
+            framebuffer.num_attachments(AttachmentType::Color)
+                    ? framebuffer.attachments().at(AttachmentType::Color).front()->format().sample_count
+                    : VK_SAMPLE_COUNT_1_BIT;
 
     VkCommandBufferInheritanceInfo inheritance = {};
     inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;

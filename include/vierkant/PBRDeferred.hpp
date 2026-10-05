@@ -21,6 +21,11 @@ namespace vierkant
 
 DEFINE_CLASS_PTR(PBRDeferred)
 
+/**
+ * @brief   PBRDeferred is a deferred rasterizer for PBR-scenes.
+ *          output is scene-linear radiance in an HDR-format, without exposure or tone-mapping.
+ *          use a vierkant::DisplayOutput to turn it into display-values.
+ */
 class PBRDeferred : public vierkant::SceneRenderer
 {
 public:
@@ -69,9 +74,6 @@ public:
         //! factor multiplied with environment-light
         float max_ao_distance = .1f;
 
-        //! use tonemapping
-        bool tonemap = true;
-
         //! use bloom
         bool bloom = true;
 
@@ -80,12 +82,6 @@ public:
 
         //! motionblur gain
         float motionblur_gain = 1.f;
-
-        //! gamma correction of output
-        float gamma = 1.0;
-
-        //! exposure setting for tone-mapping
-        float exposure = 2.0;
 
         //! indirect drawing (required for gpu-driven 'object' frustum/occlusion culling)
         bool indirect_draw = true;
@@ -292,7 +288,7 @@ private:
         // ambient occlusion
         vierkant::ambient_occlusion_context_ptr ambient_occlusion_context;
 
-        // tonemap
+        // bloom/motionblur composition
         vierkant::BufferPtr composition_ubo;
 
         // gpu timings/statistics
@@ -320,9 +316,6 @@ private:
 
     struct alignas(16) composition_ubo_t
     {
-        float gamma = 2.2f;
-        float exposure = 1.f;
-
         float time_delta = 1.f / 60.f;
         float shutter_time = 1.f / 60.f;
         float motionblur_gain = 1.f;

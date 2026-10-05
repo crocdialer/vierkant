@@ -24,21 +24,34 @@ public:
         VkSemaphore render_finished = VK_NULL_HANDLE;
     };
 
+    struct create_info_t
+    {
+        //! handle for a VkSurfaceKHR to create the SwapChain for
+        VkSurfaceKHR surface = VK_NULL_HANDLE;
+
+        //! requested multisampling
+        VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT;
+
+        //! request vertical synchronisation (cap fps to refresh rate)
+        bool use_vsync = true;
+
+        //! request an HDR swapchain-format and colorspace
+        bool use_hdr = false;
+
+        //! optional framebuffer_size, overriding the size queried from VkSurfaceKHR,
+        //! NOTE: should not be required and mainly used to workaround a buggy display-stack
+        std::optional<VkExtent2D> framebuffer_size;
+    };
+
     SwapChain() = default;
 
     /**
      * @brief   Construct a new SwapChain
      *
      * @param   device              handle for the vierkant::Device to create the SwapChain with
-     * @param   surface             handle for a VkSurfaceKHR to create the SwapChain for
-     * @param   num_samples         an optional VkSampleCountFlagBits value to request multisampling
-     * @param   use_vsync           flag to request vertical synchronisation (cap fps to refresh rate)
-     * @param   use_hdr             flag to request an HDR swapchain-format and colorspace
-     * @param   framebuffer_size    optional framebuffer_size, overriding the size queried from VkSurfaceKHR,
-     *                              NOTE: should not be required and mainly used to workaround a buggy display-stack
+     * @param   create_info         a create_info_t struct
      */
-    SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
-              bool use_vsync = true, bool use_hdr = false, std::optional<VkExtent2D> framebuffer_size = {});
+    SwapChain(DevicePtr device, const create_info_t &create_info);
 
     SwapChain(SwapChain &&other) noexcept;
 
@@ -73,11 +86,21 @@ public:
     [[nodiscard]] DevicePtr device() const { return m_device; }
 
     /**
-     * @return  a reference for the contained array of Framebuffers
+     * @return  a reference for the contained array of Framebuffers, targeting the SwapChain-Images
      */
     std::vector<vierkant::Framebuffer> &framebuffers() { return m_framebuffers; }
 
-    vierkant::Framebuffer &current_framebuffer() { return m_framebuffers[m_swapchain_image_index]; }
+    /**
+     * @return  the current Framebuffer for SDR-content (ui, overlays).
+     *          for HDR10 this is a separate ui-layer, otherwise the SwapChain-Framebuffer.
+     */
+    vierkant::Framebuffer &current_framebuffer()
+    { return hdr() ? m_ui_framebuffers[m_swapchain_image_index] : m_framebuffers[m_swapchain_image_index]; }
+
+    /**
+     * @return  the current Framebuffer for scene-linear content (RGBA16F).
+     */
+    vierkant::Framebuffer &current_scene_framebuffer() { return m_scene_framebuffers[m_swapchain_image_index]; }
 
     /**
      * @return  a reference for array of SwapChain-Images
@@ -100,15 +123,17 @@ public:
     [[nodiscard]] bool v_sync() const { return m_use_v_sync; }
 
     /**
-     * @return  a flag indicating if HDR is used
+     * @return  a flag indicating if the SwapChain-Images are HDR10 (BT.2020, ST 2084 PQ)
      */
-    [[nodiscard]] bool hdr() const
-    {
-        return m_color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32 || m_color_format == VK_FORMAT_R16G16B16A16_SFLOAT;
-    }
+    [[nodiscard]] bool hdr() const { return m_color_space == VK_COLOR_SPACE_HDR10_ST2084_EXT; }
 
     /**
-     * @return  a flag indicating if HDR is supported
+     * @return  the VkColorSpaceKHR of the SwapChain-Images
+     */
+    [[nodiscard]] VkColorSpaceKHR color_space() const { return m_color_space; }
+
+    /**
+     * @return  a flag indicating if HDR10 is supported
      */
     [[nodiscard]] bool hdr_supported() const { return m_hdr_supported; }
 
@@ -149,7 +174,12 @@ private:
 
     std::vector<vierkant::Framebuffer> m_framebuffers;
 
+    //! scene- and ui-layers, sharing their images across all SwapChain-Images
+    std::vector<vierkant::Framebuffer> m_scene_framebuffers, m_ui_framebuffers;
+
     VkFormat m_color_format = VK_FORMAT_UNDEFINED;
+
+    VkColorSpaceKHR m_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
     VkFormat m_depth_format = VK_FORMAT_UNDEFINED;
 

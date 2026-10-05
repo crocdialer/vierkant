@@ -31,6 +31,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
 
         graphics_pipeline_info_t fmt = {};
         fmt.blend_state.blendEnable = true;
+        fmt.blend_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         fmt.depth_test = false;
         fmt.depth_write = false;
         fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT);
@@ -50,6 +51,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
 
     graphics_pipeline_info_t fmt = {};
     fmt.blend_state.blendEnable = true;
+    fmt.blend_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     fmt.depth_test = false;
     fmt.depth_write = false;
     fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -220,6 +222,7 @@ void DrawContext::draw_text(vierkant::Rasterizer &renderer, const std::string &t
         pipeline_fmt.depth_write = false;
         pipeline_fmt.depth_test = false;
         pipeline_fmt.blend_state.blendEnable = true;
+        pipeline_fmt.blend_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         pipeline_fmt.cull_mode = VK_CULL_MODE_BACK_BIT;
         pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
         drawable.pipeline_format = std::move(pipeline_fmt);
@@ -308,6 +311,7 @@ void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<g
 
         auto &fmt = drawable.pipeline_format;
         fmt.blend_state.blendEnable = true;
+        fmt.blend_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         fmt.depth_test = false;
         fmt.depth_write = false;
         fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT);
@@ -367,6 +371,7 @@ void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<g
 
         auto &fmt = drawable.pipeline_format;
         fmt.blend_state.blendEnable = true;
+        fmt.blend_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         fmt.depth_test = false;
         fmt.depth_write = false;
         fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_COLOR);
@@ -450,6 +455,7 @@ void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &im
 
     drawable.pipeline_format.depth_test = depth_test;
     drawable.pipeline_format.blend_state.blendEnable = blend;
+    drawable.pipeline_format.blend_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
     drawable.pipeline_format.scissor.extent.height = static_cast<uint32_t>(renderer.viewport.height);
 

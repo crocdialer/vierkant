@@ -396,6 +396,9 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     pipeline_fmt.depth_write = false;
     pipeline_fmt.depth_test = false;
     pipeline_fmt.blend_state.blendEnable = true;
+
+    // alpha "over", keeps coverage correct in a transparent ui-layer
+    pipeline_fmt.blend_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     pipeline_fmt.cull_mode = VK_CULL_MODE_NONE;
     pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 

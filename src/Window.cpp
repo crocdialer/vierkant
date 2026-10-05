@@ -211,8 +211,24 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
 
     // create swapchain for this window
     auto fb_size = framebuffer_size();
-    m_swap_chain = SwapChain(device, m_surface, num_samples, v_sync, use_hdr,
-                             VkExtent2D{static_cast<uint32_t>(fb_size.x), static_cast<uint32_t>(fb_size.y)});
+    vierkant::SwapChain::create_info_t swapchain_info = {};
+    swapchain_info.surface = m_surface;
+    swapchain_info.num_samples = num_samples;
+    swapchain_info.use_vsync = v_sync;
+    swapchain_info.use_hdr = use_hdr;
+    swapchain_info.framebuffer_size =
+            VkExtent2D{static_cast<uint32_t>(fb_size.x), static_cast<uint32_t>(fb_size.y)};
+    m_swap_chain = SwapChain(device, swapchain_info);
+
+    // keep display-settings across SwapChain re-creation
+    if(!m_display_output) { m_display_output = DisplayOutput(device); }
+
+    vierkant::Rasterizer::create_info_t display_renderer_info = {};
+    display_renderer_info.num_frames_in_flight = m_swap_chain.images().size();
+    display_renderer_info.sample_count = m_swap_chain.sample_count();
+    display_renderer_info.viewport.width = static_cast<float>(m_swap_chain.extent().width);
+    display_renderer_info.viewport.height = static_cast<float>(m_swap_chain.extent().height);
+    m_display_renderer = vierkant::Rasterizer(device, display_renderer_info);
 
     for(auto &pair: window_delegates)
     {
@@ -378,7 +394,7 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
         return;
     }
 
-    std::vector<VkCommandBuffer> commandbuffers;
+    std::vector<VkCommandBuffer> commandbuffers, scene_commandbuffers;
 
     // create secondary commandbuffers
     for(auto &[delegate_id, delegate]: window_delegates)
@@ -388,6 +404,8 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
             auto draw_result = delegate.draw_fn(shared_from_this());
             commandbuffers.insert(commandbuffers.end(), draw_result.command_buffers.begin(),
                                   draw_result.command_buffers.end());
+            scene_commandbuffers.insert(scene_commandbuffers.end(), draw_result.scene_command_buffers.begin(),
+                                        draw_result.scene_command_buffers.end());
             semaphore_infos.insert(semaphore_infos.end(), draw_result.semaphore_infos.begin(),
                                    draw_result.semaphore_infos.end());
         }
@@ -404,8 +422,39 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
     render_finished.signal_stage = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
     semaphore_infos.push_back(render_finished);
 
-    // execute all commands, submit primary commandbuffer
-    framebuffer.submit(commandbuffers, m_swap_chain.device()->queue(), semaphore_infos);
+    // scene-layer always runs, it clears the shared depth
+    auto &scene_framebuffer = m_swap_chain.current_scene_framebuffer();
+    std::vector<VkCommandBuffer> primary_commandbuffers = {
+            scene_framebuffer.record_commandbuffer(scene_commandbuffers)};
+    std::vector<VkCommandBuffer> swapchain_commandbuffers;
+
+    // SDR: ui draws directly on top of the display-pass. HDR10: ui-layer is composited by the display-pass
+    bool hdr10 = m_swap_chain.hdr();
+    vierkant::ImagePtr ui_image;
+
+    if(hdr10)
+    {
+        auto &ui_framebuffer = m_swap_chain.current_framebuffer();
+        primary_commandbuffers.push_back(ui_framebuffer.record_commandbuffer(commandbuffers));
+        ui_image = ui_framebuffer.color_attachment();
+    }
+
+    // SDR without scene-content: no display-pass, SwapChain-Framebuffer is cleared and drawn as usual
+    if(hdr10 || !scene_commandbuffers.empty())
+    {
+        auto encoding = hdr10 ? DisplayOutput::Encoding::HDR10 : DisplayOutput::Encoding::SDR;
+        m_display_output.draw(m_display_renderer, scene_framebuffer.color_attachment(), ui_image, encoding);
+        swapchain_commandbuffers.push_back(m_display_renderer.render(framebuffer));
+    }
+    if(!hdr10)
+    {
+        swapchain_commandbuffers.insert(swapchain_commandbuffers.end(), commandbuffers.begin(), commandbuffers.end());
+    }
+    primary_commandbuffers.push_back(framebuffer.record_commandbuffer(swapchain_commandbuffers));
+
+    // submit all layers at once, wait/signal semaphores apply to the whole frame
+    vierkant::submit(m_swap_chain.device(), m_swap_chain.device()->queue(), primary_commandbuffers, false,
+                     framebuffer.fence(), semaphore_infos);
 
     // present the image (submit to presentation-queue, wait for fences)
     VkResult result = m_swap_chain.present();

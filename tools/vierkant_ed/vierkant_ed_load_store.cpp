@@ -420,6 +420,7 @@ void VierkantEd::save_settings(VierkantEd::settings_t settings, const std::files
     window_info.vsync = m_window->swapchain().v_sync();
     window_info.use_hdr = m_window->swapchain().hdr();
     settings.window_info = window_info;
+    settings.display_settings = m_window->display_settings();
 
     // logger settings
     settings.log_level = spdlog::get_level();

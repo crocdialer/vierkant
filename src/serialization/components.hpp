@@ -150,6 +150,14 @@ void serialize(Archive &archive, vierkant::Window::create_info_t &createInfo)
 }
 
 template<class Archive>
+void serialize(Archive &archive, vierkant::DisplayOutput::settings_t &settings)
+{
+    archive(cereal::make_nvp("exposure", settings.exposure), cereal::make_nvp("gamma", settings.gamma),
+            cereal::make_nvp("peak_nits", settings.peak_nits),
+            cereal::make_nvp("paper_white_nits", settings.paper_white_nits));
+}
+
+template<class Archive>
 void serialize(Archive &archive, vierkant::PBRDeferred::settings_t &render_settings)
 {
     archive(cereal::make_nvp("resolution", render_settings.resolution),
@@ -167,11 +175,9 @@ void serialize(Archive &archive, vierkant::PBRDeferred::settings_t &render_setti
             cereal::make_nvp("draw_skybox", render_settings.draw_skybox),
             cereal::make_nvp("use_taa", render_settings.use_taa),
             cereal::make_nvp("use_fxaa", render_settings.use_fxaa),
-            cereal::make_nvp("tonemap", render_settings.tonemap),
             cereal::make_nvp("ambient_occlusion", render_settings.ambient_occlusion),
             cereal::make_nvp("max_ao_distance", render_settings.max_ao_distance),
-            cereal::make_nvp("bloom", render_settings.bloom), cereal::make_nvp("gamma", render_settings.gamma),
-            cereal::make_nvp("exposure", render_settings.exposure),
+            cereal::make_nvp("bloom", render_settings.bloom),
             cereal::make_nvp("depth_of_field", render_settings.depth_of_field),
             cereal::make_nvp("use_dof_focus_overlay", render_settings.use_dof_focus_overlay));
 }
@@ -207,8 +213,7 @@ void serialize(Archive &archive, vierkant::PBRPathTracer::settings_t &render_set
             cereal::make_nvp("draw_skybox", render_settings.draw_skybox),
             cereal::make_nvp("compaction", render_settings.compaction),
             cereal::make_nvp("use_denoiser", render_settings.denoising),
-            cereal::make_nvp("tonemap", render_settings.tonemap), cereal::make_nvp("bloom", render_settings.bloom),
-            cereal::make_nvp("gamma", render_settings.gamma), cereal::make_nvp("exposure", render_settings.exposure),
+            cereal::make_nvp("bloom", render_settings.bloom),
             cereal::make_nvp("depth_of_field", render_settings.depth_of_field),
             cereal::make_optional_nvp("suppress_reset", render_settings.suppress_reset),
             cereal::make_optional_nvp("camera_medium", render_settings.camera_medium),

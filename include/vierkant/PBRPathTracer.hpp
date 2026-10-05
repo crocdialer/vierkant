@@ -34,6 +34,11 @@ struct sunlight_params_t
 
 DEFINE_CLASS_PTR(PBRPathTracer)
 
+/**
+ * @brief   PBRPathTracer is a GPU path-tracer for PBR-scenes.
+ *          output is scene-linear radiance in an HDR-format, without exposure or tone-mapping.
+ *          use a vierkant::DisplayOutput to turn it into display-values.
+ */
 class PBRPathTracer : public vierkant::SceneRenderer
 {
 public:
@@ -93,17 +98,8 @@ public:
         //! flag indicating if a denoising pass shall be performed
         bool denoising = false;
 
-        //! tonemapping
-        bool tonemap = true;
-
         //! bloom
         bool bloom = true;
-
-        //! gamma correction of output
-        float gamma = 1.0;
-
-        //! exposure setting for tone-mapping
-        float exposure = 2.0;
 
         //! enable depth of field
         bool depth_of_field = false;
@@ -367,9 +363,6 @@ private:
 
     struct alignas(16) composition_ubo_t
     {
-        float gamma = 2.2f;
-        float exposure = 1.f;
-
         float time_delta = 1.f / 60.f;
         float shutter_time = 1.f / 60.f;
         float motionblur_gain = 1.f;

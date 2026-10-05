@@ -251,7 +251,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     // image-composition, denoising
     denoise_pass(frame_context);
 
-    // bloom + tonemap
+    // bloom
     post_fx_pass(frame_context);
 
     // stage final output
@@ -473,8 +473,8 @@ void PBRPathTracer::post_fx_pass(frame_context_t &frame_context)
     const uint32_t final_slot = frame_context.settings.denoising ? (atrous_steps.size() - 1) % 2 : 0;
     frame_context.out_image = frame_context.denoise_ping_pong[final_slot].image;
 
-    // bloom + tonemap
-    if(frame_context.settings.tonemap)
+    // bloom
+    if(frame_context.settings.bloom)
     {
         // generate bloom image
         auto bloom_img = m_empty_img;
@@ -494,8 +494,6 @@ void PBRPathTracer::post_fx_pass(frame_context_t &frame_context)
         }
 
         composition_ubo_t comp_ubo = {};
-        comp_ubo.exposure = frame_context.settings.exposure;
-        comp_ubo.gamma = frame_context.settings.gamma;
         frame_context.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
 
         auto drawable = m_drawable_tonemap;

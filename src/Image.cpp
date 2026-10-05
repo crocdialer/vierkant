@@ -49,8 +49,11 @@ VkDeviceSize num_bytes(VkIndexType index_type)
 
 void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkImageLayout old_layout,
                              VkImageLayout new_layout, uint32_t num_layers, uint32_t num_mip_levels,
-                             VkImageAspectFlags aspectMask, VkDependencyFlags dependency_flags)
+                             VkImageAspectFlags aspectMask, VkDependencyFlags dependency_flags, bool ray_tracing)
 {
+    // ray-tracing stages are only valid with the rayTracingPipeline feature enabled
+    VkPipelineStageFlags2 ray_tracing_stage = ray_tracing ? VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR : 0;
+
     VkImageMemoryBarrier2 barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     barrier.oldLayout = old_layout;
@@ -77,7 +80,7 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
             barrier.srcAccessMask =
                     VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-            barrier.srcStageMask |= vkCmdTraceRaysKHR ? VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR : 0;
+            barrier.srcStageMask |= ray_tracing_stage;
             break;
 
         case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
@@ -89,7 +92,7 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
         case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
             barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-            barrier.srcStageMask |= vkCmdTraceRaysKHR ? VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR : 0;
+            barrier.srcStageMask |= ray_tracing_stage;
             break;
 
         case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
@@ -136,7 +139,7 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
         case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
             barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-            barrier.dstStageMask |= vkCmdTraceRaysKHR ? VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR : 0;
+            barrier.dstStageMask |= ray_tracing_stage;
             break;
 
         case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
@@ -391,7 +394,8 @@ void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buff
             cmd_buffer = localCommandBuffer.handle();
         }
         transition_image_layout(cmd_buffer, m_image.get(), *m_image_layout, new_layout, m_format.num_layers,
-                                m_num_mip_levels, m_format.aspect, dependency_flags);
+                                m_num_mip_levels, m_format.aspect, dependency_flags,
+                                m_device->features().ray_tracing_pipeline.rayTracingPipeline);
 
         // submit local command-buffer, if any. also creates a fence and waits for completion of operation
         if(localCommandBuffer) { localCommandBuffer.submit(m_device->queue(), true); }

@@ -407,11 +407,15 @@ void Framebuffer::end_rendering(const end_rendering_info_t &end_rendering_info) 
     {
         vkCmdEndRendering(m_direct_rendering_commandbuffer);
 
+        // final color-layout applies to resolve-attachments, if any
+        auto final_color_type = check_attachment(AttachmentType::Resolve, m_attachments) ? AttachmentType::Resolve
+                                                                                         : AttachmentType::Color;
+
         for(auto &[type, images]: m_attachments)
         {
             for(auto &img: images)
             {
-                if(type == AttachmentType::Color && end_rendering_info.final_layout_color != VK_IMAGE_LAYOUT_UNDEFINED)
+                if(type == final_color_type && end_rendering_info.final_layout_color != VK_IMAGE_LAYOUT_UNDEFINED)
                 {
                     img->transition_layout(end_rendering_info.final_layout_color, m_direct_rendering_commandbuffer);
                 }

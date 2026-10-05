@@ -84,9 +84,10 @@ void PBRThumbnailer::update(double /*time_delta*/)
         {
             auto render_result =
                     m_context.scene_renderer->render_scene(m_context.renderer, m_scene, m_camera, vierkant::LAYER_ALL);
-            auto cmd_buffer = m_context.renderer.render(m_context.framebuffer);
-            m_context.framebuffer.submit({cmd_buffer}, m_context.device->queue(), render_result.semaphore_infos);
-            m_context.framebuffer.wait_fence();
+            auto cmd_buffer = m_context.renderer.render(m_context.scene_framebuffer);
+            m_context.scene_framebuffer.submit({cmd_buffer}, m_context.device->queue(),
+                                               render_result.semaphore_infos);
+            m_context.scene_framebuffer.wait_fence();
 
             // if rendering is slow, halve remaining passes every 5s to produce output in reasonable time
             while(std::chrono::steady_clock::now() >= next_halving)
@@ -98,6 +99,11 @@ void PBRThumbnailer::update(double /*time_delta*/)
             }
         }
         spdlog::info("rendering done (#spp: ~{} - {})", num_passes * m_settings.max_samples_per_frame, sw.elapsed());
+
+        // scene-linear -> display-values
+        m_context.display_output.draw(m_context.renderer, m_context.scene_framebuffer.color_attachment());
+        m_context.framebuffer.submit({m_context.renderer.render(m_context.framebuffer)}, m_context.device->queue());
+        m_context.framebuffer.wait_fence();
     }
 
     {
@@ -255,14 +261,19 @@ bool PBRThumbnailer::create_graphics_context()
     create_info.viewport.height = static_cast<float>(m_settings.result_image_size.y);
     m_context.renderer = vierkant::Rasterizer(m_context.device, create_info);
 
-    // create framebuffer
+    // create framebuffers
     vierkant::Framebuffer::create_info_t framebuffer_info = {};
     framebuffer_info.size = {m_settings.result_image_size.x, m_settings.result_image_size.y, 1};
     framebuffer_info.color_attachment_format.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     m_context.framebuffer = vierkant::Framebuffer(m_context.device, framebuffer_info);
 
+    framebuffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    framebuffer_info.color_attachment_format.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+    m_context.scene_framebuffer = vierkant::Framebuffer(m_context.device, framebuffer_info);
+    m_context.display_output = vierkant::DisplayOutput(m_context.device);
+
     // clear with transparent alpha, if requested
-    if(!m_settings.draw_skybox) { m_context.framebuffer.clear_color = glm::vec4(0.f); }
+    if(!m_settings.draw_skybox) { m_context.scene_framebuffer.clear_color = glm::vec4(0.f); }
 
     spdlog::debug("graphics-context initialized: {}", sw.elapsed());
     return true;

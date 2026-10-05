@@ -51,6 +51,7 @@ public:
 
         vierkant::PBRDeferred::settings_t pbr_settings = {};
         vierkant::PBRPathTracer::settings_t path_tracer_settings = {};
+        vierkant::DisplayOutput::settings_t display_settings = {};
 
         vierkant::mesh_buffer_params_t mesh_buffer_params = {.remap_indices = false,
                                                              .optimize_vertex_cache = true,
@@ -394,6 +395,7 @@ void serialize(Archive &ar, VierkantEd::settings_t &settings)
        cereal::make_nvp("recent_files", settings.recent_files), cereal::make_nvp("window", settings.window_info),
        cereal::make_nvp("pbr_settings", settings.pbr_settings),
        cereal::make_nvp("path_tracer_settings", settings.path_tracer_settings),
+       cereal::make_optional_nvp("display_settings", settings.display_settings),
        cereal::make_nvp("draw_ui", settings.draw_ui),
        cereal::make_nvp("ui_draw_view_controls", settings.ui_draw_view_controls),
        cereal::make_nvp("font_url", settings.font_url), cereal::make_nvp("ui_scale", settings.ui_scale),

@@ -192,6 +192,7 @@ void VierkantEd::create_context_and_window()
     m_device = vierkant::Device::create(device_info);
     m_window->create_swapchain(m_device, std::min(m_device->max_usable_samples(), m_settings.window_info.sample_count),
                                m_settings.window_info.vsync, m_settings.window_info.use_hdr);
+    m_window->display_settings() = m_settings.display_settings;
 
     // create a WindowDelegate
     vierkant::window_delegate_t window_delegate = {};
@@ -476,12 +477,13 @@ void VierkantEd::update(double time_delta)
 vierkant::window_delegate_t::draw_result_t VierkantEd::draw(const vierkant::WindowPtr & /*w*/)
 {
     const auto &framebuffer = m_window->swapchain().current_framebuffer();
+    const auto &scene_framebuffer = m_window->swapchain().current_scene_framebuffer();
     std::vector<vierkant::semaphore_submit_info_t> semaphore_infos;
 
     // tmp testing of overlay-drizzling
     auto &overlay_assets = m_overlay_assets[m_renderer_overlay.current_index()];
 
-    auto render_scene = [this, &framebuffer, &semaphore_infos, &overlay_assets]() -> VkCommandBuffer {
+    auto render_scene = [this, &scene_framebuffer, &semaphore_infos, &overlay_assets]() -> VkCommandBuffer {
         auto render_result =
                 m_scene_renderer->render_scene(m_renderer, m_scene, m_render_camera, ~vierkant::LAYER_EDITOR);
         {
@@ -493,7 +495,7 @@ vierkant::window_delegate_t::draw_result_t VierkantEd::draw(const vierkant::Wind
         }
         overlay_assets.object_by_index_fn = render_result.object_by_index_fn;
         overlay_assets.indices_by_id_fn = render_result.indices_by_id_fn;
-        return m_renderer.render(framebuffer);
+        return m_renderer.render(scene_framebuffer);
     };
 
     auto render_scene_overlays = [this, &framebuffer, &semaphore_infos, selected_objects = m_selected_objects,
@@ -574,8 +576,8 @@ vierkant::window_delegate_t::draw_result_t VierkantEd::draw(const vierkant::Wind
     vierkant::window_delegate_t::draw_result_t ret;
 
     // submit and wait for all command-creation tasks to complete
+    auto scene_future = background_queue().post<crocore::ThreadPoolClassic::Priority::High>(render_scene);
     std::vector<std::future<VkCommandBuffer>> cmd_futures;
-    cmd_futures.push_back(background_queue().post<crocore::ThreadPoolClassic::Priority::High>(render_scene));
     cmd_futures.push_back(background_queue().post<crocore::ThreadPoolClassic::Priority::High>(render_scene_overlays));
     if(m_settings.draw_ui)
     {
@@ -584,6 +586,7 @@ vierkant::window_delegate_t::draw_result_t VierkantEd::draw(const vierkant::Wind
     crocore::wait_all(cmd_futures);
 
     // get values from completed futures
+    if(VkCommandBuffer commandbuffer = scene_future.get()) { ret.scene_command_buffers.push_back(commandbuffer); }
     for(auto &f: cmd_futures)
     {
         if(VkCommandBuffer commandbuffer = f.get()) { ret.command_buffers.push_back(commandbuffer); }
