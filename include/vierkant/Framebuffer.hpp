@@ -125,6 +125,11 @@ public:
     void wait_fence();
 
     /**
+     * @return  the fence signaled by submissions of this Framebuffer.
+     */
+    VkFence fence() const { return m_fence.get(); }
+
+    /**
      * @brief   Begin a direct-rendering-pass using this Framebuffer.
      *
      * @param   commandbuffer   a (primary) VkCommandBuffer handle to record into

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "vierkant/DisplayOutput.hpp"
 #include "vierkant/Input.hpp"
 #include "vierkant/Instance.hpp"
 #include "vierkant/Semaphore.hpp"
@@ -40,7 +41,12 @@ struct window_delegate_t
 {
     struct draw_result_t
     {
+        //! secondary command-buffers for SwapChain::current_framebuffer() (ui, overlays)
         std::vector<VkCommandBuffer> command_buffers;
+
+        //! secondary command-buffers for SwapChain::current_scene_framebuffer() (scene-linear)
+        std::vector<VkCommandBuffer> scene_command_buffers;
+
         std::vector<semaphore_submit_info_t> semaphore_infos;
     };
     using draw_fn_t = std::function<draw_result_t(const WindowPtr &)>;
@@ -113,9 +119,10 @@ public:
 
     /**
      * @brief   Draws a frame.
-     *          Will create a primary commandbuffer and start a renderpass with current framebuffer,
-     *          then gather secondary commandbuffers from the attached draw-delegates and execute them.
-     *          Finally the primary commandbuffer is submitted to a graphics-queue and presented to a surface.
+     *          Gathers secondary commandbuffers from the attached draw-delegates and records them into
+     *          the scene-layer, the ui-layer (HDR10 only) and the SwapChain-Framebuffer.
+     *          A DisplayOutput-pass turns the scene-layer into display-values.
+     *          Finally all is submitted to a graphics-queue and presented to a surface.
      *
      * @param   semaphore_infos an optional array of semaphore_submit_info_t, can be used to pass in signal/wait semaphores
      */
@@ -266,6 +273,11 @@ public:
     SwapChain &swapchain() { return m_swap_chain; }
 
     /**
+     * @return  settings for the display-pass (exposure, tone-mapping, encoding)
+     */
+    DisplayOutput::settings_t &display_settings() { return m_display_output.settings; }
+
+    /**
      * @return  the total number of frames drawn
      */
     uint64_t num_frames() const { return m_num_frames; }
@@ -321,6 +333,10 @@ private:
     VkSurfaceKHR m_surface = VK_NULL_HANDLE;
 
     SwapChain m_swap_chain;
+
+    //! display-pass: scene-layer (+ ui-layer) -> SwapChain-Images
+    DisplayOutput m_display_output;
+    Rasterizer m_display_renderer;
 
     std::string m_title;
 

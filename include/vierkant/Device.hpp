@@ -51,7 +51,7 @@ namespace std
 template<>
 struct hash<vierkant::sampler_state_t>
 {
-    size_t operator()(const vierkant::sampler_state_t &state) const;
+    size_t operator()(const vierkant::sampler_state_t &state) const noexcept;
 };
 }// namespace std
 
@@ -105,6 +105,30 @@ public:
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_pipeline;
         VkPhysicalDeviceOpacityMicromapPropertiesEXT micromap_opacity;
         VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader;
+    };
+
+    struct features_t
+    {
+        // vulkan core-features
+        VkPhysicalDeviceVulkan11Features device_features_11 = {};
+        VkPhysicalDeviceVulkan12Features device_features_12 = {};
+        VkPhysicalDeviceVulkan13Features device_features_13 = {};
+        VkPhysicalDeviceVulkan14Features device_features_14 = {};
+
+        // basic KHR
+        VkPhysicalDeviceFragmentShadingRateFeaturesKHR fragment_shading_rate = {};
+        VkPhysicalDeviceShaderRelaxedExtendedInstructionFeaturesKHR extended_instruction = {};
+
+        // features related to raytracing pipelines/queries
+        VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure = {};
+        VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_pipeline = {};
+        VkPhysicalDeviceRayQueryFeaturesKHR ray_query = {};
+        VkPhysicalDeviceOpacityMicromapFeaturesEXT ray_micromap = {};
+        VkPhysicalDeviceRayTracingInvocationReorderFeaturesEXT invocation_reorder = {};
+
+        // features related to rasterization
+        VkPhysicalDeviceMeshShaderFeaturesEXT mesh_shader = {};
+        VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR barycentric = {};
     };
 
     //! memory-usage for a single device memory-heap
@@ -177,6 +201,11 @@ public:
      * @return a struct grouping physical-device properties
      */
     [[nodiscard]] const properties_t &properties() const { return m_properties; };
+
+    /**
+     * @return a struct grouping physical-device features
+     */
+    [[nodiscard]] const features_t &features() const { return m_features; };
 
     /**
      * @brief   query current memory-usage per device memory-heap. cheap enough to call every frame.
@@ -252,6 +281,9 @@ private:
 
     // group physical device properties
     properties_t m_properties = {};
+
+    // group physical device features
+    features_t m_features = {};
 
     // logical device
     VkDevice m_device = VK_NULL_HANDLE;

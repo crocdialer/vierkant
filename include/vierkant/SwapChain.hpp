@@ -86,11 +86,21 @@ public:
     [[nodiscard]] DevicePtr device() const { return m_device; }
 
     /**
-     * @return  a reference for the contained array of Framebuffers
+     * @return  a reference for the contained array of Framebuffers, targeting the SwapChain-Images
      */
     std::vector<vierkant::Framebuffer> &framebuffers() { return m_framebuffers; }
 
-    vierkant::Framebuffer &current_framebuffer() { return m_framebuffers[m_swapchain_image_index]; }
+    /**
+     * @return  the current Framebuffer for SDR-content (ui, overlays).
+     *          for HDR10 this is a separate ui-layer, otherwise the SwapChain-Framebuffer.
+     */
+    vierkant::Framebuffer &current_framebuffer()
+    { return hdr10() ? m_ui_framebuffers[m_swapchain_image_index] : m_framebuffers[m_swapchain_image_index]; }
+
+    /**
+     * @return  the current Framebuffer for scene-linear content (RGBA16F).
+     */
+    vierkant::Framebuffer &current_scene_framebuffer() { return m_scene_framebuffers[m_swapchain_image_index]; }
 
     /**
      * @return  a reference for array of SwapChain-Images
@@ -119,6 +129,16 @@ public:
     {
         return m_color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32 || m_color_format == VK_FORMAT_R16G16B16A16_SFLOAT;
     }
+
+    /**
+     * @return  the VkColorSpaceKHR of the SwapChain-Images
+     */
+    [[nodiscard]] VkColorSpaceKHR color_space() const { return m_color_space; }
+
+    /**
+     * @return  a flag indicating if the SwapChain-Images are HDR10 (BT.2020, ST 2084 PQ)
+     */
+    [[nodiscard]] bool hdr10() const { return m_color_space == VK_COLOR_SPACE_HDR10_ST2084_EXT; }
 
     /**
      * @return  a flag indicating if HDR is supported
@@ -162,7 +182,12 @@ private:
 
     std::vector<vierkant::Framebuffer> m_framebuffers;
 
+    //! scene- and ui-layers, sharing their images across all SwapChain-Images
+    std::vector<vierkant::Framebuffer> m_scene_framebuffers, m_ui_framebuffers;
+
     VkFormat m_color_format = VK_FORMAT_UNDEFINED;
+
+    VkColorSpaceKHR m_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
     VkFormat m_depth_format = VK_FORMAT_UNDEFINED;
 

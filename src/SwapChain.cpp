@@ -160,6 +160,7 @@ SwapChain::SwapChain(DevicePtr device, const create_info_t &create_info)
 
     // retrieve color format
     m_color_format = surface_fmt.format;
+    m_color_space = surface_fmt.colorSpace;
 
     // surface extent
     m_extent = framebuffer_size;
@@ -274,7 +275,10 @@ void swap(SwapChain &lhs, SwapChain &rhs) noexcept
     std::swap(lhs.m_hdr_supported, rhs.m_hdr_supported);
     std::swap(lhs.m_images, rhs.m_images);
     std::swap(lhs.m_framebuffers, rhs.m_framebuffers);
+    std::swap(lhs.m_scene_framebuffers, rhs.m_scene_framebuffers);
+    std::swap(lhs.m_ui_framebuffers, rhs.m_ui_framebuffers);
     std::swap(lhs.m_color_format, rhs.m_color_format);
+    std::swap(lhs.m_color_space, rhs.m_color_space);
     std::swap(lhs.m_depth_format, rhs.m_depth_format);
     std::swap(lhs.m_extent, rhs.m_extent);
     std::swap(lhs.m_sync_objects, rhs.m_sync_objects);
@@ -287,6 +291,8 @@ void swap(SwapChain &lhs, SwapChain &rhs) noexcept
 void SwapChain::create_framebuffers()
 {
     m_framebuffers.clear();
+    m_scene_framebuffers.clear();
+    m_ui_framebuffers.clear();
 
     ImagePtr color_image;
 
@@ -321,7 +327,9 @@ void SwapChain::create_framebuffers()
     if(resolve) { attachments[vierkant::AttachmentType::Resolve] = {m_images.front()}; }
     m_framebuffers.resize(m_images.size());
 
+    // depth is cleared by the scene-layer
     vierkant::Framebuffer::create_info_t fb_create_info = {};
+    fb_create_info.begin_rendering_info.clear_depth_attachment = false;
     fb_create_info.end_rendering_info = {.final_layout_color = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
 
     for(size_t i = 0; i < m_images.size(); i++)
@@ -332,6 +340,48 @@ void SwapChain::create_framebuffers()
             attachments[vierkant::AttachmentType::Color] = {m_images[i]};
         }
         m_framebuffers[i] = vierkant::Framebuffer(m_device, attachments, fb_create_info);
+    }
+
+    // one set of layer-images, shared by all SwapChain-Images, sampled by the display-pass
+    auto create_layer_attachments = [this, resolve, &depth_image](VkFormat format) {
+        Image::Format layer_fmt;
+        layer_fmt.extent = {m_extent.width, m_extent.height, 1};
+        layer_fmt.format = format;
+        layer_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        layer_fmt.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+
+        vierkant::attachment_map_t layer_attachments;
+        layer_attachments[vierkant::AttachmentType::DepthStencil] = {depth_image};
+
+        if(resolve)
+        {
+            layer_attachments[vierkant::AttachmentType::Resolve] = {Image::create(m_device, layer_fmt)};
+            layer_fmt.sample_count = m_num_samples;
+            layer_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        }
+        layer_attachments[vierkant::AttachmentType::Color] = {Image::create(m_device, layer_fmt)};
+        return layer_attachments;
+    };
+
+    vierkant::Framebuffer::create_info_t layer_create_info = {};
+    layer_create_info.end_rendering_info = {.final_layout_color = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL};
+
+    auto scene_attachments = create_layer_attachments(VK_FORMAT_R16G16B16A16_SFLOAT);
+    m_scene_framebuffers.resize(m_images.size());
+    for(auto &fb: m_scene_framebuffers) { fb = vierkant::Framebuffer(m_device, scene_attachments, layer_create_info); }
+
+    // HDR10: ui-content cannot blend on PQ-values, needs its own layer
+    if(hdr10())
+    {
+        auto ui_attachments = create_layer_attachments(VK_FORMAT_R8G8B8A8_UNORM);
+        layer_create_info.begin_rendering_info.clear_depth_attachment = false;
+        m_ui_framebuffers.resize(m_images.size());
+
+        for(auto &fb: m_ui_framebuffers)
+        {
+            fb = vierkant::Framebuffer(m_device, ui_attachments, layer_create_info);
+            fb.clear_color = glm::vec4(0.f);
+        }
     }
 }
 

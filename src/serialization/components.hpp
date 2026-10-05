@@ -150,6 +150,14 @@ void serialize(Archive &archive, vierkant::Window::create_info_t &createInfo)
 }
 
 template<class Archive>
+void serialize(Archive &archive, vierkant::DisplayOutput::settings_t &settings)
+{
+    archive(cereal::make_nvp("exposure", settings.exposure), cereal::make_nvp("gamma", settings.gamma),
+            cereal::make_nvp("peak_nits", settings.peak_nits),
+            cereal::make_nvp("paper_white_nits", settings.paper_white_nits));
+}
+
+template<class Archive>
 void serialize(Archive &archive, vierkant::PBRDeferred::settings_t &render_settings)
 {
     archive(cereal::make_nvp("resolution", render_settings.resolution),

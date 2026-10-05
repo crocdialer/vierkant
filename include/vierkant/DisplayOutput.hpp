@@ -56,6 +56,8 @@ public:
     void draw(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &scene, const vierkant::ImagePtr &ui = nullptr,
               Encoding encoding = Encoding::SDR) const;
 
+    inline explicit operator bool() const { return static_cast<bool>(m_empty_ui); };
+
 private:
     vierkant::drawable_t m_drawable;
 

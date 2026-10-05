@@ -214,6 +214,16 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
         for(auto &framebuffer: window->swapchain().framebuffers()) { framebuffer.clear_color = clear_color; }
     }
 
+    auto &display_settings = window->display_settings();
+    ImGui::SliderFloat("exposure", &display_settings.exposure, 0.f, 10.f);
+    ImGui::SliderFloat("gamma", &display_settings.gamma, 0.f, 10.f);
+
+    if(window->swapchain().hdr10())
+    {
+        ImGui::SliderFloat("peak nits", &display_settings.peak_nits, 100.f, 10000.f);
+        ImGui::SliderFloat("paper white nits", &display_settings.paper_white_nits, 80.f, 500.f);
+    }
+
     VkSampleCountFlagBits const msaa_levels[] = {VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_2_BIT, VK_SAMPLE_COUNT_4_BIT,
                                                  VK_SAMPLE_COUNT_8_BIT};
     const char *msaa_items[] = {"None", "MSAA 2x", "MSAA 4x", "MSAA 8x"};
