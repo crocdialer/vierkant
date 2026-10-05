@@ -198,7 +198,8 @@ void Window::clear_handles()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num_samples, bool v_sync, bool use_hdr)
+void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num_samples, bool v_sync,
+                              SwapChain::ColorMode color_mode)
 {
     m_need_resize_swapchain = false;
 
@@ -215,7 +216,7 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
     swapchain_info.surface = m_surface;
     swapchain_info.num_samples = num_samples;
     swapchain_info.use_vsync = v_sync;
-    swapchain_info.use_hdr = use_hdr;
+    swapchain_info.color_mode = color_mode;
     swapchain_info.framebuffer_size =
             VkExtent2D{static_cast<uint32_t>(fb_size.x), static_cast<uint32_t>(fb_size.y)};
     m_swap_chain = SwapChain(device, swapchain_info);
@@ -374,7 +375,8 @@ void Window::set_cursor_visible(bool b) { set_cursor_mode(b ? CursorMode::Normal
 void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos)
 {
     auto recreate_swapchain = [&]() {
-        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync(), m_swap_chain.hdr());
+        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync(),
+                         m_swap_chain.color_mode());
     };
 
     if(!m_swap_chain) { return; }

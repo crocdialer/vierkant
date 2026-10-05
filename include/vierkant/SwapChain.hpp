@@ -16,6 +16,19 @@ class SwapChain
 public:
     static constexpr uint32_t max_frames_in_flight = 3;
 
+    //! output color-modes for the SwapChain-Images
+    enum class ColorMode : uint32_t
+    {
+        //! 8-bit UNORM, sRGB colorspace
+        SDR = 0,
+
+        //! 10-bit UNORM, sRGB colorspace
+        SDR10 = 1,
+
+        //! 10-bit UNORM, BT.2020 + ST 2084 (PQ) colorspace
+        HDR10 = 2
+    };
+
     struct acquire_image_result_t
     {
         uint32_t image_index = 0;
@@ -35,8 +48,8 @@ public:
         //! request vertical synchronisation (cap fps to refresh rate)
         bool use_vsync = true;
 
-        //! request an HDR swapchain-format and colorspace
-        bool use_hdr = false;
+        //! requested color-mode, falls back to the best supported mode below it
+        ColorMode color_mode = ColorMode::SDR;
 
         //! optional framebuffer_size, overriding the size queried from VkSurfaceKHR,
         //! NOTE: should not be required and mainly used to workaround a buggy display-stack
@@ -133,9 +146,14 @@ public:
     [[nodiscard]] VkColorSpaceKHR color_space() const { return m_color_space; }
 
     /**
-     * @return  a flag indicating if HDR10 is supported
+     * @return  the ColorMode of the SwapChain-Images
      */
-    [[nodiscard]] bool hdr_supported() const { return m_hdr_supported; }
+    [[nodiscard]] ColorMode color_mode() const { return m_color_mode; }
+
+    /**
+     * @return  the ColorModes supported by the surface, ascending
+     */
+    [[nodiscard]] const std::vector<ColorMode> &supported_color_modes() const { return m_supported_color_modes; }
 
     /**
      * @return  the current image index inside the SwapChain
@@ -168,7 +186,9 @@ private:
 
     bool m_use_v_sync = true;
 
-    bool m_hdr_supported = false;
+    ColorMode m_color_mode = ColorMode::SDR;
+
+    std::vector<ColorMode> m_supported_color_modes;
 
     std::vector<vierkant::ImagePtr> m_images;
 

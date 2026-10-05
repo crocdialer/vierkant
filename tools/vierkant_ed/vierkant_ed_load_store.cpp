@@ -418,7 +418,7 @@ void VierkantEd::save_settings(VierkantEd::settings_t settings, const std::files
     window_info.sample_count = m_window->swapchain().sample_count();
     window_info.title = m_window->title();
     window_info.vsync = m_window->swapchain().v_sync();
-    window_info.use_hdr = m_window->swapchain().hdr();
+    window_info.color_mode = m_window->swapchain().color_mode();
     settings.window_info = window_info;
     settings.display_settings = m_window->display_settings();
 
@@ -1371,8 +1371,7 @@ bool VierkantEd::parse_override_settings(int argc, char *argv[])
     options.add_options()("no-fullscreen", "disable fullscreen");
     options.add_options()("vsync", "enable vsync");
     options.add_options()("no-vsync", "disable vsync");
-    options.add_options()("hdr", "enable hdr");
-    options.add_options()("no-hdr", "disable hdr");
+    options.add_options()("color-mode", "swapchain color-mode (sdr | sdr10 | hdr10)", cxxopts::value<std::string>());
     options.add_options()("font", "provide a font-file (.ttf | .otf)", cxxopts::value<std::string>());
     options.add_options()("font-size", "provide a font-size", cxxopts::value<float>());
     options.add_options()("validation", "enable vulkan validation");
@@ -1473,8 +1472,15 @@ bool VierkantEd::parse_override_settings(int argc, char *argv[])
     if(result.count("no-fullscreen")) { m_settings.window_info.fullscreen = false; }
     if(result.count("vsync")) { m_settings.window_info.vsync = true; }
     if(result.count("no-vsync")) { m_settings.window_info.vsync = false; }
-    if(result.count("hdr")) { m_settings.window_info.use_hdr = true; }
-    if(result.count("no-hdr")) { m_settings.window_info.use_hdr = false; }
+    if(result.count("color-mode"))
+    {
+        using ColorMode = vierkant::SwapChain::ColorMode;
+        const std::map<std::string, ColorMode> color_modes = {
+                {"sdr", ColorMode::SDR}, {"sdr10", ColorMode::SDR10}, {"hdr10", ColorMode::HDR10}};
+        auto it = color_modes.find(result["color-mode"].as<std::string>());
+        if(it != color_modes.end()) { m_settings.window_info.color_mode = it->second; }
+        else { spdlog::warn("unknown color-mode: {}", result["color-mode"].as<std::string>()); }
+    }
     if(result.count("font")) { m_settings.font_url = result["font"].as<std::string>(); }
     if(result.count("font-size")) { m_settings.ui_font_scale = result["font-size"].as<float>(); }
     if(result.count("validation")) { m_settings.use_validation = true; }

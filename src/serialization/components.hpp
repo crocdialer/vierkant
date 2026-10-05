@@ -143,7 +143,7 @@ void serialize(Archive &archive, vierkant::Window::create_info_t &createInfo)
 {
     archive(cereal::make_nvp("size", createInfo.size), cereal::make_nvp("position", createInfo.position),
             cereal::make_nvp("fullscreen", createInfo.fullscreen), cereal::make_nvp("vsync", createInfo.vsync),
-            cereal::make_optional_nvp("use_hdr", createInfo.use_hdr),
+            cereal::make_optional_nvp("color_mode", createInfo.color_mode),
             cereal::make_optional_nvp("joysticks", createInfo.joysticks, true),
             cereal::make_nvp("monitor_index", createInfo.monitor_index),
             cereal::make_nvp("sample_count", createInfo.sample_count), cereal::make_nvp("title", createInfo.title));

@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <ranges>
 #include "vierkant/vierkant.hpp"
 
 const auto window_size = glm::ivec2(1280, 720);
@@ -92,7 +93,7 @@ TEST(SwapChain, Creation_MSAA)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-TEST(SwapChain, Creation_HDR10)
+TEST(SwapChain, Creation_ColorMode)
 {
     vierkant::Instance::create_info_t instance_info = {};
     instance_info.extensions = vierkant::Window::required_extensions();
@@ -113,17 +114,36 @@ TEST(SwapChain, Creation_HDR10)
     device_info.surface = window->surface();
     auto device = vierkant::Device::create(device_info);
 
+    using ColorMode = vierkant::SwapChain::ColorMode;
     auto sample_count = VK_SAMPLE_COUNT_1_BIT;
-    window->create_swapchain(device, sample_count, true, true);
-    if(!window->swapchain().hdr_supported()) { GTEST_SKIP() << "surface offers no HDR10 format; skipping"; }
 
-    EXPECT_TRUE(window->swapchain().hdr());
-    EXPECT_EQ(window->swapchain().color_space(), VK_COLOR_SPACE_HDR10_ST2084_EXT);
+    for(auto mode: {ColorMode::SDR, ColorMode::SDR10, ColorMode::HDR10})
+    {
+        window->create_swapchain(device, sample_count, true, mode);
+        const auto &swapchain = window->swapchain();
+        const auto &supported = swapchain.supported_color_modes();
+        ASSERT_FALSE(supported.empty());
+        EXPECT_EQ(supported.front(), ColorMode::SDR);
 
-    // HDR10 draws ui into a separate layer
-    EXPECT_NE(&window->swapchain().current_framebuffer(), &window->swapchain().framebuffers().front());
+        // unsupported modes fall back to the best supported mode below
+        auto expected =
+                *std::ranges::find_if(supported | std::views::reverse, [mode](ColorMode m) { return m <= mode; });
+        EXPECT_EQ(swapchain.color_mode(), expected);
+        EXPECT_EQ(swapchain.hdr(), expected == ColorMode::HDR10);
 
-    test_helper(window, sample_count);
+        bool ten_bit = expected != ColorMode::SDR;
+        EXPECT_EQ(swapchain.images().front()->format().format == VK_FORMAT_A2B10G10R10_UNORM_PACK32 ||
+                          swapchain.images().front()->format().format == VK_FORMAT_A2R10G10B10_UNORM_PACK32,
+                  ten_bit);
+        EXPECT_EQ(swapchain.color_space(), expected == ColorMode::HDR10 ? VK_COLOR_SPACE_HDR10_ST2084_EXT
+                                                                         : VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
+
+        // only HDR10 draws ui into a separate layer
+        EXPECT_EQ(&window->swapchain().current_framebuffer() != &window->swapchain().framebuffers().front(),
+                  expected == ColorMode::HDR10);
+
+        test_helper(window, sample_count);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

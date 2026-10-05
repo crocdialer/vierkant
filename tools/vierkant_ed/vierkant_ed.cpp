@@ -191,7 +191,7 @@ void VierkantEd::create_context_and_window()
 
     m_device = vierkant::Device::create(device_info);
     m_window->create_swapchain(m_device, std::min(m_device->max_usable_samples(), m_settings.window_info.sample_count),
-                               m_settings.window_info.vsync, m_settings.window_info.use_hdr);
+                               m_settings.window_info.vsync, m_settings.window_info.color_mode);
     m_window->display_settings() = m_settings.display_settings;
 
     // create a WindowDelegate

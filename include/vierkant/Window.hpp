@@ -22,10 +22,10 @@ DEFINE_CLASS_PTR(Window)
 struct videomode_t
 {
     //! width in pixels
-    uint32_t width;
+    uint32_t width = 0;
 
     //! height in pixels
-    uint32_t height;
+    uint32_t height = 0;
 
     uint32_t red_bits = 8;
     uint32_t green_bits = 8;
@@ -74,7 +74,7 @@ public:
         glm::ivec2 position = {};
         bool fullscreen = false;
         bool vsync = true;
-        bool use_hdr = false;
+        SwapChain::ColorMode color_mode = SwapChain::ColorMode::SDR;
         bool joysticks = true;
         uint32_t monitor_index = 0;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
@@ -151,7 +151,7 @@ public:
     /**
      * @brief   set the size of the Window
      *
-     * @param   size    the desired window size
+     * @param   extent  the desired window-extent
      */
     void set_size(const glm::ivec2 &extent);
 
@@ -289,9 +289,10 @@ public:
      * @param   device      handle for the vk::Device to create the SwapChain with
      * @param   num_samples the desired value for MSAA for the SwapChain
      * @param   v_sync      use vertical synchronization or not
+     * @param   color_mode  the requested SwapChain::ColorMode
      */
     void create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
-                          bool v_sync = true, bool use_hdr = false);
+                          bool v_sync = true, SwapChain::ColorMode color_mode = SwapChain::ColorMode::SDR);
 
 private:
     //! window-size
