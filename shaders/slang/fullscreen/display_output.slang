@@ -30,16 +30,21 @@ float4 fragment_main(float2 tex_coord : TexCoord0) : SV_Target
     // ui: sRGB-encoded, premultiplied alpha
     float4 ui = u_textures[TextureIndex::UI].Sample(tex_coord);
 
+    // SDR: exposure-tonemap, gamma-encode, ui composited in gamma-space
+    float3 sdr = pow(1.0 - exp(-scene.rgb * u_params.exposure), 1.0 / u_params.gamma);
+    sdr = sdr * (1.0 - ui.a) + ui.rgb;
+
     if(u_params.encoding == Encoding::HDR10)
     {
         // exposure-tonemap with asymptote at peak, in units of paper-white
         float s = u_params.peak_nits / u_params.paper_white_nits;
         float3 color = s * (1.0 - exp(-scene.rgb * u_params.exposure / s));
-        color = color * (1.0 - ui.a) + pow(ui.rgb, u_params.gamma);
+
+        // pixels covered by ui use the SDR result, so translucent ui looks the same as in SDR
+        if(ui.a > 0.0) { color = pow(sdr, u_params.gamma); }
 
         float3 nits = mul(BT709_TO_BT2020, color) * u_params.paper_white_nits;
         return float4(utils::color_st2084_pq_inverse_eotf(max(nits / 10000.0, 0.0)), 1.0);
     }
-    float3 color = pow(1.0 - exp(-scene.rgb * u_params.exposure), 1.0 / u_params.gamma);
-    return float4(color * (1.0 - ui.a) + ui.rgb, scene.a * (1.0 - ui.a) + ui.a);
+    return float4(sdr, scene.a * (1.0 - ui.a) + ui.a);
 }

@@ -26,16 +26,20 @@ glm::vec4 reference(const glm::vec4 &scene, const glm::vec4 &ui, const vierkant:
                     vierkant::DisplayOutput::Encoding encoding)
 {
     glm::vec3 rgb(scene);
+    glm::vec3 sdr = glm::pow(1.f - glm::exp(-rgb * s.exposure), glm::vec3(1.f / s.gamma));
+    sdr = sdr * (1.f - ui.w) + glm::vec3(ui);
+
     if(encoding == vierkant::DisplayOutput::Encoding::HDR10)
     {
         float k = s.peak_nits / s.paper_white_nits;
         glm::vec3 color = k * (1.f - glm::exp(-rgb * s.exposure / k));
-        color = color * (1.f - ui.w) + glm::pow(glm::vec3(ui), glm::vec3(s.gamma));
+
+        // under ui: the linearized SDR result
+        if(ui.w > 0.f) { color = glm::pow(sdr, glm::vec3(s.gamma)); }
         glm::vec3 nits = bt709_to_bt2020(color) * s.paper_white_nits;
         return {pq_encode(nits.x / 10000.f), pq_encode(nits.y / 10000.f), pq_encode(nits.z / 10000.f), 1.f};
     }
-    glm::vec3 color = glm::pow(1.f - glm::exp(-rgb * s.exposure), glm::vec3(1.f / s.gamma));
-    return {color * (1.f - ui.w) + glm::vec3(ui), scene.w * (1.f - ui.w) + ui.w};
+    return {sdr, scene.w * (1.f - ui.w) + ui.w};
 }
 
 //! run a DisplayOutput over a row of texels, return the float results
