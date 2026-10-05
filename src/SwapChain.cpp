@@ -37,23 +37,39 @@ SwapChainSupportDetails query_swapchain_support(VkPhysicalDevice the_device, VkS
     return details;
 }
 
-VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR> &formats, bool use_hdr,
-                                              bool &supports_hdr)
+VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR> &formats,
+                                              SwapChain::ColorMode requested, SwapChain::ColorMode &color_mode,
+                                              std::vector<SwapChain::ColorMode> &supported)
 {
-    // HDR10 (BT.2020, ST 2084 PQ) in 10-bit UNORM, offered by all drivers supporting HDR10.
-    // requires the instance-extension VK_EXT_swapchain_colorspace
-    constexpr VkSurfaceFormatKHR hdr10_formats[] = {
-            {VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT},
-            {VK_FORMAT_A2R10G10B10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT}};
+    using ColorMode = SwapChain::ColorMode;
 
-    const auto it = std::ranges::find_first_of(hdr10_formats, formats,
-                                               [](const VkSurfaceFormatKHR &lhs, const VkSurfaceFormatKHR &rhs) {
-                                                   return lhs.format == rhs.format && lhs.colorSpace == rhs.colorSpace;
-                                               });
-    supports_hdr = it != std::end(hdr10_formats);
+    // ascending by ColorMode, preferred format first.
+    // non-sRGB colorspaces require the instance-extension VK_EXT_swapchain_colorspace
+    constexpr std::pair<ColorMode, VkSurfaceFormatKHR> candidates[] = {
+            {ColorMode::SDR10, {VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}},
+            {ColorMode::SDR10, {VK_FORMAT_A2R10G10B10_UNORM_PACK32, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}},
+            {ColorMode::HDR10, {VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT}},
+            {ColorMode::HDR10, {VK_FORMAT_A2R10G10B10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT}}};
 
-    if(use_hdr && supports_hdr) { return *it; }
-    return {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
+    VkSurfaceFormatKHR ret = {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
+    color_mode = ColorMode::SDR;
+    supported = {ColorMode::SDR};
+
+    for(const auto &[mode, candidate]: candidates)
+    {
+        bool offered = std::ranges::any_of(formats, [&candidate](const VkSurfaceFormatKHR &fmt) {
+            return fmt.format == candidate.format && fmt.colorSpace == candidate.colorSpace;
+        });
+        if(!offered || supported.back() == mode) { continue; }
+        supported.push_back(mode);
+
+        if(mode <= requested)
+        {
+            ret = candidate;
+            color_mode = mode;
+        }
+    }
+    return ret;
 }
 
 VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &modes, bool use_vsync)
@@ -80,7 +96,8 @@ SwapChain::SwapChain(DevicePtr device, const create_info_t &create_info)
     SwapChainSupportDetails swap_chain_support =
             query_swapchain_support(m_device->physical_device(), create_info.surface);
     VkSurfaceFormatKHR surface_fmt =
-            choose_swap_surface_format(swap_chain_support.formats, create_info.use_hdr, m_hdr_supported);
+            choose_swap_surface_format(swap_chain_support.formats, create_info.color_mode, m_color_mode,
+                                       m_supported_color_modes);
     VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes, create_info.use_vsync);
     auto caps = swap_chain_support.capabilities;
 
@@ -262,7 +279,8 @@ void swap(SwapChain &lhs, SwapChain &rhs) noexcept
     std::swap(lhs.m_num_samples, rhs.m_num_samples);
     std::swap(lhs.m_swap_chain, rhs.m_swap_chain);
     std::swap(lhs.m_use_v_sync, rhs.m_use_v_sync);
-    std::swap(lhs.m_hdr_supported, rhs.m_hdr_supported);
+    std::swap(lhs.m_color_mode, rhs.m_color_mode);
+    std::swap(lhs.m_supported_color_modes, rhs.m_supported_color_modes);
     std::swap(lhs.m_images, rhs.m_images);
     std::swap(lhs.m_framebuffers, rhs.m_framebuffers);
     std::swap(lhs.m_scene_framebuffers, rhs.m_scene_framebuffers);
