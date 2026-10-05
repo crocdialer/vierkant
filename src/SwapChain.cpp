@@ -5,7 +5,8 @@ namespace vierkant
 {
 
 //////////////////////////////////////////////// SWAP CHAIN UTILS //////////////////////////////////////////////////////
-
+namespace
+{
 struct SwapChainSupportDetails
 {
     VkSurfaceCapabilitiesKHR capabilities = {};
@@ -39,29 +40,20 @@ SwapChainSupportDetails query_swapchain_support(VkPhysicalDevice the_device, VkS
 VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR> &formats, bool use_hdr,
                                               bool &supports_hdr)
 {
-    VkSurfaceFormatKHR best_match = {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
-    supports_hdr = false;
+    // HDR10 (BT.2020, ST 2084 PQ) in 10-bit UNORM, offered by all drivers supporting HDR10.
+    // requires the instance-extension VK_EXT_swapchain_colorspace
+    constexpr VkSurfaceFormatKHR hdr10_formats[] = {
+            {VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT},
+            {VK_FORMAT_A2R10G10B10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT}};
 
-    for(const auto &fmt: formats)
-    {
-        if(fmt.format == VK_FORMAT_R16G16B16A16_SFLOAT) { supports_hdr = true; }
+    const auto it = std::ranges::find_first_of(hdr10_formats, formats,
+                                               [](const VkSurfaceFormatKHR &lhs, const VkSurfaceFormatKHR &rhs) {
+                                                   return lhs.format == rhs.format && lhs.colorSpace == rhs.colorSpace;
+                                               });
+    supports_hdr = it != std::end(hdr10_formats);
 
-        if(fmt.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
-        {
-            supports_hdr = true;
-
-            if(use_hdr)
-            {
-                //! (VK_COLOR_SPACE_HDR10_ST2084_EXT) requires the extensions VK_EXT_swapchain_colorspace
-                if(/*fmt.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT ||*/
-                   (fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR && best_match.colorSpace <= fmt.colorSpace))
-                {
-                    best_match = fmt;
-                }
-            }
-        }
-    }
-    return best_match;
+    if(use_hdr && supports_hdr) { return *it; }
+    return {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
 }
 
 VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &modes, bool use_vsync)
@@ -79,9 +71,7 @@ VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &m
     return best_mode;
 }
 
-bool has_stencil_component(VkFormat the_format)
-{ return the_format == VK_FORMAT_D32_SFLOAT_S8_UINT || the_format == VK_FORMAT_D24_UNORM_S8_UINT; }
-
+}// unnamed namespace
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SwapChain::SwapChain(DevicePtr device, const create_info_t &create_info)
@@ -371,7 +361,7 @@ void SwapChain::create_framebuffers()
     for(auto &fb: m_scene_framebuffers) { fb = vierkant::Framebuffer(m_device, scene_attachments, layer_create_info); }
 
     // HDR10: ui-content cannot blend on PQ-values, needs its own layer
-    if(hdr10())
+    if(hdr())
     {
         auto ui_attachments = create_layer_attachments(VK_FORMAT_R8G8B8A8_UNORM);
         layer_create_info.begin_rendering_info.clear_depth_attachment = false;

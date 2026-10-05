@@ -218,7 +218,7 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     ImGui::SliderFloat("exposure", &display_settings.exposure, 0.f, 10.f);
     ImGui::SliderFloat("gamma", &display_settings.gamma, 0.f, 10.f);
 
-    if(window->swapchain().hdr10())
+    if(window->swapchain().hdr())
     {
         ImGui::SliderFloat("peak nits", &display_settings.peak_nits, 100.f, 10000.f);
         ImGui::SliderFloat("paper white nits", &display_settings.paper_white_nits, 80.f, 500.f);

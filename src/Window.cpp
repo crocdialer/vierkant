@@ -429,7 +429,7 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
     std::vector<VkCommandBuffer> swapchain_commandbuffers;
 
     // SDR: ui draws directly on top of the display-pass. HDR10: ui-layer is composited by the display-pass
-    bool hdr10 = m_swap_chain.hdr10();
+    bool hdr10 = m_swap_chain.hdr();
     vierkant::ImagePtr ui_image;
 
     if(hdr10)
