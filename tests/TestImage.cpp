@@ -135,4 +135,43 @@ TEST(Image, Clone)
     EXPECT_TRUE(img->image_layout() == cloned_img->image_layout());
 }
 
+TEST(Image, Mipmap3D)
+{
+    vulkan_test_context_t test_context;
+
+    // depth is the longest axis, so it decides the mip count
+    constexpr VkExtent3D size = {4, 4, 16};
+    constexpr size_t slice_size = 4 * size.width * size.height;
+
+    // each slice holds one value, 16 * z
+    std::vector<uint8_t> data(slice_size * size.depth);
+    for(uint32_t z = 0; z < size.depth; ++z)
+    {
+        std::fill_n(data.begin() + z * slice_size, slice_size, static_cast<uint8_t>(16 * z));
+    }
+
+    vierkant::Image::Format fmt;
+    fmt.extent = size;
+    fmt.image_type = VK_IMAGE_TYPE_3D;
+    fmt.view_type = VK_IMAGE_VIEW_TYPE_3D;
+    fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    fmt.use_mipmap = true;
+    auto img = vierkant::Image::create(test_context.device, data.data(), fmt);
+    EXPECT_EQ(img->num_mip_levels(), 5);
+
+    // mip 1 is 2x2x8, slice k averages source slices 2k and 2k + 1
+    constexpr VkExtent3D mip1_size = {2, 2, 8};
+    auto host_buf = vierkant::Buffer::create(test_context.device, nullptr, 4 * 2 * 2 * 8,
+                                             VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+    img->copy_to(host_buf, VK_NULL_HANDLE, 0, {0, 0, 0}, mip1_size, 0, 1);
+
+    const auto *texels = static_cast<const uint8_t *>(host_buf->map());
+    for(uint32_t k = 0; k < mip1_size.depth; ++k)
+    {
+        int expected = 32 * static_cast<int>(k) + 8;
+        int value = texels[k * 4 * 2 * 2];
+        EXPECT_NEAR(value, expected, 1) << "mip 1, slice " << k;
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
