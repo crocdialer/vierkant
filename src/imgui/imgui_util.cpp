@@ -630,6 +630,15 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
             sun.angular_size = glm::radians(angular_deg);
         }
     }
+
+    const auto &images = path_tracer->image_bundle();
+    if(images.radiance && ImGui::TreeNode("images"))
+    {
+        std::vector<vierkant::ImagePtr> image_list = {images.radiance};
+        if(images.variance) { image_list.push_back(images.variance); }
+        vierkant::gui::draw_images_ui(image_list);
+        ImGui::TreePop();
+    }
 }
 
 void draw_scene_renderer_statistics_ui_intern(const PBRPathTracerPtr &path_tracer)

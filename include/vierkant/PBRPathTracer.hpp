@@ -107,7 +107,7 @@ public:
         //! suppress accumulator resets (e.g. caused by scene/camera changes)
         bool suppress_reset = false;
 
-        //! debug: track per-pixel luminance-variance and show it instead of radiance
+        //! debug: track per-pixel luminance-variance, provided as mask in image_bundle_t::variance
         bool debug_variance = false;
 
         //! optionally define sunlight
@@ -144,6 +144,18 @@ public:
     {
         std::chrono::steady_clock::time_point timestamp;
         timings_t timings;
+    };
+
+    //! image_bundle_t groups internal working-images
+    struct image_bundle_t
+    {
+        //! accumulated (and optionally denoised) radiance, before bloom
+        vierkant::ImagePtr radiance;
+        vierkant::ImagePtr depth;
+        vierkant::ImagePtr object_ids;
+
+        //! relative luminance-variance as [0, 1] mask (log-scale, 1e-3 .. 1e2), only with settings_t::debug_variance
+        vierkant::ImagePtr variance;
     };
 
     struct create_info_t
@@ -197,6 +209,11 @@ public:
      * @return a queue of structs containing drawcall- and timing-results for past frames
      */
     const std::deque<statistics_t> &statistics() const { return m_statistics; }
+
+    /**
+     * @return internal working-images of the most recently rendered frame
+     */
+    const image_bundle_t &image_bundle() const;
 
     //! access to global settings
     settings_t settings;
@@ -258,6 +275,11 @@ private:
 
         //! variance-buffer used by this frame, kept alive until the frame is done
         vierkant::BufferPtr variance;
+
+        //! variance-mask pass, only while 'debug_variance' is set
+        vierkant::Compute::computable_t variance_computable = {};
+
+        image_bundle_t internal_images;
 
         BloomUPtr bloom;
 
@@ -330,11 +352,7 @@ private:
         VkBool32 denoise;
         uint32_t step = 1;
         uint32_t pass_index = 0;
-
-        //! optional variance-buffer, non-zero -> variance-view
-        VkDeviceAddress variance = 0;
     };
-    static_assert(offsetof(denoise_params_t, variance) == 24, "denoise_params_t must match denoise.slang");
 
     struct alignas(16) camera_params_t
     {
@@ -414,6 +432,9 @@ private:
     vierkant::RayBuilder m_ray_builder;
 
     size_t m_batch_index = 0;
+
+    //! frame-context of the most recent render_scene()
+    uint32_t m_last_frame_index = 0;
 
     //! MaterialFeature mask the pipeline is specialized with
     uint32_t m_material_features = 0;

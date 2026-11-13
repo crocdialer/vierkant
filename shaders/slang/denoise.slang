@@ -25,31 +25,7 @@ struct push_constants_t
     bool denoise;
     uint step;
     uint pass_index;
-
-    //! optional per-pixel {luminance-variance, frame-count}. non-null -> write the variance-view
-    float2 *variance;
 };
-
-//! relative variance below this mean-luminance is dominated by the floor
-static const float VARIANCE_VIEW_EPS = 1e-4;
-
-//! debug-view: "hard to sample" mask, relative variance v / (m² + eps) on a log-scale
-float4 variance_view(uint buffer_idx)
-{
-    float2 var_n = constants.variance[buffer_idx];
-
-    // a single frame has no spread: unknown, not zero
-    if(var_n.y < 2.0) { return float4(1.0, 0.0, 1.0, 1.0); }
-
-    float m = dot(in_pixel[buffer_idx].radiance, utils::LuminanceNTSC);
-    float rel_var = var_n.x / (m * m + VARIANCE_VIEW_EPS);
-
-    // 1e-3 .. 1e2 -> blue, green, red
-    float t = saturate((log10(max(rel_var, 1e-6)) + 3.0) / 5.0);
-    float3 color = t < 0.5 ? lerp(float3(0, 0, 1), float3(0, 1, 0), 2.0 * t)
-                           : lerp(float3(0, 1, 0), float3(1, 0, 0), 2.0 * t - 1.0);
-    return float4(color, 1.0);
-}
 
 [[vk::push_constant]]
 push_constants_t constants;
@@ -140,11 +116,7 @@ void main(uint3 dispatchThreadID: SV_DispatchThreadID)
         out_object_ids[coords] = utils::MAX_UINT16 - in_pixel[buffer_idx].object_id;
     }
 
-    if(constants.variance != nullptr)
-    {
-        u_out_image[coords] = variance_view(buffer_idx);
-    }
-    else if(constants.denoise)
+    if(constants.denoise)
     {
         u_out_image[coords] = denoise(coords);
     }
