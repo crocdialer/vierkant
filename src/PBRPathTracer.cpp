@@ -994,7 +994,7 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
     {
         vierkant::Buffer::create_info_t variance_buf_info;
         variance_buf_info.name = "variance storage buffer";
-        variance_buf_info.num_bytes = size.width * size.height * sizeof(glm::vec2);
+        variance_buf_info.num_bytes = size.width * size.height * sizeof(float);
         variance_buf_info.usage = VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT |
                                   VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR;
         variance_buf_info.device = m_device;

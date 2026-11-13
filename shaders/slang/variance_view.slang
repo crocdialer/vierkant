@@ -4,9 +4,9 @@ import "ray/pixel_data.slang";
 [[vk::binding(0)]]
 StructuredBuffer<ray::pixel_data_t> in_pixel;
 
-//! per-pixel {luminance-variance, frame-count}
+//! per-pixel luminance-variance
 [[vk::binding(1)]]
-StructuredBuffer<float2> in_variance;
+StructuredBuffer<float> in_variance;
 
 [[vk::binding(2)]]
 [[vk::image_format("r8")]]
@@ -32,7 +32,7 @@ void main(uint3 dispatchThreadID: SV_DispatchThreadID)
     uint buffer_idx = dispatchThreadID.y * constants.size.x + dispatchThreadID.x;
 
     float m = dot(in_pixel[buffer_idx].radiance, utils::LuminanceNTSC);
-    float rel_var = in_variance[buffer_idx].x / (m * m + VARIANCE_VIEW_EPS);
+    float rel_var = in_variance[buffer_idx] / (m * m + VARIANCE_VIEW_EPS);
 
     out_mask[dispatchThreadID.xy] = saturate((log10(max(rel_var, 1e-6)) + 3.0) / 5.0);
 }

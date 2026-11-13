@@ -223,7 +223,8 @@ void serialize(Archive &archive, vierkant::PBRPathTracer::settings_t &render_set
             cereal::make_optional_nvp("light_selection_uniform_mix",
                                       render_settings.light_selection_uniform_mix),
             cereal::make_optional_nvp("rr_threshold", render_settings.rr_threshold),
-            cereal::make_optional_nvp("nee_beta_scale", render_settings.nee_beta_scale));
+            cereal::make_optional_nvp("nee_beta_scale", render_settings.nee_beta_scale),
+            cereal::make_optional_nvp("debug_variance", render_settings.debug_variance));
 }
 
 template<class Archive>

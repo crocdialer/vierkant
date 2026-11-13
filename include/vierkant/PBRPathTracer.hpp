@@ -449,7 +449,7 @@ private:
         vierkant::BufferPtr depth;
         vierkant::ImagePtr object_ids;
 
-        //! per-pixel {luminance-variance, frame-count}, only while 'debug_variance' is set
+        //! per-pixel luminance-variance, only while 'debug_variance' is set
         vierkant::BufferPtr variance;
     } m_storage;
 

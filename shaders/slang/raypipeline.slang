@@ -286,12 +286,12 @@ void main()
         if(var_batch_size != 0)
         {
             m_old = dot(trace_data.out_pixels[buffer_idx].radiance, utils::LuminanceNTSC);
-            v_old = trace_data.out_variance[buffer_idx].x;
+            v_old = trace_data.out_variance[buffer_idx];
         }
         float alpha = 1.0 / float(var_batch_size + 1);
         float d = dot(result.radiance, utils::LuminanceNTSC) - m_old;
         float v = (1.0 - alpha) * (v_old + alpha * d * d);
-        trace_data.out_variance[buffer_idx] = float2(v, float(var_batch_size + 1));
+        trace_data.out_variance[buffer_idx] = v;
     }
 
     trace_data.out_pixels[buffer_idx] =
