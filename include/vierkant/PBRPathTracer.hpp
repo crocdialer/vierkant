@@ -107,6 +107,9 @@ public:
         //! suppress accumulator resets (e.g. caused by scene/camera changes)
         bool suppress_reset = false;
 
+        //! debug: track per-pixel luminance-variance and show it instead of radiance
+        bool debug_variance = false;
+
         //! optionally define sunlight
         std::optional<sunlight_params_t> sunlight_params;
 
@@ -253,6 +256,9 @@ private:
 
         vierkant::BufferPtr trace_data_ubo, composition_ubo, lights_buffer, light_alias_buffer;
 
+        //! variance-buffer used by this frame, kept alive until the frame is done
+        vierkant::BufferPtr variance;
+
         BloomUPtr bloom;
 
         //! ping-pong post-fx framebuffers
@@ -324,7 +330,11 @@ private:
         VkBool32 denoise;
         uint32_t step = 1;
         uint32_t pass_index = 0;
+
+        //! optional variance-buffer, non-zero -> variance-view
+        VkDeviceAddress variance = 0;
     };
+    static_assert(offsetof(denoise_params_t, variance) == 24, "denoise_params_t must match denoise.slang");
 
     struct alignas(16) camera_params_t
     {
@@ -354,11 +364,14 @@ private:
         VkDeviceAddress lights{};
         VkDeviceAddress light_alias_table{};
         VkDeviceAddress out_pixels{};
+        VkDeviceAddress out_variance{};
     };
 
     //! offset of the last member, pinned so an insertion above cannot silently shift the layout
     //! away from ray::trace_data_t in ray_common.slang (checked against spirv-dis)
     static_assert(offsetof(trace_data_t, out_pixels) == 576,
+                  "trace_data_t layout must match shader-side (ray_common.slang)");
+    static_assert(offsetof(trace_data_t, out_variance) == 584,
                   "trace_data_t layout must match shader-side (ray_common.slang)");
 
     struct alignas(16) composition_ubo_t
@@ -414,6 +427,9 @@ private:
         vierkant::BufferPtr pixel_buffer;
         vierkant::BufferPtr depth;
         vierkant::ImagePtr object_ids;
+
+        //! per-pixel {luminance-variance, frame-count}, only while 'debug_variance' is set
+        vierkant::BufferPtr variance;
     } m_storage;
 
     //! owns raytracing pipelines and shader-bindingtables

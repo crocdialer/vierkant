@@ -7,6 +7,7 @@ import "ray/direct_lighting";
 import "ray/media_segment";
 
 import "utils/bsdf";
+import "utils/color";
 import "utils/transform";
 import "utils/packed_vertex";
 import "utils/random";
@@ -274,6 +275,21 @@ void main()
         accumulated_radiance += batch_size * float4(trace_data.out_pixels[buffer_idx].radiance,
                                                     trace_data.out_pixels[buffer_idx].alpha);
         accumulated_radiance /= batch_size + 1;
+    }
+
+    // running luminance-variance over frames, same weight and window as the blend above
+    if(trace_data.out_variance != nullptr)
+    {
+        float m_old = 0.0, v_old = 0.0;
+        if(batch_size != 0)
+        {
+            m_old = dot(trace_data.out_pixels[buffer_idx].radiance, utils::LuminanceNTSC);
+            v_old = trace_data.out_variance[buffer_idx].x;
+        }
+        float alpha = 1.0 / float(batch_size + 1);
+        float d = dot(result.radiance, utils::LuminanceNTSC) - m_old;
+        float v = (1.0 - alpha) * (v_old + alpha * d * d);
+        trace_data.out_variance[buffer_idx] = float2(v, float(batch_size + 1));
     }
 
     trace_data.out_pixels[buffer_idx] =

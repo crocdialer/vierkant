@@ -619,6 +619,9 @@ public struct trace_data_t
     public Ptr<light_t, Access.Read> lights;
     public Ptr<light_alias_bin_t, Access.Read> light_alias_table;
     public pixel_data_t *out_pixels;
+
+    //! optional per-pixel {luminance-variance, frame-count}. null -> off
+    public float2 *out_variance;
 };
 
 }// namespace ray

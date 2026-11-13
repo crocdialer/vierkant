@@ -225,6 +225,13 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     // copy settings for next frame
     frame_context.settings = settings;
 
+    // variance-view replaces the image: no à-trous, no bloom on top of it
+    if(frame_context.settings.debug_variance)
+    {
+        frame_context.settings.denoising = false;
+        frame_context.settings.bloom = false;
+    }
+
     // motion-adaptive accumulation: a moving camera is never 'done', its content keeps drifting.
     // the per-pixel drift-limit in raygen does the actual weighting, this only keeps tracing alive.
     bool camera_moved = frame_context.settings.max_accumulation_drift > 0.f && m_prev_projection_view &&
@@ -370,6 +377,7 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
 
     // resize storage-assets if necessary
     resize_storage(frame_context, frame_context.settings.resolution);
+    frame_context.variance = m_storage.variance;
 
     frame_context.cmd_pre_render.submit(m_queue);
 }
@@ -433,6 +441,7 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
         auto &computable = frame_context.denoise_ping_pong[pass % 2].computable;
         auto &params = *reinterpret_cast<denoise_params_t *>(computable.push_constants.data());
         params = {frame_context.settings.resolution, denoising ? VK_TRUE : VK_FALSE, atrous_steps[pass], pass};
+        params.variance = frame_context.variance ? frame_context.variance->device_address() : 0;
 
         m_compute.dispatch({computable}, frame_context.cmd_denoise.handle());
 
@@ -742,6 +751,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.entries = frame_context.scene_ray_acceleration.entry_buffer->device_address();
     trace_data.materials = frame_context.scene_ray_acceleration.material_buffer->device_address();
     trace_data.out_pixels = m_storage.pixel_buffer->device_address();
+    trace_data.out_variance = frame_context.variance ? frame_context.variance->device_address() : 0;
     trace_data.lights = frame_context.lights_buffer->device_address();
     trace_data.light_alias_table = frame_context.light_alias_buffer->device_address();
 
@@ -932,8 +942,27 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         pix_buf_info.device = m_device;
         pix_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
         m_storage.pixel_buffer = vierkant::Buffer::create(pix_buf_info);
+        m_storage.variance = nullptr;
         m_batch_index = 0;
         m_prev_projection_view = {};
+    }
+
+    if(!frame_context.settings.debug_variance) { m_storage.variance = nullptr; }
+    else if(!m_storage.variance)
+    {
+        vierkant::Buffer::create_info_t variance_buf_info;
+        variance_buf_info.name = "variance storage buffer";
+        variance_buf_info.num_bytes = size.width * size.height * sizeof(glm::vec2);
+        variance_buf_info.usage = VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT |
+                                  VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR;
+        variance_buf_info.device = m_device;
+        variance_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        m_storage.variance = vierkant::Buffer::create(variance_buf_info);
+
+        // cleared, not reset: the variance starts from the current mean, the image is kept
+        vkCmdFillBuffer(frame_context.cmd_pre_render.handle(), m_storage.variance->handle(), 0, VK_WHOLE_SIZE, 0);
+        vierkant::stage_barrier(frame_context.cmd_pre_render.handle(), VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                                VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
     }
 
     if(!frame_context.denoise_ping_pong[0].image || frame_context.denoise_ping_pong[0].image->extent() != size)

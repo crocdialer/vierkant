@@ -570,6 +570,7 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
 
     ImGui::Checkbox("depth of field", &path_tracer->settings.depth_of_field);
     ImGui::Checkbox("suppress reset", &path_tracer->settings.suppress_reset);
+    ImGui::Checkbox("variance view", &path_tracer->settings.debug_variance);
 
     // optional global medium the camera is submerged in (fog/underwater/haze).
     // same material-facing knobs as a volumetric material; converted via vierkant::to_media().
