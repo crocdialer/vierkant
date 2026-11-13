@@ -155,7 +155,7 @@ public:
         vierkant::ImagePtr object_ids;
 
         //! relative luminance-variance as [0, 1] mask (log-scale, 1e-3 .. 1e2), only with settings_t::debug_variance
-        vierkant::ImagePtr variance;
+        vierkant::ImagePtr variance, variance_swizzle;
     };
 
     struct create_info_t

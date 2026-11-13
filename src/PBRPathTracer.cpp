@@ -470,7 +470,10 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
         {
             m_compute.dispatch({computable, frame_context.variance_computable}, frame_context.cmd_denoise.handle());
         }
-        else { m_compute.dispatch({computable}, frame_context.cmd_denoise.handle()); }
+        else
+        {
+            m_compute.dispatch({computable}, frame_context.cmd_denoise.handle());
+        }
 
         // skip remaining passes when not denoising (pass 0 writes raw radiance + depth + object_ids)
         if(!denoising) { break; }
@@ -944,9 +947,7 @@ void PBRPathTracer::reset_accumulator()
 size_t PBRPathTracer::current_batch() const { return m_batch_index; }
 
 const PBRPathTracer::image_bundle_t &PBRPathTracer::image_bundle() const
-{
-    return m_frame_contexts[m_last_frame_index].internal_images;
-}
+{ return m_frame_contexts[m_last_frame_index].internal_images; }
 
 void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uvec2 &resolution)
 {
@@ -1003,7 +1004,8 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         // cleared, not reset: the variance starts from the current mean, the image is kept
         vkCmdFillBuffer(frame_context.cmd_pre_render.handle(), m_storage.variance->handle(), 0, VK_WHOLE_SIZE, 0);
         vierkant::stage_barrier(frame_context.cmd_pre_render.handle(), VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                                VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                                VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR |
+                                        VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
     }
 
     auto &variance_image = frame_context.internal_images.variance;
@@ -1013,12 +1015,14 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         vierkant::Image::Format variance_fmt = {};
         variance_fmt.extent = size;
         variance_fmt.format = VK_FORMAT_R8_UNORM;
-        variance_fmt.usage =
-                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        variance_fmt.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
         variance_fmt.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
         variance_fmt.initial_cmd_buffer = frame_context.cmd_pre_render.handle();
         variance_fmt.name = "PBRPathTracer::variance";
         variance_image = vierkant::Image::create(m_device, variance_fmt);
+
+        frame_context.internal_images.variance_swizzle = variance_image->clone(
+                {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ONE});
 
         auto &computable = frame_context.variance_computable;
         auto group_size =

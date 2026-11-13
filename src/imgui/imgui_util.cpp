@@ -119,7 +119,10 @@ bool draw_id_combo(const char *label, Id &id, const std::unordered_map<Id, T> &a
 void mark_dirty(const vierkant::Object3DPtr &object, uint32_t flags)
 {
     if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>()) { flag_cmp_ptr->flags |= flags; }
-    else { object->add_component<flag_component_t>().flags |= flags; }
+    else
+    {
+        object->add_component<flag_component_t>().flags |= flags;
+    }
 }
 
 void draw_object_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &object);
@@ -635,7 +638,7 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     if(images.radiance && ImGui::TreeNode("images"))
     {
         std::vector<vierkant::ImagePtr> image_list = {images.radiance};
-        if(images.variance) { image_list.push_back(images.variance); }
+        if(images.variance_swizzle) { image_list.push_back(images.variance_swizzle); }
         vierkant::gui::draw_images_ui(image_list);
         ImGui::TreePop();
     }
@@ -1183,8 +1186,8 @@ bool draw_material_ui(vierkant::material_t &material,
     changed |= ImGui::ColorEdit3("attenuation color", glm::value_ptr(material.attenuation_color));
 
     // phase_asymmetry_g
-    changed |= ImGui::SliderFloat("phase_asymmetry_g", &material.phase_asymmetry_g,
-                                  -vierkant::MAX_PHASE_ASYMMETRY_G, vierkant::MAX_PHASE_ASYMMETRY_G);
+    changed |= ImGui::SliderFloat("phase_asymmetry_g", &material.phase_asymmetry_g, -vierkant::MAX_PHASE_ASYMMETRY_G,
+                                  vierkant::MAX_PHASE_ASYMMETRY_G);
 
     // scatter_factor
     changed |= ImGui::SliderFloat("scatter_factor", &material.scatter_factor, 0.f, 1.f);
