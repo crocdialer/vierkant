@@ -107,6 +107,9 @@ public:
         //! suppress accumulator resets (e.g. caused by scene/camera changes)
         bool suppress_reset = false;
 
+        //! debug: track per-pixel luminance-variance, provided as mask in image_bundle_t::variance
+        bool debug_variance = false;
+
         //! optionally define sunlight
         std::optional<sunlight_params_t> sunlight_params;
 
@@ -141,6 +144,18 @@ public:
     {
         std::chrono::steady_clock::time_point timestamp;
         timings_t timings;
+    };
+
+    //! image_bundle_t groups internal working-images
+    struct image_bundle_t
+    {
+        //! accumulated (and optionally denoised) radiance, before bloom
+        vierkant::ImagePtr radiance;
+        vierkant::ImagePtr depth;
+        vierkant::ImagePtr object_ids;
+
+        //! relative luminance-variance as [0, 1] mask (log-scale, 1e-3 .. 1e2), only with settings_t::debug_variance
+        vierkant::ImagePtr variance, variance_swizzle;
     };
 
     struct create_info_t
@@ -194,6 +209,11 @@ public:
      * @return a queue of structs containing drawcall- and timing-results for past frames
      */
     const std::deque<statistics_t> &statistics() const { return m_statistics; }
+
+    /**
+     * @return internal working-images of the most recently rendered frame
+     */
+    const image_bundle_t &image_bundle() const;
 
     //! access to global settings
     settings_t settings;
@@ -252,6 +272,14 @@ private:
         vierkant::ImagePtr out_image, out_depth;
 
         vierkant::BufferPtr trace_data_ubo, composition_ubo, lights_buffer, light_alias_buffer;
+
+        //! variance-buffer used by this frame, kept alive until the frame is done
+        vierkant::BufferPtr variance;
+
+        //! variance-mask pass, only while 'debug_variance' is set
+        vierkant::Compute::computable_t variance_computable = {};
+
+        image_bundle_t internal_images;
 
         BloomUPtr bloom;
 
@@ -354,11 +382,14 @@ private:
         VkDeviceAddress lights{};
         VkDeviceAddress light_alias_table{};
         VkDeviceAddress out_pixels{};
+        VkDeviceAddress out_variance{};
     };
 
     //! offset of the last member, pinned so an insertion above cannot silently shift the layout
     //! away from ray::trace_data_t in ray_common.slang (checked against spirv-dis)
     static_assert(offsetof(trace_data_t, out_pixels) == 576,
+                  "trace_data_t layout must match shader-side (ray_common.slang)");
+    static_assert(offsetof(trace_data_t, out_variance) == 584,
                   "trace_data_t layout must match shader-side (ray_common.slang)");
 
     struct alignas(16) composition_ubo_t
@@ -402,6 +433,9 @@ private:
 
     size_t m_batch_index = 0;
 
+    //! frame-context of the most recent render_scene()
+    uint32_t m_last_frame_index = 0;
+
     //! MaterialFeature mask the pipeline is specialized with
     uint32_t m_material_features = 0;
 
@@ -414,6 +448,9 @@ private:
         vierkant::BufferPtr pixel_buffer;
         vierkant::BufferPtr depth;
         vierkant::ImagePtr object_ids;
+
+        //! per-pixel luminance-variance, only while 'debug_variance' is set
+        vierkant::BufferPtr variance;
     } m_storage;
 
     //! owns raytracing pipelines and shader-bindingtables

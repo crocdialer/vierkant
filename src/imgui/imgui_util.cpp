@@ -119,7 +119,10 @@ bool draw_id_combo(const char *label, Id &id, const std::unordered_map<Id, T> &a
 void mark_dirty(const vierkant::Object3DPtr &object, uint32_t flags)
 {
     if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>()) { flag_cmp_ptr->flags |= flags; }
-    else { object->add_component<flag_component_t>().flags |= flags; }
+    else
+    {
+        object->add_component<flag_component_t>().flags |= flags;
+    }
 }
 
 void draw_object_ui(const vierkant::ScenePtr &scene, const vierkant::Object3DPtr &object);
@@ -570,6 +573,7 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
 
     ImGui::Checkbox("depth of field", &path_tracer->settings.depth_of_field);
     ImGui::Checkbox("suppress reset", &path_tracer->settings.suppress_reset);
+    ImGui::Checkbox("variance view", &path_tracer->settings.debug_variance);
 
     // optional global medium the camera is submerged in (fog/underwater/haze).
     // same material-facing knobs as a volumetric material; converted via vierkant::to_media().
@@ -628,6 +632,15 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
         {
             sun.angular_size = glm::radians(angular_deg);
         }
+    }
+
+    const auto &images = path_tracer->image_bundle();
+    if(images.radiance && ImGui::TreeNode("images"))
+    {
+        std::vector<vierkant::ImagePtr> image_list = {images.radiance};
+        if(images.variance_swizzle) { image_list.push_back(images.variance_swizzle); }
+        vierkant::gui::draw_images_ui(image_list);
+        ImGui::TreePop();
     }
 }
 
@@ -1173,8 +1186,8 @@ bool draw_material_ui(vierkant::material_t &material,
     changed |= ImGui::ColorEdit3("attenuation color", glm::value_ptr(material.attenuation_color));
 
     // phase_asymmetry_g
-    changed |= ImGui::SliderFloat("phase_asymmetry_g", &material.phase_asymmetry_g,
-                                  -vierkant::MAX_PHASE_ASYMMETRY_G, vierkant::MAX_PHASE_ASYMMETRY_G);
+    changed |= ImGui::SliderFloat("phase_asymmetry_g", &material.phase_asymmetry_g, -vierkant::MAX_PHASE_ASYMMETRY_G,
+                                  vierkant::MAX_PHASE_ASYMMETRY_G);
 
     // scatter_factor
     changed |= ImGui::SliderFloat("scatter_factor", &material.scatter_factor, 0.f, 1.f);

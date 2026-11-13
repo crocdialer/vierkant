@@ -102,11 +102,18 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     denoise_computable.pipeline_info.push_constant_ranges = {push_constant_range};
 
+    vierkant::Compute::computable_t variance_computable = {};
+    variance_computable.pipeline_info.shader_stage =
+            vierkant::create_shader_module(vierkant::slang_shaders::slang::variance_view_slang);
+    variance_computable.pipeline_info.push_constant_ranges = {{VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(glm::uvec2)}};
+    variance_computable.push_constants.resize(sizeof(glm::uvec2));
+
     m_frame_contexts.resize(create_info.num_frames_in_flight);
 
     for(auto &frame_context: m_frame_contexts)
     {
         frame_context.semaphore = vierkant::Semaphore(m_device);
+        frame_context.variance_computable = variance_computable;
 
         frame_context.denoise_ping_pong[0].computable = denoise_computable;
 
@@ -208,7 +215,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer, const SceneConstPtr &scene,
                                                            const Object3DPtr &cam, uint32_t layer_mask)
 {
-    auto &frame_context = m_frame_contexts[renderer.current_index()];
+    m_last_frame_index = renderer.current_index();
+    auto &frame_context = m_frame_contexts[m_last_frame_index];
     frame_context.statistics.timestamp = std::chrono::steady_clock::now();
 
     // sync and reset semaphore
@@ -370,6 +378,7 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
 
     // resize storage-assets if necessary
     resize_storage(frame_context, frame_context.settings.resolution);
+    frame_context.variance = m_storage.variance;
 
     frame_context.cmd_pre_render.submit(m_queue);
 }
@@ -421,6 +430,29 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
     frame_context.denoise_ping_pong[1].image->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
                                                                 frame_context.cmd_denoise.handle());
 
+    // variance-mask, dispatched with denoise-pass 0: both only read the pixel-buffer
+    auto &variance_image = frame_context.internal_images.variance;
+    if(variance_image)
+    {
+        variance_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_context.cmd_denoise.handle());
+        auto &computable = frame_context.variance_computable;
+        auto &desc_pixels = computable.descriptors[0];
+        desc_pixels.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_pixels.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_pixels.buffers = {m_storage.pixel_buffer};
+
+        auto &desc_variance = computable.descriptors[1];
+        desc_variance.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_variance.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_variance.buffers = {frame_context.variance};
+
+        auto &desc_image = computable.descriptors[2];
+        desc_image.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        desc_image.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_image.images = {variance_image};
+        *reinterpret_cast<glm::uvec2 *>(computable.push_constants.data()) = frame_context.settings.resolution;
+    }
+
     // write-after-write hazard
     vierkant::stage_barrier(frame_context.cmd_denoise.handle(),
                             VK_PIPELINE_STAGE_2_TRANSFER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
@@ -434,7 +466,14 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
         auto &params = *reinterpret_cast<denoise_params_t *>(computable.push_constants.data());
         params = {frame_context.settings.resolution, denoising ? VK_TRUE : VK_FALSE, atrous_steps[pass], pass};
 
-        m_compute.dispatch({computable}, frame_context.cmd_denoise.handle());
+        if(pass == 0 && variance_image)
+        {
+            m_compute.dispatch({computable, frame_context.variance_computable}, frame_context.cmd_denoise.handle());
+        }
+        else
+        {
+            m_compute.dispatch({computable}, frame_context.cmd_denoise.handle());
+        }
 
         // skip remaining passes when not denoising (pass 0 writes raw radiance + depth + object_ids)
         if(!denoising) { break; }
@@ -455,6 +494,15 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
 
     frame_context.out_depth->copy_from(m_storage.depth, frame_context.cmd_denoise.handle());
     frame_context.out_depth->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_context.cmd_denoise.handle());
+
+    if(variance_image)
+    {
+        variance_image->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_context.cmd_denoise.handle());
+    }
+
+    frame_context.internal_images.radiance = frame_context.denoise_ping_pong[final_slot].image;
+    frame_context.internal_images.depth = frame_context.out_depth;
+    frame_context.internal_images.object_ids = m_storage.object_ids;
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_context.semaphore.handle();
@@ -742,6 +790,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.entries = frame_context.scene_ray_acceleration.entry_buffer->device_address();
     trace_data.materials = frame_context.scene_ray_acceleration.material_buffer->device_address();
     trace_data.out_pixels = m_storage.pixel_buffer->device_address();
+    trace_data.out_variance = frame_context.variance ? frame_context.variance->device_address() : 0;
     trace_data.lights = frame_context.lights_buffer->device_address();
     trace_data.light_alias_table = frame_context.light_alias_buffer->device_address();
 
@@ -897,6 +946,9 @@ void PBRPathTracer::reset_accumulator()
 
 size_t PBRPathTracer::current_batch() const { return m_batch_index; }
 
+const PBRPathTracer::image_bundle_t &PBRPathTracer::image_bundle() const
+{ return m_frame_contexts[m_last_frame_index].internal_images; }
+
 void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uvec2 &resolution)
 {
     VkExtent3D size = {resolution.x, resolution.y, 1};
@@ -932,8 +984,51 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         pix_buf_info.device = m_device;
         pix_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
         m_storage.pixel_buffer = vierkant::Buffer::create(pix_buf_info);
+        m_storage.variance = nullptr;
         m_batch_index = 0;
         m_prev_projection_view = {};
+    }
+
+    if(!frame_context.settings.debug_variance) { m_storage.variance = nullptr; }
+    else if(!m_storage.variance)
+    {
+        vierkant::Buffer::create_info_t variance_buf_info;
+        variance_buf_info.name = "variance storage buffer";
+        variance_buf_info.num_bytes = size.width * size.height * sizeof(float);
+        variance_buf_info.usage = VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT |
+                                  VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR;
+        variance_buf_info.device = m_device;
+        variance_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        m_storage.variance = vierkant::Buffer::create(variance_buf_info);
+
+        // cleared, not reset: the variance starts from the current mean, the image is kept
+        vkCmdFillBuffer(frame_context.cmd_pre_render.handle(), m_storage.variance->handle(), 0, VK_WHOLE_SIZE, 0);
+        vierkant::stage_barrier(frame_context.cmd_pre_render.handle(), VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                                VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR |
+                                        VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+    }
+
+    auto &variance_image = frame_context.internal_images.variance;
+    if(!m_storage.variance) { variance_image = nullptr; }
+    else if(!variance_image || variance_image->extent() != size)
+    {
+        vierkant::Image::Format variance_fmt = {};
+        variance_fmt.extent = size;
+        variance_fmt.format = VK_FORMAT_R8_UNORM;
+        variance_fmt.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        variance_fmt.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
+        variance_fmt.initial_cmd_buffer = frame_context.cmd_pre_render.handle();
+        variance_fmt.name = "PBRPathTracer::variance";
+        variance_image = vierkant::Image::create(m_device, variance_fmt);
+
+        frame_context.internal_images.variance_swizzle = variance_image->clone(
+                {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ONE});
+
+        auto &computable = frame_context.variance_computable;
+        auto group_size =
+                *computable.pipeline_info.shader_stage.entry_points.at(VK_SHADER_STAGE_COMPUTE_BIT)[0].group_count;
+        computable.extent = {vierkant::group_count(size.width, group_size.x),
+                             vierkant::group_count(size.height, group_size.y), 1};
     }
 
     if(!frame_context.denoise_ping_pong[0].image || frame_context.denoise_ping_pong[0].image->extent() != size)
