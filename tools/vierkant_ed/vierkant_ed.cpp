@@ -382,7 +382,7 @@ void VierkantEd::create_texture_image()
     }
 
     // test noise-gen
-    auto noisegen = vierkant::NoiseGenerator::create(m_device, {.size = {1024, 1024, 1}});
+    auto noisegen = vierkant::NoiseGenerator::create(m_device, {.size = {1024, 1024, 1}, .use_mipmap = true});
     vierkant::CommandBuffer cmd_buf(m_device, m_device->command_pool_transient());
     cmd_buf.begin();
     m_noise_texture = noisegen->generate(cmd_buf.handle(), glm::vec3(15.f), glm::vec3(0.f));
