@@ -259,7 +259,7 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
     if(m_format.use_mipmap)
     {
         // number of images in the mipmap chain
-        m_num_mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(width(), height())))) + 1;
+        m_num_mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max({width(), height(), depth()})))) + 1;
 
         // BC7 has blocks >= 4 pixels and thus 2 levels less
         bool compressed = m_format.format == VK_FORMAT_BC7_UNORM_BLOCK || m_format.format == VK_FORMAT_BC7_SRGB_BLOCK;
@@ -643,6 +643,7 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 
     auto mip_width = static_cast<int32_t>(width());
     auto mip_height = static_cast<int32_t>(height());
+    auto mip_depth = static_cast<int32_t>(depth());
 
     for(uint32_t i = 1; i < m_num_mip_levels; i++)
     {
@@ -659,13 +660,14 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
         VkImageBlit2 blit_region = {};
         blit_region.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2;
         blit_region.srcOffsets[0] = {0, 0, 0};
-        blit_region.srcOffsets[1] = {mip_width, mip_height, 1};
+        blit_region.srcOffsets[1] = {mip_width, mip_height, mip_depth};
         blit_region.srcSubresource.aspectMask = m_format.aspect;
         blit_region.srcSubresource.mipLevel = i - 1;
         blit_region.srcSubresource.baseArrayLayer = 0;
         blit_region.srcSubresource.layerCount = m_format.num_layers;
         blit_region.dstOffsets[0] = {0, 0, 0};
-        blit_region.dstOffsets[1] = {std::max(mip_width / 2, 1), std::max(mip_height / 2, 1), 1};
+        blit_region.dstOffsets[1] = {std::max(mip_width / 2, 1), std::max(mip_height / 2, 1),
+                                     std::max(mip_depth / 2, 1)};
         blit_region.dstSubresource.aspectMask = m_format.aspect;
         blit_region.dstSubresource.mipLevel = i;
         blit_region.dstSubresource.baseArrayLayer = 0;
@@ -693,6 +695,7 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 
         mip_width = std::max(mip_width / 2, 1);
         mip_height = std::max(mip_height / 2, 1);
+        mip_depth = std::max(mip_depth / 2, 1);
     }
 
     barrier.subresourceRange.baseMipLevel = m_num_mip_levels - 1;
