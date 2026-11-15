@@ -2,6 +2,7 @@
 
 #include <unordered_set>
 #include <vierkant/Image.hpp>
+#include <vierkant/PipelineCache.hpp>
 
 namespace vierkant
 {
@@ -33,10 +34,12 @@ struct object_overlay_params_t
  *
  * @param   device          a provided vierkant::DevicePtr
  * @param   size            desired size of the resulting object-overlay image.
+ * @param   pipeline_cache  optional pipeline-cache, shared between contexts
  * @return  opaque handle to a object_overlay_context_t.
  */
-[[maybe_unused]] object_overlay_context_ptr create_object_overlay_context(const vierkant::DevicePtr &device,
-                                                                          const glm::vec2 &size);
+[[maybe_unused]] object_overlay_context_ptr
+create_object_overlay_context(const vierkant::DevicePtr &device, const glm::vec2 &size,
+                              const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
 
 /**
  * @brief   'object_overlay' can be used to generate a fullscreen object-overlay.

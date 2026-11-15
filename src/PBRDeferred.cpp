@@ -67,7 +67,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     m_pipeline_cache =
             create_info.pipeline_cache ? create_info.pipeline_cache : vierkant::PipelineCache::create(device);
 
-    m_ray_builder = vierkant::RayBuilder(device, m_queue);
+    m_ray_builder = vierkant::RayBuilder(device, m_queue, nullptr, m_pipeline_cache);
 
     m_frame_contexts.resize(create_info.num_frames_in_flight);
 

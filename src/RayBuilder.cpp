@@ -76,9 +76,12 @@ inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
 std::vector<const char *> RayBuilder::required_extensions()
 { return {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME}; }
 
-RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool)
-    : m_device(device), m_queue(queue), m_memory_pool(std::move(pool))
+RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool,
+                       vierkant::PipelineCachePtr pipeline_cache)
+    : m_device(device), m_queue(queue), m_memory_pool(std::move(pool)), m_pipeline_cache(std::move(pipeline_cache))
 {
+    if(!m_pipeline_cache) { m_pipeline_cache = vierkant::PipelineCache::create(device); }
+
     // fallback to first device queue
     m_queue = queue ? queue : m_device->queue();
 
@@ -1243,7 +1246,7 @@ RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration
     ret->cmd_build_bottom_start = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->cmd_build_bottom_end = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
-    ret->mesh_compute_context = vierkant::create_mesh_compute_context(m_device);
+    ret->mesh_compute_context = vierkant::create_mesh_compute_context(m_device, nullptr, m_pipeline_cache);
     ret->micromap_context = vierkant::create_micromap_compute_context(m_device, m_memory_pool);
     ret->query_pool =
             vierkant::create_query_pool(m_device, 2 * UpdateSemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);

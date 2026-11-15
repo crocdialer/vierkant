@@ -8,6 +8,7 @@
 
 #include <vierkant/Device.hpp>
 #include <vierkant/Mesh.hpp>
+#include <vierkant/PipelineCache.hpp>
 #include <vierkant/Scene.hpp>
 #include <vierkant/descriptor.hpp>
 #include <vierkant/micromap_compute.hpp>
@@ -192,7 +193,8 @@ public:
 
     RayBuilder() = default;
 
-    explicit RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool = nullptr);
+    explicit RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool = nullptr,
+                        vierkant::PipelineCachePtr pipeline_cache = nullptr);
 
     /**
      * @brief   create_scene_acceleration_context is a factory to create a
@@ -382,6 +384,9 @@ private:
     VkQueue m_queue = VK_NULL_HANDLE;
 
     vierkant::VmaPoolPtr m_memory_pool = nullptr;
+
+    //! shared by the mesh-compute of all scene-contexts
+    vierkant::PipelineCachePtr m_pipeline_cache;
 
     vierkant::CommandPoolPtr m_command_pool;
 

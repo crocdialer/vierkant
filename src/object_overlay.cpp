@@ -33,7 +33,8 @@ struct alignas(16) object_overlay_ubo_t
     uint32_t silhouette;
 };
 
-object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device, const glm::vec2 &size)
+object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device, const glm::vec2 &size,
+                                                         const vierkant::PipelineCachePtr &pipeline_cache)
 {
     auto ret =
             object_overlay_context_ptr(new object_overlay_context_t, std::default_delete<object_overlay_context_t>());
@@ -64,7 +65,7 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
     ret->staging_buffer = vierkant::Buffer::create(staging_buffer_info);
 
     vierkant::Compute::create_info_t compute_info = {};
-    compute_info.pipeline_cache = nullptr;
+    compute_info.pipeline_cache = pipeline_cache;
     ret->mask_compute = vierkant::Compute(device, compute_info);
 
     // overlay-compute

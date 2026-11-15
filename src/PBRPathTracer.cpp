@@ -73,7 +73,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     ray_tracer_create_info.descriptor_pool = m_descriptor_pool;
     ray_tracer_create_info.pipeline_cache = create_info.pipeline_cache;
     m_ray_tracer = vierkant::RayTracer(device, ray_tracer_create_info);
-    m_ray_builder = vierkant::RayBuilder(device, m_queue, pool);
+    m_ray_builder = vierkant::RayBuilder(device, m_queue, pool, create_info.pipeline_cache);
 
     // denoise compute
     vierkant::Compute::create_info_t compute_info = {};

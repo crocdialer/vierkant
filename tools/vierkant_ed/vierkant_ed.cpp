@@ -316,7 +316,8 @@ void VierkantEd::create_graphics_pipeline()
         overlay_asset.semaphore = vierkant::Semaphore(m_device);
         overlay_asset.command_buffer = vierkant::CommandBuffer(m_device, m_device->command_pool_transient());
         overlay_asset.object_overlay_context =
-                vierkant::create_object_overlay_context(m_device, glm::vec2(pbr_render_info.settings.resolution) / 2.f);
+                vierkant::create_object_overlay_context(m_device, glm::vec2(pbr_render_info.settings.resolution) / 2.f,
+                                                        m_pipeline_cache);
     }
 
     // buffer-flags for mesh-buffers
