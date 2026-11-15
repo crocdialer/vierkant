@@ -83,9 +83,6 @@ private:
 
         //! cache used descriptor-sets
         vierkant::descriptor_set_map_t descriptor_set_cache;
-
-        //! cache used descriptor-set-layouts
-        std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> descriptor_layout_cache;
     };
 
     struct shader_binding_table_t

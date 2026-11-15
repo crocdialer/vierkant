@@ -53,7 +53,6 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
     auto &compute_asset = m_compute_assets[m_current_index];
     m_current_index = (m_current_index + 1) % m_compute_assets.size();
     vierkant::descriptor_set_map_t next_descriptor_set_cache;
-    std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> next_layout_cache;
 
     struct item_t
     {
@@ -64,8 +63,7 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
 
     for(auto &computable: computables)
     {
-        auto descriptor_set_layout = vierkant::find_or_create_set_layout(
-                m_device, computable.descriptors, compute_asset.descriptor_layout_cache, next_layout_cache);
+        auto descriptor_set_layout = m_pipeline_cache->descriptor_set_layout(computable.descriptors);
         computable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
 
         pipelines[computable.pipeline_info].push_back({computable, descriptor_set_layout});
@@ -122,7 +120,6 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
     // keep the stuff in use
     compute_asset.computables = std::move(computables);
     compute_asset.descriptor_set_cache = std::move(next_descriptor_set_cache);
-    compute_asset.descriptor_layout_cache = std::move(next_layout_cache);
 }
 
 }//namespace vierkant

@@ -280,8 +280,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &device, descriptor_map_t descriptors,
-                                                 std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &current,
-                                                 std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &next)
+                                                 std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &cache)
 {
     // clean descriptor-map to enable sharing
     for(auto &[binding, descriptor]: descriptors)
@@ -301,24 +300,13 @@ DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &devi
     }
 
     // retrieve set-layout
-    auto set_it = current.find(descriptors);
-
-    if(set_it != current.end())
-    {
-        auto new_it = next.insert(std::move(*set_it)).first;
-        current.erase(set_it);
-        set_it = new_it;
-    }
-    else
-    {
-        set_it = next.find(descriptors);
-    }
+    auto set_it = cache.find(descriptors);
 
     // not found -> create and insert descriptor-set layout
-    if(set_it == next.end())
+    if(set_it == cache.end())
     {
         auto new_set = vierkant::create_descriptor_set_layout(device, descriptors);
-        set_it = next.insert(std::make_pair(std::move(descriptors), std::move(new_set))).first;
+        set_it = cache.insert(std::make_pair(std::move(descriptors), std::move(new_set))).first;
     }
     return set_it->second;
 }
