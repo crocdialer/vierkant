@@ -129,12 +129,11 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
  *
  * @param   device      handle for a vierkant::Device to create new descriptor-set-layouts
  * @param   descriptors a provided descriptor-map
- * @param   current     output cache of retrieved/created descriptor-sets.
+ * @param   cache       cache of retrieved/created descriptor-set-layouts.
  * @return  a retrieved or newly created, shared VkDescriptorSetLayout.
  */
 DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &device, descriptor_map_t descriptors,
-                                                 std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &current,
-                                                 std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &next);
+                                                 std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &cache);
 
 /**
  * @brief   find_or_create_descriptor_set can be used to search for an existing descriptor-set or create a new one.

@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include <mutex>
 #include <shared_mutex>
 #include <unordered_map>
 #include "vierkant/Pipeline.hpp"
+#include "vierkant/descriptor.hpp"
 
 namespace vierkant
 {
@@ -103,6 +105,19 @@ public:
         return has(m_compute_pipelines, m_compute_pipeline_mutex, format);
     }
 
+    /**
+     * @brief   Retrieve a descriptor-set-layout for a descriptor-map. Will create and cache a new layout, if necessary.
+     *          Shared layouts keep pipeline-formats equal across frames-in-flight.
+     *
+     * @param   descriptors a descriptor-map describing the requested layout
+     * @return  a shared VkDescriptorSetLayout
+     */
+    DescriptorSetLayoutPtr descriptor_set_layout(const descriptor_map_t &descriptors)
+    {
+        std::unique_lock lock(m_set_layout_mutex);
+        return vierkant::find_or_create_set_layout(m_device, descriptors, m_set_layouts);
+    }
+
     const vierkant::shader_stage_map_t &shader_stages(ShaderType shader_type)
     {
         // read-only locked for searching
@@ -135,6 +150,10 @@ public:
         {
             std::unique_lock<std::shared_mutex> compute_lock(m_compute_pipeline_mutex);
             m_compute_pipelines.clear();
+        }
+        {
+            std::unique_lock set_layout_lock(m_set_layout_mutex);
+            m_set_layouts.clear();
         }
     }
 
@@ -191,6 +210,10 @@ private:
     std::shared_mutex m_shader_stage_mutex;
 
     std::unordered_map<vierkant::ShaderType, vierkant::shader_stage_map_t> m_shader_stages;
+
+    //! pipeline-formats reference these layouts by handle, so they live as long as the pipelines
+    std::mutex m_set_layout_mutex;
+    std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> m_set_layouts;
 
     VkPipelineCache m_pipeline_cache = VK_NULL_HANDLE;
 };

@@ -69,10 +69,8 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     auto &trace_asset = m_trace_assets[m_current_index];
     m_current_index = (m_current_index + 1) % m_trace_assets.size();
     vierkant::descriptor_set_map_t next_descriptor_set_cache;
-    std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> next_layout_cache;
 
-    auto descriptor_set_layout = vierkant::find_or_create_set_layout(
-            m_device, tracable.descriptors, trace_asset.descriptor_layout_cache, next_layout_cache);
+    auto descriptor_set_layout = m_pipeline_cache->descriptor_set_layout(tracable.descriptors);
     tracable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
 
     bool variable_count = std::ranges::any_of(tracable.descriptors,
@@ -135,7 +133,6 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     // keep-alive of things in use
     trace_asset.tracable = std::move(tracable);
     trace_asset.descriptor_set_cache = std::move(next_descriptor_set_cache);
-    trace_asset.descriptor_layout_cache = std::move(next_layout_cache);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -275,7 +275,6 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 {
     // (re-)create assets and commands
     frame_assets.indirect_bundle.num_draws = frame_assets.indirect_indexed_bundle.num_draws = 0;
-    std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> next_set_layouts;
     descriptor_set_map_t next_descriptor_sets;
 
     struct indirect_draw_asset_t
@@ -330,8 +329,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     desc_all_textures.variable_count = true;
     desc_all_textures.images = textures;
 
-    auto bindless_texture_layout = vierkant::find_or_create_set_layout(
-            m_device, bindless_texture_desc, frame_assets.descriptor_set_layouts, next_set_layouts);
+    auto bindless_texture_layout = m_pipeline_cache->descriptor_set_layout(bindless_texture_desc);
 
     // create/resize draw_indirect buffers
     resize_draw_indirect_buffers(frame_assets.drawables.size(), frame_assets);
@@ -385,8 +383,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             if(desc_depth_pyramid.images.empty()) { desc_depth_pyramid.images = {m_placeholder_image}; }
         }
 
-        indexed_drawable.descriptor_set_layout = vierkant::find_or_create_set_layout(
-                m_device, drawable.descriptors, frame_assets.descriptor_set_layouts, next_set_layouts);
+        indexed_drawable.descriptor_set_layout = m_pipeline_cache->descriptor_set_layout(drawable.descriptors);
         pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
 
         // bindless texture-array
@@ -714,7 +711,6 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     if(debug_label) { vierkant::end_label(command_buffer); }
 
     // keep the stuff in use
-    frame_assets.descriptor_set_layouts = std::move(next_set_layouts);
     frame_assets.descriptor_sets = std::move(next_descriptor_sets);
 }
 

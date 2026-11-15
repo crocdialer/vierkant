@@ -344,7 +344,6 @@ private:
 
     struct frame_assets_t
     {
-        std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> descriptor_set_layouts;
         descriptor_set_map_t descriptor_sets;
 
         // SSBOs containing everything (using gpu-mem iff a queue was provided)
