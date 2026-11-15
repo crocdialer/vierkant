@@ -144,6 +144,9 @@ public:
         vierkant::BufferPtr instance_buffer = nullptr;
         vierkant::BufferPtr scratch_buffer = nullptr;
         vierkant::AccelerationStructurePtr update_structure = nullptr;
+
+        //! true for the compacted copy of a structure
+        bool compacted = false;
     };
 
     //! shared acceleration_asset_t
