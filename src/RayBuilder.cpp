@@ -346,6 +346,7 @@ void RayBuilder::compact(build_result_t &build_result) const
         // the compacted structure describes the same geometry, keep tracking its vertex-buffer
         acceleration_asset.vertex_buffer = build_result.acceleration_assets[i]->vertex_buffer;
         acceleration_asset.vertex_buffer_offset = build_result.acceleration_assets[i]->vertex_buffer_offset;
+        acceleration_asset.compacted = true;
 
         // copy the original BLAS to a compact version
         VkCopyAccelerationStructureInfoKHR copy_info = {};
@@ -1024,6 +1025,19 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             if(prev_it != previous_mesh_assets.end())
             {
                 auto &prev_accleration_assets = prev_it->second;
+
+                // adopt compacted assets, if a previous context has them and we do not
+                if(params.previous_context && !prev_accleration_assets.empty() &&
+                   !prev_accleration_assets.front()->compacted)
+                {
+                    auto prev_context_it = params.previous_context->mesh_assets.find(mesh);
+
+                    if(prev_context_it != params.previous_context->mesh_assets.end() &&
+                       !prev_context_it->second.empty() && prev_context_it->second.front()->compacted)
+                    {
+                        prev_accleration_assets = prev_context_it->second;
+                    }
+                }
 
                 // reset scratch-buffers for acceleration-assets we keep
                 for(auto &acceleration_asset: prev_accleration_assets) { acceleration_asset->scratch_buffer.reset(); }
