@@ -35,6 +35,14 @@ namespace utils
 //! floor-based mod, like GLSL mod. fmod truncates and differs for negative input
 float4 _psrd_mod(float4 x, float y) { return x - y * floor(x / y); }
 
+//! wrap to [0, y). x / y may compile to x * rcp(y), so floor can be one period off at exact multiples
+float4 _psrd_wrap(float4 x, float y)
+{
+    float4 m = _psrd_mod(x, y);
+    m = select(m >= y, m - y, m);
+    return select(m < 0.0, m + y, m);
+}
+
 //! permutation polynomial for the hash value
 float4 _psrd_permute(float4 i)
 {
@@ -93,9 +101,9 @@ public float psrdnoise(float3 x, float3 period, float alpha, out float3 gradient
         float4 vx = float4(v0.x, v1.x, v2.x, v3.x);
         float4 vy = float4(v0.y, v1.y, v2.y, v3.y);
         float4 vz = float4(v0.z, v1.z, v2.z, v3.z);
-        if(period.x > 0.0) { vx = _psrd_mod(vx, period.x); }
-        if(period.y > 0.0) { vy = _psrd_mod(vy, period.y); }
-        if(period.z > 0.0) { vz = _psrd_mod(vz, period.z); }
+        if(period.x > 0.0) { vx = _psrd_wrap(vx, period.x); }
+        if(period.y > 0.0) { vy = _psrd_wrap(vy, period.y); }
+        if(period.z > 0.0) { vz = _psrd_wrap(vz, period.z); }
 
         // round to fix float errors
         i0 = floor(_psrd_to_simplex(float3(vx.x, vy.x, vz.x)) + 0.5);
