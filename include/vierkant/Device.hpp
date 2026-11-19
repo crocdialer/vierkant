@@ -105,6 +105,7 @@ public:
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_pipeline;
         VkPhysicalDeviceOpacityMicromapPropertiesEXT micromap_opacity;
         VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader;
+        VkPhysicalDeviceDescriptorHeapPropertiesEXT descriptor_heap;
     };
 
     struct features_t
@@ -129,6 +130,9 @@ public:
         // features related to rasterization
         VkPhysicalDeviceMeshShaderFeaturesEXT mesh_shader = {};
         VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR barycentric = {};
+
+        // resource-binding without descriptor-sets
+        VkPhysicalDeviceDescriptorHeapFeaturesEXT descriptor_heap = {};
     };
 
     //! memory-usage for a single device memory-heap

@@ -174,12 +174,14 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
         m_properties.ray_pipeline.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
         m_properties.mesh_shader.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
         m_properties.micromap_opacity.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPACITY_MICROMAP_PROPERTIES_EXT;
+        m_properties.descriptor_heap.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_HEAP_PROPERTIES_EXT;
         physical_device_properties.pNext = &m_properties.vulkan12;
         m_properties.vulkan12.pNext = &m_properties.vulkan13;
         m_properties.vulkan13.pNext = &m_properties.acceleration_structure;
         m_properties.acceleration_structure.pNext = &m_properties.ray_pipeline;
         m_properties.ray_pipeline.pNext = &m_properties.mesh_shader;
         m_properties.mesh_shader.pNext = &m_properties.micromap_opacity;
+        m_properties.micromap_opacity.pNext = &m_properties.descriptor_heap;
         vkGetPhysicalDeviceProperties2(create_info.physical_device, &physical_device_properties);
         m_properties.core = physical_device_properties.properties;
     }
@@ -312,6 +314,10 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     //------------------------------------ VK_EXT_ray_tracing_invocation_reorder ------------------------------------
     m_features.invocation_reorder.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_INVOCATION_REORDER_FEATURES_EXT;
     update_pnext(m_features.invocation_reorder, VK_EXT_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME);
+
+    //------------------------------------ VK_EXT_descriptor_heap ------------------------------------------------------
+    m_features.descriptor_heap.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_HEAP_FEATURES_EXT;
+    update_pnext(m_features.descriptor_heap, VK_EXT_DESCRIPTOR_HEAP_EXTENSION_NAME);
 
     //------------------------------------ VK_KHR_present_mode_fifo_latest_ready ----------------------------------
     // VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR present_mode_fifo_latest_features = {};
