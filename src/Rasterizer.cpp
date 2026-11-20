@@ -296,9 +296,9 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         std::vector<VkDescriptorSet> descriptor_set_handles;
         VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
 
-        //! descriptor-heap: per-draw block-layout, blocks for set 0 and the bindless set 1
+        //! descriptor-heap: per-draw block-layout, block-refs for set 0 and the bindless set 1
         vierkant::HeapBlockLayoutPtr heap_layout;
-        std::array<vierkant::heap_block_t, 2> heap_blocks = {};
+        std::array<vierkant::heap_block_ref_t, 2> heap_blocks = {};
 
         const drawable_t *drawable = nullptr;
     };
@@ -546,7 +546,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     }
 
     // descriptor-heap: one bindless block for all draws
-    vierkant::heap_block_t bindless_heap_block = {};
+    vierkant::heap_block_ref_t bindless_heap_block = {};
     if(heap) { bindless_heap_block = frame_assets.heap_blocks.write(*bindless_heap_layout, bindless_texture_desc); }
 
     // set buffer-descriptors after delegate

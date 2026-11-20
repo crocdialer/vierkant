@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include "vierkant/Pipeline.hpp"
 #include "vierkant/descriptor.hpp"
-#include "vierkant/heap_descriptors.hpp"
+#include "vierkant/heap_blocks.hpp"
 
 namespace vierkant
 {

@@ -1,20 +1,11 @@
-#include "test_context.hpp"
+#include "heap_test_utils.hpp"
 #include <vierkant/DescriptorHeap.hpp>
 #include <vierkant/Image.hpp>
 
+using heap_test::descriptor_heap_supported;
+
 namespace
 {
-bool descriptor_heap_supported()
-{
-    vierkant::Instance instance(vierkant::Instance::create_info_t{});
-    return !instance.physical_devices().empty() &&
-           vierkant::check_device_extension_support(instance.physical_devices()[0],
-                                                    vierkant::DescriptorHeap::required_extensions());
-}
-
-VkDeviceSize align_up(VkDeviceSize value, VkDeviceSize alignment)
-{ return (value + alignment - 1) / alignment * alignment; }
-
 bool all_zero(const void *data, size_t num_bytes)
 {
     auto *ptr = static_cast<const uint8_t *>(data);
@@ -47,7 +38,7 @@ TEST(DescriptorHeap, Device)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEST(DescriptorHeap, Arenas)
+TEST(DescriptorHeap, Ranges)
 {
     if(!descriptor_heap_supported()) { GTEST_SKIP() << "VK_EXT_descriptor_heap not supported"; }
 
@@ -65,37 +56,28 @@ TEST(DescriptorHeap, Arenas)
     EXPECT_EQ(resource_bind.heapRange.address % props.resourceHeapAlignment, 0);
     EXPECT_EQ(sampler_bind.heapRange.address % props.samplerHeapAlignment, 0);
 
-    // arenas sit past the reserved range and do not overlap
-    auto a = heap->create_arena(vierkant::DescriptorHeapType::RESOURCE, 4096);
-    auto b = heap->create_arena(vierkant::DescriptorHeapType::RESOURCE, 4096);
-    for(const auto &arena: {a, b})
+    // ranges sit past the reserved range, are aligned and do not overlap
+    const auto alignment = std::max(props.imageDescriptorAlignment, props.bufferDescriptorAlignment);
+    const auto *heap_data = static_cast<uint8_t *>(heap->buffer(vierkant::DescriptorHeapType::RESOURCE)->map());
+    auto a = heap->create_range(vierkant::DescriptorHeapType::RESOURCE, 4096);
+    auto b = heap->create_range(vierkant::DescriptorHeapType::RESOURCE, 4096);
+    for(const auto &range: {a, b})
     {
-        EXPECT_GE(arena->offset(), resource_bind.reservedRangeOffset + resource_bind.reservedRangeSize);
-        EXPECT_LE(arena->offset() + arena->num_bytes(), resource_bind.heapRange.size);
+        EXPECT_GE(range->offset(), resource_bind.reservedRangeOffset + resource_bind.reservedRangeSize);
+        EXPECT_LE(range->offset() + range->num_bytes(), resource_bind.heapRange.size);
+        EXPECT_EQ(range->offset() % alignment, 0);
+        EXPECT_EQ(range->data(), heap_data + range->offset());
     }
     EXPECT_TRUE(a->offset() + a->num_bytes() <= b->offset() || b->offset() + b->num_bytes() <= a->offset());
 
-    // allocations are aligned relative to the heap-start
-    auto first = a->allocate(1, 1);
-    EXPECT_EQ(first.offset, a->offset());
-    auto aligned = a->allocate(16, 256);
-    EXPECT_EQ(aligned.offset % 256, 0);
-    EXPECT_GT(aligned.offset, first.offset);
-    EXPECT_EQ(static_cast<uint8_t *>(aligned.data) - static_cast<uint8_t *>(first.data), aligned.offset - first.offset);
-
-    // exhaustion throws, reset releases everything
-    EXPECT_THROW(a->allocate(a->num_bytes(), 1), std::runtime_error);
-    a->reset();
-    EXPECT_EQ(a->allocate(a->num_bytes(), 1).offset, a->offset());
-
-    // a destroyed arena returns its range to the heap
-    VkDeviceSize sampler_space =
-            sampler_bind.heapRange.size - align_up(sampler_bind.reservedRangeSize, props.samplerDescriptorAlignment);
-    auto all_samplers = heap->create_arena(vierkant::DescriptorHeapType::SAMPLER, sampler_space);
-    EXPECT_THROW(heap->create_arena(vierkant::DescriptorHeapType::SAMPLER, props.samplerDescriptorSize),
+    // a full heap throws, a destroyed range returns to the heap
+    VkDeviceSize sampler_space = sampler_bind.heapRange.size -
+                                 vierkant::align_up(sampler_bind.reservedRangeSize, props.samplerDescriptorAlignment);
+    auto all_samplers = heap->create_range(vierkant::DescriptorHeapType::SAMPLER, sampler_space);
+    EXPECT_THROW(heap->create_range(vierkant::DescriptorHeapType::SAMPLER, props.samplerDescriptorSize),
                  std::runtime_error);
     all_samplers.reset();
-    EXPECT_NO_THROW(heap->create_arena(vierkant::DescriptorHeapType::SAMPLER, sampler_space));
+    EXPECT_NO_THROW(heap->create_range(vierkant::DescriptorHeapType::SAMPLER, sampler_space));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -108,8 +90,8 @@ TEST(DescriptorHeap, WriteAndBind)
     const auto &device = test_context.device;
     const auto &props = device->properties().descriptor_heap;
     auto heap = vierkant::DescriptorHeap::create({device});
-    auto resource_arena = heap->create_arena(vierkant::DescriptorHeapType::RESOURCE, 4096);
-    auto sampler_arena = heap->create_arena(vierkant::DescriptorHeapType::SAMPLER, 1024);
+    auto resource_range = heap->create_range(vierkant::DescriptorHeapType::RESOURCE, 4096);
+    auto sampler_range = heap->create_range(vierkant::DescriptorHeapType::SAMPLER, 1024);
 
     // storage-buffer descriptor
     constexpr VkDeviceSize num_buffer_bytes = 256;
@@ -144,11 +126,12 @@ TEST(DescriptorHeap, WriteAndBind)
     resource_infos[1].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     resource_infos[1].data.pImage = &image_info;
 
-    auto buffer_alloc = resource_arena->allocate(props.bufferDescriptorSize, props.bufferDescriptorAlignment);
-    auto image_alloc = resource_arena->allocate(props.imageDescriptorSize, props.imageDescriptorAlignment);
+    // buffer-descriptor at the range-start, image-descriptor after it
+    auto image_offset = vierkant::align_up(props.bufferDescriptorSize, props.imageDescriptorAlignment);
     std::array<VkHostAddressRangeEXT, 2> resource_dst = {
-            VkHostAddressRangeEXT{buffer_alloc.data, static_cast<size_t>(buffer_alloc.num_bytes)},
-            VkHostAddressRangeEXT{image_alloc.data, static_cast<size_t>(image_alloc.num_bytes)}};
+            VkHostAddressRangeEXT{resource_range->data(), static_cast<size_t>(props.bufferDescriptorSize)},
+            VkHostAddressRangeEXT{resource_range->data() + image_offset,
+                                  static_cast<size_t>(props.imageDescriptorSize)}};
 
     // sampler descriptor
     VkSamplerCreateInfo sampler_info = {};
@@ -156,18 +139,17 @@ TEST(DescriptorHeap, WriteAndBind)
     sampler_info.magFilter = sampler_info.minFilter = VK_FILTER_LINEAR;
     sampler_info.maxLod = VK_LOD_CLAMP_NONE;
 
-    auto sampler_alloc = sampler_arena->allocate(props.samplerDescriptorSize, props.samplerDescriptorAlignment);
-    VkHostAddressRangeEXT sampler_dst = {sampler_alloc.data, static_cast<size_t>(sampler_alloc.num_bytes)};
+    VkHostAddressRangeEXT sampler_dst = {sampler_range->data(), static_cast<size_t>(props.samplerDescriptorSize)};
 
-    // the writes land in the arena-allocations
-    for(const auto &alloc: {buffer_alloc, image_alloc, sampler_alloc}) { memset(alloc.data, 0, alloc.num_bytes); }
+    // the writes land in the ranges
+    for(const auto &dst: {resource_dst[0], resource_dst[1], sampler_dst}) { memset(dst.address, 0, dst.size); }
     vierkant::vkCheck(vkWriteResourceDescriptorsEXT(device->handle(), resource_infos.size(), resource_infos.data(),
                                                     resource_dst.data()),
                       "vkWriteResourceDescriptorsEXT failed");
     vierkant::vkCheck(vkWriteSamplerDescriptorsEXT(device->handle(), 1, &sampler_info, &sampler_dst),
                       "vkWriteSamplerDescriptorsEXT failed");
-    EXPECT_FALSE(all_zero(buffer_alloc.data, buffer_alloc.num_bytes));
-    EXPECT_FALSE(all_zero(image_alloc.data, image_alloc.num_bytes));
+    EXPECT_FALSE(all_zero(resource_dst[0].address, resource_dst[0].size));
+    EXPECT_FALSE(all_zero(resource_dst[1].address, resource_dst[1].size));
 
     // bind both heaps and submit
     vierkant::CommandBuffer cmd(device, device->command_pool_transient());

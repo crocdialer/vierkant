@@ -1,13 +1,11 @@
 #include <deque>
-#include <vierkant/heap_descriptors.hpp>
+#include <vierkant/heap_blocks.hpp>
 
 namespace vierkant
 {
 
 namespace
 {
-
-uint32_t align_up(uint32_t value, uint32_t alignment) { return (value + alignment - 1) / alignment * alignment; }
 
 VkSpirvResourceTypeFlagsEXT resource_mask(VkDescriptorType type)
 {
@@ -29,6 +27,33 @@ VkSpirvResourceTypeFlagsEXT resource_mask(VkDescriptorType type)
         default: break;
     }
     throw std::runtime_error("descriptor-heap: unsupported descriptor-type -> " + std::to_string(type));
+}
+
+//! resource- and sampler-block sizes in bytes, including a variable-count binding
+std::pair<uint32_t, uint32_t> heap_block_size(const heap_block_layout_t &layout, const descriptor_map_t &descriptors)
+{
+    std::pair<uint32_t, uint32_t> ret = {layout.num_bytes, layout.num_sampler_bytes};
+
+    for(const auto &b: layout.bindings)
+    {
+        if(!b.variable_count) { continue; }
+        const auto &desc = descriptors.at(b.binding);
+        auto count = static_cast<uint32_t>(std::max({desc.images.size(), desc.buffers.size(), size_t(1)}));
+        ret.first = std::max(ret.first, b.offset + count * b.stride);
+        if(b.sampler_stride) { ret.second = std::max(ret.second, b.sampler_offset + count * b.sampler_stride); }
+    }
+    return ret;
+}
+
+//! push-data offset of the first heap_block_ref_t, past all push-constants
+//! push-data is built on the stack, 256 bytes is maxPushDataSize of current drivers
+constexpr uint32_t max_push_data_size = 256;
+
+uint32_t heap_push_offset(const std::vector<VkPushConstantRange> &push_constant_ranges)
+{
+    uint32_t end = 0;
+    for(const auto &range: push_constant_ranges) { end = std::max(end, range.offset + range.size); }
+    return align_up(end, 4);
 }
 
 bool is_image(VkDescriptorType type)
@@ -126,123 +151,108 @@ HeapBlockLayoutPtr find_or_create_heap_block_layout(const vierkant::DevicePtr &d
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-heap_block_size_t heap_block_size(const heap_block_layout_t &layout, const descriptor_map_t &descriptors)
-{
-    heap_block_size_t ret = {layout.num_bytes, layout.num_sampler_bytes};
-
-    for(const auto &b: layout.bindings)
-    {
-        if(!b.variable_count) { continue; }
-        const auto &desc = descriptors.at(b.binding);
-        auto count = static_cast<uint32_t>(std::max({desc.images.size(), desc.buffers.size(), size_t(1)}));
-        ret.num_bytes = std::max(ret.num_bytes, b.offset + count * b.stride);
-        if(b.sampler_stride)
-        {
-            ret.num_sampler_bytes = std::max(ret.num_sampler_bytes, b.sampler_offset + count * b.sampler_stride);
-        }
-    }
-    return ret;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-uint32_t heap_push_offset(const std::vector<VkPushConstantRange> &push_constant_ranges)
-{
-    uint32_t end = 0;
-    for(const auto &range: push_constant_ranges) { end = std::max(end, range.offset + range.size); }
-    return align_up(end, 4);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 void cmd_push_heap_data(VkCommandBuffer command_buffer, const std::vector<VkPushConstantRange> &push_constant_ranges,
-                        std::span<const uint8_t> push_constants, std::span<const heap_block_t> blocks)
+                        std::span<const uint8_t> push_constants, std::span<const heap_block_ref_t> blocks)
 {
     uint32_t push_offset = heap_push_offset(push_constant_ranges);
     if(push_constants.size() > push_offset)
     {
         throw std::runtime_error("descriptor-heap: push-constants exceed the pipeline's push-constant ranges");
     }
-    std::vector<uint8_t> push_data(push_offset + blocks.size_bytes());
+
+    std::array<uint8_t, max_push_data_size> push_data;
+    size_t num_bytes = push_offset + blocks.size_bytes();
+    if(num_bytes > push_data.size()) { throw std::runtime_error("descriptor-heap: push-data exceeds 256 bytes"); }
     memcpy(push_data.data(), push_constants.data(), push_constants.size());
     memcpy(push_data.data() + push_offset, blocks.data(), blocks.size_bytes());
 
     VkPushDataInfoEXT push_info = {};
     push_info.sType = VK_STRUCTURE_TYPE_PUSH_DATA_INFO_EXT;
-    push_info.data = {push_data.data(), push_data.size()};
+    push_info.data = {push_data.data(), num_bytes};
     vkCmdPushDataEXT(command_buffer, &push_info);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<VkDescriptorSetAndBindingMappingEXT> create_heap_mappings(const vierkant::DevicePtr &device,
-                                                                      const heap_block_layout_t &layout, uint32_t set,
-                                                                      uint32_t push_offset)
+std::vector<VkDescriptorSetAndBindingMappingEXT>
+create_heap_mappings(const vierkant::DevicePtr &device, const std::vector<HeapBlockLayoutPtr> &layouts,
+                     const std::vector<VkPushConstantRange> &push_constant_ranges)
 {
-    if(push_offset + sizeof(heap_block_t) > device->properties().descriptor_heap.maxPushDataSize)
+    const uint32_t push_offset = heap_push_offset(push_constant_ranges);
+    const auto max_size =
+            std::min<VkDeviceSize>(device->properties().descriptor_heap.maxPushDataSize, max_push_data_size);
+    if(push_offset + layouts.size() * sizeof(heap_block_ref_t) > max_size)
     {
         throw std::runtime_error("descriptor-heap: push-data exceeds maxPushDataSize");
     }
 
     std::vector<VkDescriptorSetAndBindingMappingEXT> ret;
 
-    for(const auto &b: layout.bindings)
+    for(uint32_t set = 0; set < layouts.size(); ++set)
     {
-        VkDescriptorSetAndBindingMappingEXT mapping = {};
-        mapping.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_AND_BINDING_MAPPING_EXT;
-        mapping.descriptorSet = set;
-        mapping.firstBinding = b.binding;
-        mapping.bindingCount = 1;
-        mapping.resourceMask = resource_mask(b.type);
+        const uint32_t block_offset = push_offset + set * sizeof(heap_block_ref_t);
 
-        // the pushed resource-offset is a byte-offset, used as-is by both sources
-        const uint32_t resource_push_offset = push_offset + offsetof(heap_block_t, resource_offset);
-
-        if(b.type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK)
+        for(const auto &b: layouts[set]->bindings)
         {
-            mapping.source = VK_DESCRIPTOR_MAPPING_SOURCE_RESOURCE_HEAP_DATA_EXT;
-            mapping.sourceData.heapData.heapOffset = b.offset;
-            mapping.sourceData.heapData.pushOffset = resource_push_offset;
+            VkDescriptorSetAndBindingMappingEXT mapping = {};
+            mapping.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_AND_BINDING_MAPPING_EXT;
+            mapping.descriptorSet = set;
+            mapping.firstBinding = b.binding;
+            mapping.bindingCount = 1;
+            mapping.resourceMask = resource_mask(b.type);
+
+            // the pushed resource-offset is a byte-offset, used as-is by both sources
+            const uint32_t resource_push_offset = block_offset + offsetof(heap_block_ref_t, resource_offset);
+
+            if(b.type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK)
+            {
+                mapping.source = VK_DESCRIPTOR_MAPPING_SOURCE_RESOURCE_HEAP_DATA_EXT;
+                mapping.sourceData.heapData.heapOffset = b.offset;
+                mapping.sourceData.heapData.pushOffset = resource_push_offset;
+                ret.push_back(mapping);
+                continue;
+            }
+            mapping.source = VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_PUSH_INDEX_EXT;
+
+            auto &push_index = mapping.sourceData.pushIndex;
+            push_index.heapOffset = b.offset;
+            push_index.pushOffset = resource_push_offset;
+            push_index.heapIndexStride = 1;
+            push_index.heapArrayStride = b.stride;
+
+            if(b.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+            {
+                push_index.samplerHeapOffset = b.sampler_offset;
+                push_index.samplerPushOffset = block_offset + offsetof(heap_block_ref_t, sampler_index);
+                push_index.samplerHeapIndexStride = layouts[set]->sampler_alignment;
+                push_index.samplerHeapArrayStride = b.sampler_stride;
+            }
             ret.push_back(mapping);
-            continue;
         }
-        mapping.source = VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_PUSH_INDEX_EXT;
-
-        auto &push_index = mapping.sourceData.pushIndex;
-        push_index.heapOffset = b.offset;
-        push_index.pushOffset = resource_push_offset;
-        push_index.heapIndexStride = 1;
-        push_index.heapArrayStride = b.stride;
-
-        if(b.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-        {
-            push_index.samplerHeapOffset = b.sampler_offset;
-            push_index.samplerPushOffset = push_offset + offsetof(heap_block_t, sampler_index);
-            push_index.samplerHeapIndexStride = layout.sampler_alignment;
-            push_index.samplerHeapArrayStride = b.sampler_stride;
-        }
-        ret.push_back(mapping);
     }
     return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-heap_block_t write_heap_block(const DescriptorHeapPtr &heap, const heap_block_layout_t &layout,
-                              const descriptor_map_t &descriptors, DescriptorArena &resource_arena,
-                              SamplerBlockPtr &sampler_block)
+HeapBlockAllocator::HeapBlockAllocator(DescriptorHeapPtr heap) : m_heap(std::move(heap)) {}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+heap_block_ref_t HeapBlockAllocator::write(const heap_block_layout_t &layout, const descriptor_map_t &descriptors)
 {
-    const auto &device = heap->device();
+    const auto &device = m_heap->device();
     const auto &props = device->properties().descriptor_heap;
     const auto [num_bytes, num_sampler_bytes] = heap_block_size(layout, descriptors);
 
-    heap_block_t ret = {};
-    DescriptorArena::allocation_t block = {};
+    heap_block_ref_t ret = {};
+    uint8_t *block_data = nullptr;
 
     if(num_bytes)
     {
-        block = resource_arena.allocate(num_bytes, layout.alignment);
-        ret.resource_offset = static_cast<uint32_t>(block.offset);
+        VkDeviceSize offset = allocate(num_bytes, layout.alignment);
+        ret.resource_offset = static_cast<uint32_t>(offset);
+        block_data = m_ranges.back()->data() + (offset - m_ranges.back()->offset());
     }
 
     // write-inputs, pointers into these must stay valid until the writes
@@ -259,7 +269,7 @@ heap_block_t write_heap_block(const DescriptorHeapPtr &heap, const heap_block_la
         info.data = data;
         resource_infos.push_back(info);
         const uint32_t size = is_image(type) ? props.imageDescriptorSize : props.bufferDescriptorSize;
-        resource_dst.push_back({static_cast<uint8_t *>(block.data) + offset, size});
+        resource_dst.push_back({block_data + offset, size});
     };
 
     for(const auto &b: layout.bindings)
@@ -324,8 +334,7 @@ heap_block_t write_heap_block(const DescriptorHeapPtr &heap, const heap_block_la
             }
 
             case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
-                memcpy(static_cast<uint8_t *>(block.data) + b.offset, desc.inline_uniform_block.data(),
-                       desc.inline_uniform_block.size());
+                memcpy(block_data + b.offset, desc.inline_uniform_block.data(), desc.inline_uniform_block.size());
                 break;
 
             case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
@@ -343,7 +352,8 @@ heap_block_t write_heap_block(const DescriptorHeapPtr &heap, const heap_block_la
                 }
                 break;
             }
-            default: resource_mask(desc.type);
+            // other types throw in create_heap_block_layout
+            default: break;
         }
     }
 
@@ -351,56 +361,59 @@ heap_block_t write_heap_block(const DescriptorHeapPtr &heap, const heap_block_la
     {
         vkCheck(vkWriteResourceDescriptorsEXT(device->handle(), resource_infos.size(), resource_infos.data(),
                                               resource_dst.data()),
-                "write_heap_block: vkWriteResourceDescriptorsEXT failed");
+                "HeapBlockAllocator::write: vkWriteResourceDescriptorsEXT failed");
     }
-    sampler_block = nullptr;
     if(num_sampler_bytes)
     {
-        sampler_block = heap->sampler_block(sampler_slots, num_sampler_bytes);
+        auto sampler_block = m_heap->sampler_block(sampler_slots, num_sampler_bytes);
         ret.sampler_index = static_cast<uint32_t>(sampler_block->offset() / layout.sampler_alignment);
+        m_sampler_blocks.insert(std::move(sampler_block));
     }
     return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-HeapBlockAllocator::HeapBlockAllocator(DescriptorHeapPtr heap) : m_heap(std::move(heap)) {}
-
-heap_block_t HeapBlockAllocator::write(const heap_block_layout_t &layout, const descriptor_map_t &descriptors)
-{
-    auto num_bytes = heap_block_size(layout, descriptors).num_bytes;
-    SamplerBlockPtr sampler_block;
-    auto ret = write_heap_block(m_heap, layout, descriptors, arena(num_bytes, layout.alignment), sampler_block);
-    if(sampler_block) { m_sampler_blocks.insert(std::move(sampler_block)); }
-    return ret;
-}
-
 void HeapBlockAllocator::reset()
 {
     m_sampler_blocks.clear();
+    m_num_bytes_used = 0;
 
-    if(m_arenas.size() == 1) { m_arenas.back()->reset(); }
-    else if(m_arenas.size() > 1)
+    if(m_ranges.size() > 1)
     {
-        // merge into one arena of the combined size
+        // merge into one range of the combined size
         VkDeviceSize num_bytes = 0;
-        for(const auto &a: m_arenas) { num_bytes += a->num_bytes(); }
-        m_arenas.clear();
-        m_arenas.push_back(m_heap->create_arena(DescriptorHeapType::RESOURCE, num_bytes));
+        for(const auto &r: m_ranges) { num_bytes += r->num_bytes(); }
+        m_ranges.clear();
+        m_ranges.push_back(m_heap->create_range(DescriptorHeapType::RESOURCE, num_bytes));
     }
 }
 
-DescriptorArena &HeapBlockAllocator::arena(VkDeviceSize num_bytes, VkDeviceSize alignment)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+VkDeviceSize HeapBlockAllocator::allocate(VkDeviceSize num_bytes, VkDeviceSize alignment)
 {
-    // initial arena-size, it doubles when exhausted
+    // initial range-size, it doubles when full
     constexpr VkDeviceSize initial_num_bytes = 16 << 10;
 
-    if(m_arenas.empty() || !m_arenas.back()->can_allocate(num_bytes, alignment))
+    // at most two passes, a new range fits the block
+    while(true)
     {
-        VkDeviceSize size = m_arenas.empty() ? initial_num_bytes : 2 * m_arenas.back()->num_bytes();
-        m_arenas.push_back(m_heap->create_arena(DescriptorHeapType::RESOURCE, std::max(size, num_bytes + alignment)));
+        if(!m_ranges.empty())
+        {
+            // align relative to the heap-start, which is what descriptor-alignments refer to
+            const auto &range = *m_ranges.back();
+            VkDeviceSize offset = align_up(range.offset() + m_num_bytes_used, alignment);
+            if(offset + num_bytes <= range.offset() + range.num_bytes())
+            {
+                m_num_bytes_used = offset + num_bytes - range.offset();
+                return offset;
+            }
+        }
+        VkDeviceSize size = m_ranges.empty() ? initial_num_bytes : 2 * m_ranges.back()->num_bytes();
+        m_ranges.push_back(m_heap->create_range(DescriptorHeapType::RESOURCE, std::max(size, num_bytes + alignment)));
+        m_num_bytes_used = 0;
     }
-    return *m_arenas.back();
 }
 
 }// namespace vierkant

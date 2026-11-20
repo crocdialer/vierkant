@@ -1,8 +1,10 @@
-#include "test_context.hpp"
-#include <vierkant/Compute.hpp>
-#include <vierkant/heap_descriptors.hpp>
+#include "heap_test_utils.hpp"
 #include <set>
 #include <test_shaders/shaders_slang.hpp>
+#include <vierkant/Compute.hpp>
+#include <vierkant/heap_blocks.hpp>
+
+using heap_test::descriptor_heap_supported;
 
 namespace
 {
@@ -11,14 +13,6 @@ constexpr uint32_t num_textures = 3;
 constexpr uint32_t num_values = 9 + num_textures;
 
 using values_t = std::array<glm::uvec4, num_values>;
-
-bool descriptor_heap_supported()
-{
-    vierkant::Instance instance(vierkant::Instance::create_info_t{});
-    return !instance.physical_devices().empty() &&
-           vierkant::check_device_extension_support(instance.physical_devices()[0],
-                                                    vierkant::DescriptorHeap::required_extensions());
-}
 
 glm::uvec4 bits(const glm::vec4 &v) { return glm::floatBitsToUint(v); }
 
@@ -202,7 +196,7 @@ vierkant::shader_module_t test_shader()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEST(HeapDescriptors, Layout)
+TEST(HeapBlocks, Layout)
 {
     if(!descriptor_heap_supported()) { GTEST_SKIP() << "VK_EXT_descriptor_heap not supported"; }
     vulkan_test_context_t test_context(vierkant::DescriptorHeap::required_extensions());
@@ -248,7 +242,7 @@ TEST(HeapDescriptors, Layout)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEST(HeapDescriptors, RoundTrip)
+TEST(HeapBlocks, RoundTrip)
 {
     if(!descriptor_heap_supported()) { GTEST_SKIP() << "VK_EXT_descriptor_heap not supported"; }
     vulkan_test_context_t test_context(vierkant::DescriptorHeap::required_extensions());
@@ -303,8 +297,7 @@ TEST(HeapDescriptors, RoundTrip)
 
     // descriptor-heap
     auto heap = vierkant::DescriptorHeap::create({device});
-    auto resource_arena = heap->create_arena(vierkant::DescriptorHeapType::RESOURCE, 1 << 16);
-    std::vector<vierkant::SamplerBlockPtr> sampler_blocks;
+    vierkant::HeapBlockAllocator heap_blocks(heap);
 
     auto layout = std::make_shared<vierkant::heap_block_layout_t>(
             vierkant::create_heap_block_layout(device, scene_a.descriptors));
@@ -319,9 +312,8 @@ TEST(HeapDescriptors, RoundTrip)
     struct push_data_t
     {
         uint32_t num_textures;
-        vierkant::heap_block_t block;
+        vierkant::heap_block_ref_t block;
     };
-    ASSERT_EQ(offsetof(push_data_t, block), vierkant::heap_push_offset(pipeline_info.push_constant_ranges));
 
     vierkant::CommandBuffer cmd(device, device->command_pool_transient());
     cmd.begin();
@@ -332,8 +324,7 @@ TEST(HeapDescriptors, RoundTrip)
     {
         push_data_t push_data = {};
         push_data.num_textures = num_textures;
-        push_data.block = vierkant::write_heap_block(heap, *layout, scene->descriptors, *resource_arena,
-                                                     sampler_blocks.emplace_back());
+        push_data.block = heap_blocks.write(*layout, scene->descriptors);
 
         VkPushDataInfoEXT push_info = {};
         push_info.sType = VK_STRUCTURE_TYPE_PUSH_DATA_INFO_EXT;
@@ -350,7 +341,7 @@ TEST(HeapDescriptors, RoundTrip)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEST(HeapDescriptors, SamplerBlocks)
+TEST(HeapBlocks, SamplerBlocks)
 {
     if(!descriptor_heap_supported()) { GTEST_SKIP() << "VK_EXT_descriptor_heap not supported"; }
     vulkan_test_context_t test_context(vierkant::DescriptorHeap::required_extensions());
@@ -386,7 +377,7 @@ TEST(HeapDescriptors, SamplerBlocks)
     const auto &bind = heap->bind_info(vierkant::DescriptorHeapType::SAMPLER);
     VkDeviceSize reserved = (bind.reservedRangeSize + props.samplerDescriptorAlignment - 1) /
                             props.samplerDescriptorAlignment * props.samplerDescriptorAlignment;
-    EXPECT_NO_THROW(heap->create_arena(vierkant::DescriptorHeapType::SAMPLER, bind.heapRange.size - reserved));
+    EXPECT_NO_THROW(heap->create_range(vierkant::DescriptorHeapType::SAMPLER, bind.heapRange.size - reserved));
 
     // a dropped block can be requested again
     EXPECT_NO_THROW(heap->sampler_block({{0, linear}}, stride));
@@ -394,7 +385,7 @@ TEST(HeapDescriptors, SamplerBlocks)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEST(HeapDescriptors, ManyAllocators)
+TEST(HeapBlocks, ManyAllocators)
 {
     if(!descriptor_heap_supported()) { GTEST_SKIP() << "VK_EXT_descriptor_heap not supported"; }
     vulkan_test_context_t test_context(vierkant::DescriptorHeap::required_extensions());
@@ -411,7 +402,7 @@ TEST(HeapDescriptors, ManyAllocators)
     descriptors[0].images = {image};
     auto layout = vierkant::create_heap_block_layout(device, descriptors);
 
-    // one allocator per frame-slot of each binder. far more than the sampler-heap holds sampler-arenas.
+    // one allocator per frame-slot of each binder. far more than the sampler-heap holds sampler-ranges.
     constexpr uint32_t num_allocators = 1024;
     std::vector<vierkant::HeapBlockAllocator> allocators(num_allocators, vierkant::HeapBlockAllocator(heap));
     std::set<uint32_t> sampler_indices;

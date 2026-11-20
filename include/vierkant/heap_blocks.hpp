@@ -14,7 +14,7 @@ namespace vierkant
 
 /**
  * @brief   heap_block_layout_t is the layout of one descriptor_map_t in the resource- and sampler-heap.
- *          a block is addressed by an index in push-data (VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_PUSH_INDEX_EXT).
+ *          a block is addressed by a heap_block_ref_t in push-data.
  */
 struct heap_block_layout_t
 {
@@ -46,21 +46,14 @@ struct heap_block_layout_t
     uint32_t sampler_alignment = 1;
 };
 
-//! block-location in push-data, one per descriptor-set
-struct heap_block_t
+//! location of a block, pushed once per descriptor-set
+struct heap_block_ref_t
 {
     //! byte-offset of the resource-block in the resource-heap
     uint32_t resource_offset = 0;
 
     //! index of the sampler-block, in units of heap_block_layout_t::sampler_alignment
     uint32_t sampler_index = 0;
-};
-
-//! block-sizes in bytes for one descriptor-map
-struct heap_block_size_t
-{
-    uint32_t num_bytes = 0;
-    uint32_t num_sampler_bytes = 0;
 };
 
 /**
@@ -86,66 +79,34 @@ HeapBlockLayoutPtr find_or_create_heap_block_layout(const vierkant::DevicePtr &d
                                                     std::unordered_map<descriptor_map_t, HeapBlockLayoutPtr> &cache);
 
 /**
- * @brief   heap_block_size returns the block-sizes for a descriptor-map, including a variable-count binding.
- *
- * @param   layout      the block-layout for @p descriptors
- * @param   descriptors a provided descriptor-map
- * @return  block-sizes in bytes
- */
-heap_block_size_t heap_block_size(const heap_block_layout_t &layout, const descriptor_map_t &descriptors);
-
-/**
- * @brief   heap_push_offset returns the push-data offset of the first heap_block_t, past all push-constants.
- *
- * @param   push_constant_ranges    the push-constant ranges of a pipeline
- * @return  byte-offset in push-data
- */
-uint32_t heap_push_offset(const std::vector<VkPushConstantRange> &push_constant_ranges);
-
-/**
  * @brief   cmd_push_heap_data records the push-data of a descriptor-heap pipeline:
- *          push-constants at offset 0, then one heap_block_t per set. throws if the push-constants overlap the blocks.
+ *          push-constants at offset 0, then one heap_block_ref_t per set. throws if the push-constants overlap them.
  *
  * @param   command_buffer          a command-buffer in recording state
  * @param   push_constant_ranges    the push-constant ranges the pipeline was created with
  * @param   push_constants          push-constant bytes, may be empty
- * @param   blocks                  block-indices, one per set
+ * @param   blocks                  block-refs, one per set
  */
 void cmd_push_heap_data(VkCommandBuffer command_buffer, const std::vector<VkPushConstantRange> &push_constant_ranges,
-                        std::span<const uint8_t> push_constants, std::span<const heap_block_t> blocks);
+                        std::span<const uint8_t> push_constants, std::span<const heap_block_ref_t> blocks);
 
 /**
- * @brief   create_heap_mappings returns the shader-mappings for one descriptor-set.
+ * @brief   create_heap_mappings returns the shader-mappings for all descriptor-sets of a pipeline.
+ *          the block-refs follow the push-constants, one per set.
  *
- * @param   device      handle for a vierkant::Device
- * @param   layout      the block-layout of the descriptor-set
- * @param   set         the descriptor-set index in the shader
- * @param   push_offset byte-offset of this set's heap_block_t in push-data
+ * @param   device                  handle for a vierkant::Device
+ * @param   layouts                 the block-layouts, one per descriptor-set
+ * @param   push_constant_ranges    the push-constant ranges of the pipeline
  * @return  one mapping per binding
  */
-std::vector<VkDescriptorSetAndBindingMappingEXT> create_heap_mappings(const vierkant::DevicePtr &device,
-                                                                      const heap_block_layout_t &layout, uint32_t set,
-                                                                      uint32_t push_offset);
+std::vector<VkDescriptorSetAndBindingMappingEXT>
+create_heap_mappings(const vierkant::DevicePtr &device, const std::vector<HeapBlockLayoutPtr> &layouts,
+                     const std::vector<VkPushConstantRange> &push_constant_ranges);
 
 /**
- * @brief   write_heap_block allocates a resource-block from an arena and writes all descriptors into it.
- *          samplers come from a shared sampler-block of the heap.
+ * @brief   HeapBlockAllocator writes blocks into ranges of a DescriptorHeap. the ranges grow on demand.
+ *          samplers come from shared sampler-blocks of the heap, held until reset().
  *          like update_descriptor_set, null buffers and images are skipped.
- *
- * @param   heap            the descriptor-heap @p resource_arena belongs to
- * @param   layout          the block-layout for @p descriptors
- * @param   descriptors     a provided descriptor-map
- * @param   resource_arena  an arena of the resource-heap
- * @param   sampler_block   set to the sampler-block, or null. keep it while the GPU reads the block.
- * @return  the block-indices to push
- */
-heap_block_t write_heap_block(const DescriptorHeapPtr &heap, const heap_block_layout_t &layout,
-                              const descriptor_map_t &descriptors, DescriptorArena &resource_arena,
-                              SamplerBlockPtr &sampler_block);
-
-/**
- * @brief   HeapBlockAllocator writes blocks into arenas of a DescriptorHeap. the arenas grow on demand.
- *          it holds the shared sampler-blocks it used until reset().
  *          all blocks are released at once with reset(). not thread-safe.
  */
 class HeapBlockAllocator
@@ -160,24 +121,26 @@ public:
      *
      * @param   layout      the block-layout for @p descriptors
      * @param   descriptors a provided descriptor-map
-     * @return  the block-indices to push
+     * @return  the block-ref to push
      */
-    heap_block_t write(const heap_block_layout_t &layout, const descriptor_map_t &descriptors);
+    heap_block_ref_t write(const heap_block_layout_t &layout, const descriptor_map_t &descriptors);
 
     /**
      * @brief   release all blocks. the GPU must be done with them.
      */
     void reset();
 
-    [[nodiscard]] const DescriptorHeapPtr &heap() const { return m_heap; }
-
 private:
-    DescriptorArena &arena(VkDeviceSize num_bytes, VkDeviceSize alignment);
+    //! returns the heap-offset of @p num_bytes in the last range, adds a larger range if it is full
+    VkDeviceSize allocate(VkDeviceSize num_bytes, VkDeviceSize alignment);
 
     DescriptorHeapPtr m_heap;
 
-    //! resource-arenas, allocations go to the last one
-    std::vector<DescriptorArenaPtr> m_arenas;
+    //! resource-ranges, allocations go to the last one
+    std::vector<DescriptorRangePtr> m_ranges;
+
+    //! bytes in use in the last range
+    VkDeviceSize m_num_bytes_used = 0;
 
     //! sampler-blocks used since the last reset()
     std::unordered_set<SamplerBlockPtr> m_sampler_blocks;

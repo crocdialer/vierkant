@@ -10,12 +10,6 @@
 namespace vierkant
 {
 
-namespace
-{
-constexpr VkDeviceSize align_up(VkDeviceSize value, VkDeviceSize alignment)
-{ return (value + alignment - 1) / alignment * alignment; }
-}// namespace
-
 std::vector<const char *> DescriptorHeap::required_extensions() { return {VK_EXT_DESCRIPTOR_HEAP_EXTENSION_NAME}; }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,7 +30,7 @@ DescriptorHeap::DescriptorHeap(const create_info_t &create_info) : m_device(crea
     struct heap_params_t
     {
         DescriptorHeapType type;
-        VkDeviceSize num_bytes, max_num_bytes, heap_alignment, reserved_range, arena_alignment;
+        VkDeviceSize num_bytes, max_num_bytes, heap_alignment, reserved_range, range_alignment;
         const char *suffix;
     };
     const heap_params_t params[] = {
@@ -53,9 +47,9 @@ DescriptorHeap::DescriptorHeap(const create_info_t &create_info) : m_device(crea
         VkDeviceSize num_bytes = std::min(p.num_bytes, p.max_num_bytes);
 
         // reserved range first, offset 0 satisfies every descriptor-alignment
-        heap.arena_alignment = p.arena_alignment;
-        heap.arena_offset = align_up(p.reserved_range, p.arena_alignment);
-        if(num_bytes <= heap.arena_offset)
+        heap.range_alignment = p.range_alignment;
+        heap.range_offset = align_up(p.reserved_range, p.range_alignment);
+        if(num_bytes <= heap.range_offset)
         {
             throw std::runtime_error(std::format("vierkant::DescriptorHeap: {}-heap of {} bytes leaves no space past "
                                                  "a reserved range of {} bytes",
@@ -79,7 +73,7 @@ DescriptorHeap::DescriptorHeap(const create_info_t &create_info) : m_device(crea
         heap.bind_info.reservedRangeSize = p.reserved_range;
 
         VmaVirtualBlockCreateInfo block_info = {};
-        block_info.size = num_bytes - heap.arena_offset;
+        block_info.size = num_bytes - heap.range_offset;
         vkCheck(vmaCreateVirtualBlock(&block_info, &heap.virtual_block), "could not create virtual block");
     }
 }
@@ -88,19 +82,19 @@ DescriptorHeap::DescriptorHeap(const create_info_t &create_info) : m_device(crea
 
 DescriptorHeap::~DescriptorHeap()
 {
-    // arenas keep the heap alive, so all virtual allocations are gone by now
+    // ranges keep the heap alive, so all virtual allocations are gone by now
     for(auto &heap: m_heaps) { vmaDestroyVirtualBlock(heap.virtual_block); }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-DescriptorArenaPtr DescriptorHeap::create_arena(DescriptorHeapType type, VkDeviceSize num_bytes)
+DescriptorRangePtr DescriptorHeap::create_range(DescriptorHeapType type, VkDeviceSize num_bytes)
 {
     auto &heap = m_heaps[static_cast<uint32_t>(type)];
 
     VmaVirtualAllocationCreateInfo alloc_info = {};
     alloc_info.size = num_bytes;
-    alloc_info.alignment = heap.arena_alignment;
+    alloc_info.alignment = heap.range_alignment;
 
     VmaVirtualAllocation allocation = VK_NULL_HANDLE;
     VkDeviceSize offset = 0;
@@ -112,10 +106,11 @@ DescriptorArenaPtr DescriptorHeap::create_arena(DescriptorHeapType type, VkDevic
     if(result != VK_SUCCESS)
     {
         throw std::runtime_error(
-                std::format("vierkant::DescriptorHeap: could not create arena of {} bytes", num_bytes));
+                std::format("vierkant::DescriptorHeap: could not create range of {} bytes", num_bytes));
     }
-    return DescriptorArenaPtr(
-            new DescriptorArena(shared_from_this(), type, heap.arena_offset + offset, num_bytes, allocation));
+    offset += heap.range_offset;
+    return DescriptorRangePtr(
+            new DescriptorRange(shared_from_this(), type, offset, num_bytes, heap.data + offset, allocation));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,8 +124,7 @@ SamplerBlockPtr DescriptorHeap::sampler_block(const std::vector<sampler_slot_t> 
     if(auto block = entry.lock()) { return block; }
 
     const auto &props = m_device->properties().descriptor_heap;
-    auto arena = create_arena(DescriptorHeapType::SAMPLER, num_bytes);
-    auto *data = m_heaps[static_cast<uint32_t>(DescriptorHeapType::SAMPLER)].data + arena->offset();
+    auto range = create_range(DescriptorHeapType::SAMPLER, num_bytes);
 
     std::vector<VkSamplerCreateInfo> sampler_infos;
     std::vector<VkHostAddressRangeEXT> sampler_dst;
@@ -138,7 +132,7 @@ SamplerBlockPtr DescriptorHeap::sampler_block(const std::vector<sampler_slot_t> 
     for(const auto &slot: slots)
     {
         sampler_infos.push_back(sampler_create_info(slot.state, reduction_infos.emplace_back()));
-        sampler_dst.push_back({data + slot.offset, props.samplerDescriptorSize});
+        sampler_dst.push_back({range->data() + slot.offset, props.samplerDescriptorSize});
     }
     if(!sampler_infos.empty())
     {
@@ -148,14 +142,14 @@ SamplerBlockPtr DescriptorHeap::sampler_block(const std::vector<sampler_slot_t> 
     }
 
     // the last holder removes the expired entry, then frees the range
-    auto *arena_ptr = arena.get();
-    SamplerBlockPtr block(arena_ptr, [this, key = std::move(key), arena](const DescriptorArena *) mutable {
+    auto *range_ptr = range.get();
+    SamplerBlockPtr block(range_ptr, [this, key = std::move(key), range](const DescriptorRange *) mutable {
         {
             std::lock_guard lock(m_sampler_mutex);
             auto it = m_sampler_blocks.find(key);
             if(it != m_sampler_blocks.end() && it->second.expired()) { m_sampler_blocks.erase(it); }
         }
-        arena.reset();
+        range.reset();
     });
     entry = block;
     return block;
@@ -177,7 +171,7 @@ size_t DescriptorHeap::sampler_block_key_hash_t::operator()(const sampler_block_
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DescriptorHeap::free_arena(DescriptorHeapType type, VmaVirtualAllocation allocation)
+void DescriptorHeap::free_range(DescriptorHeapType type, VmaVirtualAllocation allocation)
 {
     std::lock_guard lock(m_mutex);
     vmaVirtualFree(m_heaps[static_cast<uint32_t>(type)].virtual_block, allocation);
@@ -203,36 +197,14 @@ const vierkant::BufferPtr &DescriptorHeap::buffer(DescriptorHeapType type) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-DescriptorArena::DescriptorArena(DescriptorHeapPtr heap, DescriptorHeapType type, VkDeviceSize offset,
-                                 VkDeviceSize num_bytes, VmaVirtualAllocation allocation)
-    : m_heap(std::move(heap)), m_type(type), m_offset(offset), m_num_bytes(num_bytes), m_allocation(allocation)
+DescriptorRange::DescriptorRange(DescriptorHeapPtr heap, DescriptorHeapType type, VkDeviceSize offset,
+                                 VkDeviceSize num_bytes, uint8_t *data, VmaVirtualAllocation allocation)
+    : m_heap(std::move(heap)), m_type(type), m_offset(offset), m_num_bytes(num_bytes), m_data(data),
+      m_allocation(allocation)
 {}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-DescriptorArena::~DescriptorArena() { m_heap->free_arena(m_type, m_allocation); }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool DescriptorArena::can_allocate(VkDeviceSize num_bytes, VkDeviceSize alignment) const
-{
-    VkDeviceSize offset = align_up(m_offset + m_num_bytes_used, std::max<VkDeviceSize>(alignment, 1));
-    return offset + num_bytes <= m_offset + m_num_bytes;
-}
-
-DescriptorArena::allocation_t DescriptorArena::allocate(VkDeviceSize num_bytes, VkDeviceSize alignment)
-{
-    // align relative to the heap-start, which is what descriptor-alignments refer to
-    VkDeviceSize offset = align_up(m_offset + m_num_bytes_used, std::max<VkDeviceSize>(alignment, 1));
-    if(offset + num_bytes > m_offset + m_num_bytes)
-    {
-        throw std::runtime_error(std::format("vierkant::DescriptorArena: exhausted, {} of {} bytes in use, "
-                                             "requested {}",
-                                             m_num_bytes_used, m_num_bytes, num_bytes));
-    }
-    m_num_bytes_used = offset + num_bytes - m_offset;
-    auto *heap_data = m_heap->m_heaps[static_cast<uint32_t>(m_type)].data;
-    return {offset, heap_data + offset, num_bytes};
-}
+DescriptorRange::~DescriptorRange() { m_heap->free_range(m_type, m_allocation); }
 
 }// namespace vierkant

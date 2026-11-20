@@ -14,7 +14,11 @@ namespace vierkant
 
 DEFINE_CLASS_PTR(DescriptorHeap)
 
-DEFINE_CLASS_PTR(DescriptorArena)
+DEFINE_CLASS_PTR(DescriptorRange)
+
+//! round up to a multiple of alignment
+constexpr VkDeviceSize align_up(VkDeviceSize value, VkDeviceSize alignment)
+{ return (value + alignment - 1) / alignment * alignment; }
 
 //! descriptor-heaps come in two types, bound separately
 enum class DescriptorHeapType : uint32_t
@@ -34,12 +38,12 @@ struct sampler_slot_t
 };
 
 //! a shared, write-once range of the sampler-heap
-using SamplerBlockPtr = std::shared_ptr<const DescriptorArena>;
+using SamplerBlockPtr = std::shared_ptr<const DescriptorRange>;
 
 /**
  * @brief   DescriptorHeap owns a resource- and a sampler-heap (VK_EXT_descriptor_heap).
  *          each heap is a host-visible buffer. it starts with the reserved range owned by the implementation,
- *          the remaining space is handed out as DescriptorArenas.
+ *          the remaining space is handed out as DescriptorRanges.
  */
 class DescriptorHeap : public std::enable_shared_from_this<DescriptorHeap>
 {
@@ -81,14 +85,14 @@ public:
     ~DescriptorHeap();
 
     /**
-     * @brief   create_arena reserves a range of a heap. the range returns to the heap when the arena is destroyed.
+     * @brief   create_range reserves a range of a heap. the range returns to the heap when it is destroyed.
      *          thread-safe.
      *
      * @param   type        the heap to reserve from
      * @param   num_bytes   size of the range in bytes
-     * @return  a newly created DescriptorArena
+     * @return  a newly created DescriptorRange
      */
-    DescriptorArenaPtr create_arena(DescriptorHeapType type, VkDeviceSize num_bytes);
+    DescriptorRangePtr create_range(DescriptorHeapType type, VkDeviceSize num_bytes);
 
     /**
      * @brief   sampler_block returns a sampler-block with the given samplers. equal requests share one block.
@@ -121,7 +125,7 @@ public:
     [[nodiscard]] const vierkant::DevicePtr &device() const { return m_device; }
 
 private:
-    friend class DescriptorArena;
+    friend class DescriptorRange;
 
     struct heap_t
     {
@@ -129,13 +133,13 @@ private:
         uint8_t *data = nullptr;
         VkBindHeapInfoEXT bind_info = {};
 
-        //! byte-offset of the first arena, past the reserved range
-        VkDeviceSize arena_offset = 0;
+        //! byte-offset of the first range, past the reserved range
+        VkDeviceSize range_offset = 0;
 
-        //! required alignment for arenas
-        VkDeviceSize arena_alignment = 1;
+        //! required alignment for ranges
+        VkDeviceSize range_alignment = 1;
 
-        //! sub-allocates the arena-range
+        //! sub-allocates the space past the reserved range
         VmaVirtualBlock virtual_block = VK_NULL_HANDLE;
     };
 
@@ -152,7 +156,7 @@ private:
 
     explicit DescriptorHeap(const create_info_t &create_info);
 
-    void free_arena(DescriptorHeapType type, VmaVirtualAllocation allocation);
+    void free_range(DescriptorHeapType type, VmaVirtualAllocation allocation);
 
     vierkant::DevicePtr m_device;
 
@@ -162,7 +166,7 @@ private:
     std::mutex m_mutex;
 
     //! live sampler-blocks, entries expire with their last holder
-    std::unordered_map<sampler_block_key_t, std::weak_ptr<const DescriptorArena>, sampler_block_key_hash_t>
+    std::unordered_map<sampler_block_key_t, std::weak_ptr<const DescriptorRange>, sampler_block_key_hash_t>
             m_sampler_blocks;
 
     // guards m_sampler_blocks
@@ -170,71 +174,42 @@ private:
 };
 
 /**
- * @brief   DescriptorArena is a range of a DescriptorHeap, owned by a single user.
- *          allocations are linear and are released all at once, via reset().
- *          not thread-safe.
+ * @brief   DescriptorRange is a range of a DescriptorHeap, owned by a single user.
+ *          the range returns to the heap when it is destroyed.
  */
-class DescriptorArena
+class DescriptorRange
 {
 public:
-    struct allocation_t
-    {
-        //! byte-offset from the start of the heap
-        VkDeviceSize offset = 0;
+    DescriptorRange(const DescriptorRange &) = delete;
 
-        //! host-address of the allocated bytes
-        void *data = nullptr;
+    DescriptorRange(DescriptorRange &&) = delete;
 
-        //! size of the allocation in bytes
-        VkDeviceSize num_bytes = 0;
-    };
+    DescriptorRange &operator=(DescriptorRange other) = delete;
 
-    DescriptorArena(const DescriptorArena &) = delete;
-
-    DescriptorArena(DescriptorArena &&) = delete;
-
-    DescriptorArena &operator=(DescriptorArena other) = delete;
-
-    ~DescriptorArena();
-
-    /**
-     * @brief   allocate a range of bytes from this arena. throws if the arena is exhausted.
-     *
-     * @param   num_bytes   number of bytes to allocate
-     * @param   alignment   required alignment, relative to the start of the heap
-     * @return  an allocation_t
-     */
-    allocation_t allocate(VkDeviceSize num_bytes, VkDeviceSize alignment);
-
-    /**
-     * @return  true, if allocate() with the same arguments would succeed
-     */
-    [[nodiscard]] bool can_allocate(VkDeviceSize num_bytes, VkDeviceSize alignment) const;
-
-    /**
-     * @brief   release all allocations. the GPU must be done with them.
-     */
-    void reset() { m_num_bytes_used = 0; }
+    ~DescriptorRange();
 
     [[nodiscard]] DescriptorHeapType type() const { return m_type; }
 
-    //! byte-offset of this arena from the start of the heap
+    //! byte-offset of this range from the start of the heap
     [[nodiscard]] VkDeviceSize offset() const { return m_offset; }
 
-    //! size of this arena in bytes
+    //! size of this range in bytes
     [[nodiscard]] VkDeviceSize num_bytes() const { return m_num_bytes; }
+
+    //! host-address of the range-start
+    [[nodiscard]] uint8_t *data() const { return m_data; }
 
 private:
     friend class DescriptorHeap;
 
-    DescriptorArena(DescriptorHeapPtr heap, DescriptorHeapType type, VkDeviceSize offset, VkDeviceSize num_bytes,
-                    VmaVirtualAllocation allocation);
+    DescriptorRange(DescriptorHeapPtr heap, DescriptorHeapType type, VkDeviceSize offset, VkDeviceSize num_bytes,
+                    uint8_t *data, VmaVirtualAllocation allocation);
 
     DescriptorHeapPtr m_heap;
     DescriptorHeapType m_type;
     VkDeviceSize m_offset;
     VkDeviceSize m_num_bytes;
-    VkDeviceSize m_num_bytes_used = 0;
+    uint8_t *m_data;
     VmaVirtualAllocation m_allocation;
 };
 
