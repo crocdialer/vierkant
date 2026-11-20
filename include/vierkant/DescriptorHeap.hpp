@@ -6,6 +6,7 @@
 
 #include <array>
 #include <mutex>
+#include <unordered_map>
 #include <vierkant/Buffer.hpp>
 
 namespace vierkant
@@ -21,6 +22,19 @@ enum class DescriptorHeapType : uint32_t
     RESOURCE = 0,
     SAMPLER = 1
 };
+
+//! one sampler in a sampler-block
+struct sampler_slot_t
+{
+    //! byte-offset in the block
+    uint32_t offset = 0;
+    sampler_state_t state = {};
+
+    bool operator==(const sampler_slot_t &other) const = default;
+};
+
+//! a shared, write-once range of the sampler-heap
+using SamplerBlockPtr = std::shared_ptr<const DescriptorArena>;
 
 /**
  * @brief   DescriptorHeap owns a resource- and a sampler-heap (VK_EXT_descriptor_heap).
@@ -77,6 +91,16 @@ public:
     DescriptorArenaPtr create_arena(DescriptorHeapType type, VkDeviceSize num_bytes);
 
     /**
+     * @brief   sampler_block returns a sampler-block with the given samplers. equal requests share one block.
+     *          the block is written once and returns to the heap when the last holder drops it. thread-safe.
+     *
+     * @param   slots       the samplers and their byte-offsets in the block
+     * @param   num_bytes   size of the block in bytes
+     * @return  a shared, write-once range of the sampler-heap
+     */
+    SamplerBlockPtr sampler_block(const std::vector<sampler_slot_t> &slots, uint32_t num_bytes);
+
+    /**
      * @brief   bind both heaps to a command-buffer
      *
      * @param   command_buffer  a command-buffer in recording state
@@ -115,6 +139,17 @@ private:
         VmaVirtualBlock virtual_block = VK_NULL_HANDLE;
     };
 
+    struct sampler_block_key_t
+    {
+        uint32_t num_bytes = 0;
+        std::vector<sampler_slot_t> slots;
+
+        bool operator==(const sampler_block_key_t &other) const = default;
+    };
+
+    struct sampler_block_key_hash_t
+    { size_t operator()(const sampler_block_key_t &key) const; };
+
     explicit DescriptorHeap(const create_info_t &create_info);
 
     void free_arena(DescriptorHeapType type, VmaVirtualAllocation allocation);
@@ -125,6 +160,13 @@ private:
 
     // guards the virtual blocks
     std::mutex m_mutex;
+
+    //! live sampler-blocks, entries expire with their last holder
+    std::unordered_map<sampler_block_key_t, std::weak_ptr<const DescriptorArena>, sampler_block_key_hash_t>
+            m_sampler_blocks;
+
+    // guards m_sampler_blocks
+    std::mutex m_sampler_mutex;
 };
 
 /**

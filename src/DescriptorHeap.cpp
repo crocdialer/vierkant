@@ -2,8 +2,10 @@
 // Created by crocdialer on 11/19/26.
 //
 
+#include <deque>
 #include <format>
 #include <vierkant/DescriptorHeap.hpp>
+#include <vierkant/hash.hpp>
 
 namespace vierkant
 {
@@ -114,6 +116,63 @@ DescriptorArenaPtr DescriptorHeap::create_arena(DescriptorHeapType type, VkDevic
     }
     return DescriptorArenaPtr(
             new DescriptorArena(shared_from_this(), type, heap.arena_offset + offset, num_bytes, allocation));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+SamplerBlockPtr DescriptorHeap::sampler_block(const std::vector<sampler_slot_t> &slots, uint32_t num_bytes)
+{
+    sampler_block_key_t key = {num_bytes, slots};
+    std::lock_guard lock(m_sampler_mutex);
+
+    auto &entry = m_sampler_blocks[key];
+    if(auto block = entry.lock()) { return block; }
+
+    const auto &props = m_device->properties().descriptor_heap;
+    auto arena = create_arena(DescriptorHeapType::SAMPLER, num_bytes);
+    auto *data = m_heaps[static_cast<uint32_t>(DescriptorHeapType::SAMPLER)].data + arena->offset();
+
+    std::vector<VkSamplerCreateInfo> sampler_infos;
+    std::vector<VkHostAddressRangeEXT> sampler_dst;
+    std::deque<VkSamplerReductionModeCreateInfo> reduction_infos;
+    for(const auto &slot: slots)
+    {
+        sampler_infos.push_back(sampler_create_info(slot.state, reduction_infos.emplace_back()));
+        sampler_dst.push_back({data + slot.offset, props.samplerDescriptorSize});
+    }
+    if(!sampler_infos.empty())
+    {
+        vkCheck(vkWriteSamplerDescriptorsEXT(m_device->handle(), sampler_infos.size(), sampler_infos.data(),
+                                             sampler_dst.data()),
+                "DescriptorHeap::sampler_block: vkWriteSamplerDescriptorsEXT failed");
+    }
+
+    // the last holder removes the expired entry, then frees the range
+    auto *arena_ptr = arena.get();
+    SamplerBlockPtr block(arena_ptr, [this, key = std::move(key), arena](const DescriptorArena *) mutable {
+        {
+            std::lock_guard lock(m_sampler_mutex);
+            auto it = m_sampler_blocks.find(key);
+            if(it != m_sampler_blocks.end() && it->second.expired()) { m_sampler_blocks.erase(it); }
+        }
+        arena.reset();
+    });
+    entry = block;
+    return block;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+size_t DescriptorHeap::sampler_block_key_hash_t::operator()(const sampler_block_key_t &key) const
+{
+    size_t h = 0;
+    hash_combine(h, key.num_bytes);
+    for(const auto &slot: key.slots)
+    {
+        hash_combine(h, slot.offset);
+        hash_combine(h, slot.state);
+    }
+    return h;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

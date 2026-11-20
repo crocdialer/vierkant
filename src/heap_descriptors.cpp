@@ -228,35 +228,29 @@ std::vector<VkDescriptorSetAndBindingMappingEXT> create_heap_mappings(const vier
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-heap_block_t write_heap_block(const vierkant::DevicePtr &device, const heap_block_layout_t &layout,
+heap_block_t write_heap_block(const DescriptorHeapPtr &heap, const heap_block_layout_t &layout,
                               const descriptor_map_t &descriptors, DescriptorArena &resource_arena,
-                              DescriptorArena &sampler_arena)
+                              SamplerBlockPtr &sampler_block)
 {
+    const auto &device = heap->device();
     const auto &props = device->properties().descriptor_heap;
     const auto [num_bytes, num_sampler_bytes] = heap_block_size(layout, descriptors);
 
     heap_block_t ret = {};
-    DescriptorArena::allocation_t block = {}, sampler_block = {};
+    DescriptorArena::allocation_t block = {};
 
     if(num_bytes)
     {
         block = resource_arena.allocate(num_bytes, layout.alignment);
         ret.resource_offset = static_cast<uint32_t>(block.offset);
     }
-    if(num_sampler_bytes)
-    {
-        sampler_block = sampler_arena.allocate(num_sampler_bytes, layout.sampler_alignment);
-        ret.sampler_index = static_cast<uint32_t>(sampler_block.offset / layout.sampler_alignment);
-    }
 
     // write-inputs, pointers into these must stay valid until the writes
     std::vector<VkResourceDescriptorInfoEXT> resource_infos;
     std::vector<VkHostAddressRangeEXT> resource_dst;
-    std::vector<VkSamplerCreateInfo> sampler_infos;
-    std::vector<VkHostAddressRangeEXT> sampler_dst;
+    std::vector<sampler_slot_t> sampler_slots;
     std::deque<VkDeviceAddressRangeEXT> address_ranges;
     std::deque<VkImageDescriptorInfoEXT> image_infos;
-    std::deque<VkSamplerReductionModeCreateInfo> reduction_infos;
 
     auto add_resource = [&](VkDescriptorType type, VkResourceDescriptorDataEXT data, uint32_t offset) {
         VkResourceDescriptorInfoEXT info = {};
@@ -322,11 +316,7 @@ heap_block_t write_heap_block(const vierkant::DevicePtr &device, const heap_bloc
 
                     if(desc.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
                     {
-                        sampler_infos.push_back(
-                                sampler_create_info(img->sampler_state(), reduction_infos.emplace_back()));
-                        sampler_dst.push_back(
-                                {static_cast<uint8_t *>(sampler_block.data) + b.sampler_offset + j * b.sampler_stride,
-                                 props.samplerDescriptorSize});
+                        sampler_slots.push_back({b.sampler_offset + j * b.sampler_stride, img->sampler_state()});
                     }
                     j++;
                 }
@@ -363,11 +353,11 @@ heap_block_t write_heap_block(const vierkant::DevicePtr &device, const heap_bloc
                                               resource_dst.data()),
                 "write_heap_block: vkWriteResourceDescriptorsEXT failed");
     }
-    if(!sampler_infos.empty())
+    sampler_block = nullptr;
+    if(num_sampler_bytes)
     {
-        vkCheck(vkWriteSamplerDescriptorsEXT(device->handle(), sampler_infos.size(), sampler_infos.data(),
-                                             sampler_dst.data()),
-                "write_heap_block: vkWriteSamplerDescriptorsEXT failed");
+        sampler_block = heap->sampler_block(sampler_slots, num_sampler_bytes);
+        ret.sampler_index = static_cast<uint32_t>(sampler_block->offset() / layout.sampler_alignment);
     }
     return ret;
 }
@@ -378,43 +368,39 @@ HeapBlockAllocator::HeapBlockAllocator(DescriptorHeapPtr heap) : m_heap(std::mov
 
 heap_block_t HeapBlockAllocator::write(const heap_block_layout_t &layout, const descriptor_map_t &descriptors)
 {
-    auto [num_bytes, num_sampler_bytes] = heap_block_size(layout, descriptors);
-    auto &resource_arena = arena(DescriptorHeapType::RESOURCE, num_bytes, layout.alignment);
-    auto &sampler_arena = arena(DescriptorHeapType::SAMPLER, num_sampler_bytes, layout.sampler_alignment);
-    return write_heap_block(m_heap->device(), layout, descriptors, resource_arena, sampler_arena);
+    auto num_bytes = heap_block_size(layout, descriptors).num_bytes;
+    SamplerBlockPtr sampler_block;
+    auto ret = write_heap_block(m_heap, layout, descriptors, arena(num_bytes, layout.alignment), sampler_block);
+    if(sampler_block) { m_sampler_blocks.insert(std::move(sampler_block)); }
+    return ret;
 }
 
 void HeapBlockAllocator::reset()
 {
-    for(auto &arenas: m_arenas)
+    m_sampler_blocks.clear();
+
+    if(m_arenas.size() == 1) { m_arenas.back()->reset(); }
+    else if(m_arenas.size() > 1)
     {
-        if(arenas.size() == 1) { arenas.back()->reset(); }
-        else if(arenas.size() > 1)
-        {
-            // merge into one arena of the combined size
-            auto type = arenas.back()->type();
-            VkDeviceSize num_bytes = 0;
-            for(const auto &a: arenas) { num_bytes += a->num_bytes(); }
-            arenas.clear();
-            arenas.push_back(m_heap->create_arena(type, num_bytes));
-        }
+        // merge into one arena of the combined size
+        VkDeviceSize num_bytes = 0;
+        for(const auto &a: m_arenas) { num_bytes += a->num_bytes(); }
+        m_arenas.clear();
+        m_arenas.push_back(m_heap->create_arena(DescriptorHeapType::RESOURCE, num_bytes));
     }
 }
 
-DescriptorArena &HeapBlockAllocator::arena(DescriptorHeapType type, VkDeviceSize num_bytes, VkDeviceSize alignment)
+DescriptorArena &HeapBlockAllocator::arena(VkDeviceSize num_bytes, VkDeviceSize alignment)
 {
-    // initial arena-sizes, they double when exhausted
-    constexpr VkDeviceSize initial_resource_bytes = 16 << 10, initial_sampler_bytes = 1 << 10;
+    // initial arena-size, it doubles when exhausted
+    constexpr VkDeviceSize initial_num_bytes = 16 << 10;
 
-    auto &arenas = m_arenas[static_cast<uint32_t>(type)];
-    if(arenas.empty() || !arenas.back()->can_allocate(num_bytes, alignment))
+    if(m_arenas.empty() || !m_arenas.back()->can_allocate(num_bytes, alignment))
     {
-        VkDeviceSize size =
-                arenas.empty() ? (type == DescriptorHeapType::RESOURCE ? initial_resource_bytes : initial_sampler_bytes)
-                               : 2 * arenas.back()->num_bytes();
-        arenas.push_back(m_heap->create_arena(type, std::max(size, num_bytes + alignment)));
+        VkDeviceSize size = m_arenas.empty() ? initial_num_bytes : 2 * m_arenas.back()->num_bytes();
+        m_arenas.push_back(m_heap->create_arena(DescriptorHeapType::RESOURCE, std::max(size, num_bytes + alignment)));
     }
-    return *arenas.back();
+    return *m_arenas.back();
 }
 
 }// namespace vierkant

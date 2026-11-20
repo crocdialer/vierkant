@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <unordered_set>
 #include <vierkant/DescriptorHeap.hpp>
 #include <vierkant/descriptor.hpp>
 #include <vierkant/pipeline_formats.hpp>
@@ -127,22 +128,24 @@ std::vector<VkDescriptorSetAndBindingMappingEXT> create_heap_mappings(const vier
                                                                       uint32_t push_offset);
 
 /**
- * @brief   write_heap_block allocates a block from both arenas and writes all descriptors into it.
+ * @brief   write_heap_block allocates a resource-block from an arena and writes all descriptors into it.
+ *          samplers come from a shared sampler-block of the heap.
  *          like update_descriptor_set, null buffers and images are skipped.
  *
- * @param   device          handle for a vierkant::Device
+ * @param   heap            the descriptor-heap @p resource_arena belongs to
  * @param   layout          the block-layout for @p descriptors
  * @param   descriptors     a provided descriptor-map
  * @param   resource_arena  an arena of the resource-heap
- * @param   sampler_arena   an arena of the sampler-heap
+ * @param   sampler_block   set to the sampler-block, or null. keep it while the GPU reads the block.
  * @return  the block-indices to push
  */
-heap_block_t write_heap_block(const vierkant::DevicePtr &device, const heap_block_layout_t &layout,
+heap_block_t write_heap_block(const DescriptorHeapPtr &heap, const heap_block_layout_t &layout,
                               const descriptor_map_t &descriptors, DescriptorArena &resource_arena,
-                              DescriptorArena &sampler_arena);
+                              SamplerBlockPtr &sampler_block);
 
 /**
  * @brief   HeapBlockAllocator writes blocks into arenas of a DescriptorHeap. the arenas grow on demand.
+ *          it holds the shared sampler-blocks it used until reset().
  *          all blocks are released at once with reset(). not thread-safe.
  */
 class HeapBlockAllocator
@@ -169,12 +172,15 @@ public:
     [[nodiscard]] const DescriptorHeapPtr &heap() const { return m_heap; }
 
 private:
-    DescriptorArena &arena(DescriptorHeapType type, VkDeviceSize num_bytes, VkDeviceSize alignment);
+    DescriptorArena &arena(VkDeviceSize num_bytes, VkDeviceSize alignment);
 
     DescriptorHeapPtr m_heap;
 
-    //! arenas per heap-type, allocations go to the last one
-    std::array<std::vector<DescriptorArenaPtr>, 2> m_arenas;
+    //! resource-arenas, allocations go to the last one
+    std::vector<DescriptorArenaPtr> m_arenas;
+
+    //! sampler-blocks used since the last reset()
+    std::unordered_set<SamplerBlockPtr> m_sampler_blocks;
 };
 
 }// namespace vierkant
