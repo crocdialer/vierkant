@@ -4,7 +4,6 @@
 #include <vierkant/Visitor.hpp>
 #include <vierkant/gpu_timestamp_util.hpp>
 #include <vierkant/punctual_light.hpp>
-#include <vierkant/shaders.hpp>
 #include <vierkant/shaders_slang.hpp>
 
 namespace vierkant

@@ -1,4 +1,3 @@
-#include "vierkant/shaders.hpp"
 #include "vierkant/shaders_slang.hpp"
 #include <vierkant/hash.hpp>
 #include <vierkant/pipeline_formats.hpp>

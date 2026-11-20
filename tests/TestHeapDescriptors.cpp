@@ -1,7 +1,7 @@
 #include "test_context.hpp"
 #include <vierkant/Compute.hpp>
 #include <vierkant/heap_descriptors.hpp>
-#include <vierkant/shaders_slang.hpp>
+#include <test_shaders/shaders_slang.hpp>
 
 namespace
 {
@@ -188,7 +188,7 @@ void expect_values(const values_t &values, const values_t &expected, const std::
 }
 
 vierkant::shader_module_t test_shader()
-{ return vierkant::create_shader_module(vierkant::slang_shaders::slang::heap_descriptors_test_slang); }
+{ return vierkant::create_shader_module(vierkant::slang_shaders::shaders::heap_descriptors_test_slang); }
 
 }// namespace
 
