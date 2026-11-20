@@ -206,7 +206,8 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
 
                     if(img)
                     {
-                        const auto &image_view = j < desc.image_views.size() ? desc.image_views[j] : img->image_view();
+                        VkImageView image_view =
+                                j < desc.image_views.size() ? desc.image_views[j].handle.get() : img->image_view();
 
                         VkDescriptorImageInfo img_info = {};
                         img_info.imageLayout = img->image_layout();
@@ -407,7 +408,7 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
         hash_combine(h, range);
     }
     for(const auto &img: descriptor.images) { hash_combine(h, img); }
-    for(const auto &s: descriptor.image_views) { hash_combine(h, s); }
+    for(const auto &v: descriptor.image_views) { hash_combine(h, v.handle); }
     for(const auto &as: descriptor.acceleration_structures) { hash_combine(h, as); }
     hash_combine(h,
                  vierkant::hash_range(descriptor.inline_uniform_block.begin(), descriptor.inline_uniform_block.end()));

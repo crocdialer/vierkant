@@ -185,26 +185,7 @@ add_subdirectory("extern/JoltPhysics/Build" EXCLUDE_FROM_ALL)
 include_directories(SYSTEM extern/JoltPhysics/Jolt)
 set(LIBS ${LIBS} Jolt)
 
-##shaders
-include(build_shaders)
-get_shaders_recursive(GLSL_SOURCE_FILES "shaders/glsl")
-set(SHADERS_CPP ${CMAKE_CURRENT_BINARY_DIR}/src/shaders.cpp)
-
-# shaders are automatically recompiled if changed
-add_custom_command(OUTPUT ${SHADERS_CPP}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMAND ${CMAKE_COMMAND} -D SHADER_SOURCE_ROOT="shaders/glsl"
-        -D SPIRV_OUTPUT_DIR="${PROJECT_BINARY_DIR}"
-        -D SOURCE_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}"
-        -D TARGET_NAME="${PROJECT_NAME}"
-        -D SPIRV_DEBUG_SYMBOLS=${SPIRV_DEBUG_SYMBOLS}
-        -P cmake_modules/build_shaders.cmake
-        DEPENDS ${GLSL_SOURCE_FILES}
-        COMMENT "recompiling glsl -> SPIRV -> shaders.hpp/cpp")
-
-add_custom_target("shaders" DEPENDS ${SHADERS_CPP})
-
-# slang shaders migration support (kept separate from GLSL)
+##shaders, recompiled if changed
 include(build_slang_shaders)
 get_slang_recursive(SLANG_SOURCE_FILES "shaders/slang")
 set(SLANG_SHADERS_CPP ${CMAKE_CURRENT_BINARY_DIR}/src/shaders_slang.cpp)

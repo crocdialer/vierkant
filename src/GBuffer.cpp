@@ -4,7 +4,6 @@
 
 #include <vierkant/GBuffer.hpp>
 
-#include <vierkant/shaders.hpp>
 #include <vierkant/shaders_slang.hpp>
 
 namespace vierkant

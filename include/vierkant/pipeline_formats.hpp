@@ -14,6 +14,9 @@
 namespace vierkant
 {
 
+struct heap_block_layout_t;
+using HeapBlockLayoutPtr = std::shared_ptr<const heap_block_layout_t>;
+
 // aggregate to group spirv-code and data gathered from shader-reflection
 struct shader_module_t
 {
@@ -261,6 +264,9 @@ struct graphics_pipeline_info_t
     std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
     std::vector<VkPushConstantRange> push_constant_ranges;
 
+    //! descriptor-heap block-layouts, one per set. non-empty: descriptor-heap pipeline, no set-layouts
+    std::vector<vierkant::HeapBlockLayoutPtr> heap_block_layouts;
+
     bool operator==(const graphics_pipeline_info_t &other) const;
 };
 
@@ -283,6 +289,9 @@ struct raytracing_pipeline_info_t
     //! descriptor set layouts / push-constants
     std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
     std::vector<VkPushConstantRange> push_constant_ranges;
+
+    //! descriptor-heap block-layouts, one per set. non-empty: descriptor-heap pipeline, no set-layouts
+    std::vector<vierkant::HeapBlockLayoutPtr> heap_block_layouts;
 
     //! optional VkPipelineCache
     VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
@@ -330,6 +339,9 @@ struct compute_pipeline_info_t
     //! descriptor set layouts / push-constants
     std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
     std::vector<VkPushConstantRange> push_constant_ranges;
+
+    //! descriptor-heap block-layouts, one per set. non-empty: descriptor-heap pipeline, no set-layouts
+    std::vector<vierkant::HeapBlockLayoutPtr> heap_block_layouts;
 
     //! optional VkPipelineCache
     VkPipelineCache pipeline_cache = VK_NULL_HANDLE;

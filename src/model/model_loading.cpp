@@ -49,7 +49,7 @@ VkFilter vk_filter(const vierkant::texture_sampler_t::Filter &filter)
     return VK_FILTER_NEAREST;
 }
 
-vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const vierkant::texture_sampler_t &ts)
+vierkant::sampler_state_t sampler_state(const vierkant::DevicePtr &device, const vierkant::texture_sampler_t &ts)
 {
     vierkant::sampler_state_t sampler_state = {};
     sampler_state.min_filter = vk_filter(ts.min_filter);
@@ -58,8 +58,11 @@ vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const v
     sampler_state.address_mode_v = vk_sampler_address_mode(ts.address_mode_v);
     sampler_state.address_mode_w = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     sampler_state.max_anisotropy = device->properties().core.limits.maxSamplerAnisotropy;
-    return device->sampler(sampler_state);
+    return sampler_state;
 }
+
+vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const vierkant::texture_sampler_t &ts)
+{ return device->sampler(sampler_state(device, ts)); }
 
 bool compress_textures(vierkant::model::model_assets_t &mesh_assets, crocore::ThreadPoolClassic *pool)
 {
@@ -362,28 +365,23 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
             if(base_it == ret.textures.end()) { continue; }
             auto base_img = base_it->second;
 
-            // get-or-create one VkSampler per SamplerId
-            vierkant::VkSamplerPtr vk_sampler;
-            if(auto sampler_it = ret.samplers.find(tex_data.sampler_id); sampler_it != ret.samplers.end())
-            {
-                vk_sampler = sampler_it->second;
-            }
-            else if(auto desc_it = mesh_assets.texture_samplers.find(tex_data.sampler_id);
-                    desc_it != mesh_assets.texture_samplers.end())
-            {
-                vk_sampler = create_sampler(params.device, desc_it->second);
-                ret.samplers[tex_data.sampler_id] = vk_sampler;
-            }
-            else
+            // one sampler-state and VkSampler per SamplerId
+            auto desc_it = mesh_assets.texture_samplers.find(tex_data.sampler_id);
+            if(desc_it == mesh_assets.texture_samplers.end())
             {
                 spdlog::warn("material '{}' references sampler '{}', but could not find in bundle", asset_mat.name,
                              tex_data.sampler_id.str());
                 continue;
             }
+            auto state = sampler_state(params.device, desc_it->second);
+            if(!ret.samplers.contains(tex_data.sampler_id))
+            {
+                ret.samplers[tex_data.sampler_id] = params.device->sampler(state);
+            }
 
             // realize the sampled permutation under the composite key
             auto vk_img = base_img->clone();
-            vk_img->set_sampler(vk_sampler);
+            vk_img->set_sampler(state);
             ret.textures[key] = vk_img;
         }
     }

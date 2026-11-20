@@ -1,4 +1,3 @@
-#include "vierkant/shaders.hpp"
 #include "vierkant/shaders_slang.hpp"
 #include <vierkant/hash.hpp>
 #include <vierkant/pipeline_formats.hpp>
@@ -349,6 +348,7 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
     if(dynamic_states != other.dynamic_states) { return false; }
     if(descriptor_set_layouts != other.descriptor_set_layouts) { return false; }
     if(push_constant_ranges != other.push_constant_ranges) { return false; }
+    if(heap_block_layouts != other.heap_block_layouts) { return false; }
     return true;
 }
 
@@ -361,6 +361,7 @@ bool raytracing_pipeline_info_t::operator==(const raytracing_pipeline_info_t &ot
     if(max_recursion != other.max_recursion) { return false; }
     if(descriptor_set_layouts != other.descriptor_set_layouts) { return false; }
     if(push_constant_ranges != other.push_constant_ranges) { return false; }
+    if(heap_block_layouts != other.heap_block_layouts) { return false; }
     if(pipeline_cache != other.pipeline_cache) { return false; }
     if(specialization != other.specialization) { return false; }
     return true;
@@ -373,6 +374,7 @@ bool compute_pipeline_info_t::operator==(const compute_pipeline_info_t &other) c
     if(shader_stage != other.shader_stage) { return false; }
     if(descriptor_set_layouts != other.descriptor_set_layouts) { return false; }
     if(push_constant_ranges != other.push_constant_ranges) { return false; }
+    if(heap_block_layouts != other.heap_block_layouts) { return false; }
     if(pipeline_cache != other.pipeline_cache) { return false; }
     if(specialization != other.specialization) { return false; }
     return true;
@@ -539,6 +541,7 @@ std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graphics_pip
     for(const auto &ds: fmt.dynamic_states) { hash_combine(h, ds); }
     for(const auto &dsl: fmt.descriptor_set_layouts) { hash_combine(h, dsl); }
     for(const auto &pcr: fmt.push_constant_ranges) { hash_combine(h, pcr); }
+    for(const auto &layout: fmt.heap_block_layouts) { hash_combine(h, layout); }
     return h;
 }
 
@@ -560,6 +563,7 @@ size_t std::hash<vierkant::raytracing_pipeline_info_t>::operator()(
     hash_combine(h, fmt.max_recursion);
     for(const auto &dsl: fmt.descriptor_set_layouts) { hash_combine(h, dsl); }
     for(const auto &pcr: fmt.push_constant_ranges) { hash_combine(h, pcr); }
+    for(const auto &layout: fmt.heap_block_layouts) { hash_combine(h, layout); }
     hash_combine(h, fmt.pipeline_cache);
     hash_combine(h, fmt.specialization);
     return h;
@@ -572,6 +576,7 @@ std::hash<vierkant::compute_pipeline_info_t>::operator()(vierkant::compute_pipel
     hash_combine(h, fmt.shader_stage);
     for(const auto &dsl: fmt.descriptor_set_layouts) { hash_combine(h, dsl); }
     for(const auto &pcr: fmt.push_constant_ranges) { hash_combine(h, pcr); }
+    for(const auto &layout: fmt.heap_block_layouts) { hash_combine(h, layout); }
     hash_combine(h, fmt.pipeline_cache);
     hash_combine(h, fmt.specialization);
     return h;

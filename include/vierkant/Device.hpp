@@ -44,6 +44,15 @@ struct sampler_state_t
     bool operator==(const sampler_state_t &other) const = default;
 };
 
+/**
+ * @brief   sampler_create_info returns the VkSamplerCreateInfo for a sampler-state.
+ *
+ * @param   state           a provided sampler_state_t
+ * @param   reduction_info  storage for the chained reduction-mode, referenced by the returned pNext
+ * @return  the VkSamplerCreateInfo for @p state
+ */
+VkSamplerCreateInfo sampler_create_info(const sampler_state_t &state, VkSamplerReductionModeCreateInfo &reduction_info);
+
 }// namespace vierkant
 
 namespace std
@@ -105,6 +114,7 @@ public:
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_pipeline;
         VkPhysicalDeviceOpacityMicromapPropertiesEXT micromap_opacity;
         VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader;
+        VkPhysicalDeviceDescriptorHeapPropertiesEXT descriptor_heap;
     };
 
     struct features_t
@@ -129,6 +139,9 @@ public:
         // features related to rasterization
         VkPhysicalDeviceMeshShaderFeaturesEXT mesh_shader = {};
         VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR barycentric = {};
+
+        // resource-binding without descriptor-sets
+        VkPhysicalDeviceDescriptorHeapFeaturesEXT descriptor_heap = {};
     };
 
     //! memory-usage for a single device memory-heap

@@ -346,6 +346,9 @@ private:
     {
         descriptor_set_map_t descriptor_sets;
 
+        //! descriptor-heap blocks written for this frame-slot
+        vierkant::HeapBlockAllocator heap_blocks;
+
         // SSBOs containing everything (using gpu-mem iff a queue was provided)
         vierkant::BufferPtr mesh_buffers;
         vierkant::BufferPtr mesh_draw_buffer;

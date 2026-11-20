@@ -132,7 +132,15 @@ BufferPtr Buffer::create(DevicePtr device, const void *data, size_t num_bytes, V
 Buffer::Buffer(const create_info_t &create_info)
     : m_device(create_info.device), m_usage(create_info.usage), m_mem_usage(create_info.mem_usage),
       m_min_alignment(create_info.alignment), m_pool(create_info.pool), m_name(create_info.name)
-{}
+{
+    // descriptor-heaps address uniform- and storage-buffers by device-address
+    constexpr VkBufferUsageFlags descriptor_usage =
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    if((m_usage & descriptor_usage) && m_device->features().device_features_12.bufferDeviceAddress)
+    {
+        m_usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    }
+}
 
 Buffer::~Buffer()
 {

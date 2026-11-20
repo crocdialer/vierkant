@@ -50,7 +50,11 @@ RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &cre
 
     m_trace_assets.resize(create_info.num_frames_in_flight);
 
-    if(create_info.descriptor_pool) { m_descriptor_pool = create_info.descriptor_pool; }
+    if(const auto &heap = m_pipeline_cache->descriptor_heap())
+    {
+        for(auto &asset: m_trace_assets) { asset.heap_blocks = vierkant::HeapBlockAllocator(heap); }
+    }
+    else if(create_info.descriptor_pool) { m_descriptor_pool = create_info.descriptor_pool; }
     else
     {
         vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 32},
@@ -70,8 +74,22 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     m_current_index = (m_current_index + 1) % m_trace_assets.size();
     vierkant::descriptor_set_map_t next_descriptor_set_cache;
 
-    auto descriptor_set_layout = m_pipeline_cache->descriptor_set_layout(tracable.descriptors);
-    tracable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
+    // descriptor-heap: the GPU is done with this frame-slot's blocks
+    const auto &heap = m_pipeline_cache->descriptor_heap();
+    vierkant::HeapBlockLayoutPtr heap_layout;
+    vierkant::DescriptorSetLayoutPtr descriptor_set_layout;
+
+    if(heap)
+    {
+        trace_asset.heap_blocks.reset();
+        heap_layout = m_pipeline_cache->heap_block_layout(tracable.descriptors);
+        tracable.pipeline_info.heap_block_layouts = {heap_layout};
+    }
+    else
+    {
+        descriptor_set_layout = m_pipeline_cache->descriptor_set_layout(tracable.descriptors);
+        tracable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
+    }
 
     bool variable_count = std::ranges::any_of(tracable.descriptors,
                                               [](const auto &pair) { return pair.second.variable_count; });
@@ -102,28 +120,38 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
                 create_shader_binding_table(pipeline->handle(), tracable.pipeline_info));
     }
 
-    // fetch descriptor set
-    auto descriptor_set = vierkant::find_or_create_descriptor_set(
-            m_device, descriptor_set_layout.get(), tracable.descriptors, m_descriptor_pool,
-            trace_asset.descriptor_set_cache, next_descriptor_set_cache, variable_count, true);
-
-    // update descriptor-set with actual descriptors
-    vierkant::update_descriptor_set(m_device, tracable.descriptors, descriptor_set);
-
-    VkDescriptorSet descriptor_set_handle = descriptor_set.get();
-
     // bind raytracing pipeline
     pipeline->bind(commandbuffer);
 
-    // bind descriptor set (acceleration-structure, uniforms, storage-buffers, samplers, storage-image)
-    vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline->layout(), 0, 1,
-                            &descriptor_set_handle, 0, nullptr);
-
-    if(!tracable.push_constants.empty())
+    if(heap)
     {
-        // update push_constants
-        vkCmdPushConstants(commandbuffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0, tracable.push_constants.size(),
-                           tracable.push_constants.data());
+        auto block = trace_asset.heap_blocks.write(*heap_layout, tracable.descriptors);
+        heap->bind(commandbuffer);
+        vierkant::cmd_push_heap_data(commandbuffer, tracable.pipeline_info.push_constant_ranges,
+                                     tracable.push_constants, {&block, 1});
+    }
+    else
+    {
+        // fetch descriptor set
+        auto descriptor_set = vierkant::find_or_create_descriptor_set(
+                m_device, descriptor_set_layout.get(), tracable.descriptors, m_descriptor_pool,
+                trace_asset.descriptor_set_cache, next_descriptor_set_cache, variable_count, true);
+
+        // update descriptor-set with actual descriptors
+        vierkant::update_descriptor_set(m_device, tracable.descriptors, descriptor_set);
+
+        VkDescriptorSet descriptor_set_handle = descriptor_set.get();
+
+        // bind descriptor set (acceleration-structure, uniforms, storage-buffers, samplers, storage-image)
+        vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline->layout(), 0, 1,
+                                &descriptor_set_handle, 0, nullptr);
+
+        if(!tracable.push_constants.empty())
+        {
+            // update push_constants
+            vkCmdPushConstants(commandbuffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
+                               tracable.push_constants.size(), tracable.push_constants.data());
+        }
     }
 
     // finally record the tracing command

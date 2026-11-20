@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include "vierkant/Pipeline.hpp"
 #include "vierkant/descriptor.hpp"
+#include "vierkant/heap_blocks.hpp"
 
 namespace vierkant
 {
@@ -25,13 +26,12 @@ public:
     /**
      * @brief   Create a shared PipelineCache
      *
-     * @param   device  handle for the vierkant::Device to create the pipelines with
+     * @param   device          handle for the vierkant::Device to create the pipelines with
+     * @param   descriptor_heap optional descriptor-heap. users of this cache bind descriptors through it, if set.
      * @return  the newly created PipelineCachePtr
      */
-    static PipelineCachePtr create(vierkant::DevicePtr device)
-    {
-        return PipelineCachePtr(new PipelineCache(std::move(device)));
-    };
+    static PipelineCachePtr create(vierkant::DevicePtr device, vierkant::DescriptorHeapPtr descriptor_heap = nullptr)
+    { return PipelineCachePtr(new PipelineCache(std::move(device), std::move(descriptor_heap))); };
 
     PipelineCache(const PipelineCache &) = delete;
 
@@ -118,6 +118,22 @@ public:
         return vierkant::find_or_create_set_layout(m_device, descriptors, m_set_layouts);
     }
 
+    /**
+     * @brief   Retrieve a descriptor-heap block-layout for a descriptor-map. Will create and cache a new layout,
+     *          if necessary.
+     *
+     * @param   descriptors a descriptor-map describing the requested layout
+     * @return  a shared block-layout
+     */
+    HeapBlockLayoutPtr heap_block_layout(const descriptor_map_t &descriptors)
+    {
+        std::unique_lock lock(m_set_layout_mutex);
+        return vierkant::find_or_create_heap_block_layout(m_device, descriptors, m_heap_block_layouts);
+    }
+
+    //! optional descriptor-heap, null: descriptor-sets
+    [[nodiscard]] const vierkant::DescriptorHeapPtr &descriptor_heap() const { return m_descriptor_heap; }
+
     const vierkant::shader_stage_map_t &shader_stages(ShaderType shader_type)
     {
         // read-only locked for searching
@@ -154,12 +170,15 @@ public:
         {
             std::unique_lock set_layout_lock(m_set_layout_mutex);
             m_set_layouts.clear();
+            m_heap_block_layouts.clear();
         }
     }
 
 private:
 
-    explicit PipelineCache(vierkant::DevicePtr device) : m_device(std::move(device)){}
+    PipelineCache(vierkant::DevicePtr device, vierkant::DescriptorHeapPtr descriptor_heap)
+        : m_device(std::move(device)), m_descriptor_heap(std::move(descriptor_heap))
+    {}
 
     template<typename FMT_T>
     inline const PipelinePtr &retrieve_pipeline(const FMT_T &format,
@@ -201,6 +220,8 @@ private:
 
     vierkant::DevicePtr m_device;
 
+    vierkant::DescriptorHeapPtr m_descriptor_heap;
+
     mutable std::shared_mutex m_graphics_pipeline_mutex, m_ray_pipeline_mutex, m_compute_pipeline_mutex;
 
     std::unordered_map<graphics_pipeline_info_t, PipelinePtr> m_graphics_pipelines;
@@ -214,6 +235,7 @@ private:
     //! pipeline-formats reference these layouts by handle, so they live as long as the pipelines
     std::mutex m_set_layout_mutex;
     std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> m_set_layouts;
+    std::unordered_map<descriptor_map_t, HeapBlockLayoutPtr> m_heap_block_layouts;
 
     VkPipelineCache m_pipeline_cache = VK_NULL_HANDLE;
 };

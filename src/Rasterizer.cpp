@@ -94,6 +94,11 @@ Rasterizer::Rasterizer(DevicePtr device, const create_info_t &create_info)
     m_pipeline_cache =
             create_info.pipeline_cache ? create_info.pipeline_cache : vierkant::PipelineCache::create(m_device);
 
+    if(const auto &heap = m_pipeline_cache->descriptor_heap())
+    {
+        for(auto &frame_asset: m_frame_assets) { frame_asset.heap_blocks = vierkant::HeapBlockAllocator(heap); }
+    }
+
     debug_label = create_info.debug_label;
     use_gpu_timestamps = create_info.use_gpu_timestamps;
 
@@ -277,6 +282,10 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     frame_assets.indirect_bundle.num_draws = frame_assets.indirect_indexed_bundle.num_draws = 0;
     descriptor_set_map_t next_descriptor_sets;
 
+    // descriptor-heap: the GPU is done with this frame-slot's blocks
+    const auto &heap = m_pipeline_cache->descriptor_heap();
+    if(heap) { frame_assets.heap_blocks.reset(); }
+
     struct indirect_draw_asset_t
     {
         uint32_t count_buffer_offset = 0;
@@ -286,6 +295,10 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         VkRect2D scissor = {};
         std::vector<VkDescriptorSet> descriptor_set_handles;
         VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
+
+        //! descriptor-heap: per-draw block-layout, block-refs for set 0 and the bindless set 1
+        vierkant::HeapBlockLayoutPtr heap_layout;
+        std::array<vierkant::heap_block_ref_t, 2> heap_blocks = {};
 
         const drawable_t *drawable = nullptr;
     };
@@ -329,7 +342,13 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     desc_all_textures.variable_count = true;
     desc_all_textures.images = textures;
 
-    auto bindless_texture_layout = m_pipeline_cache->descriptor_set_layout(bindless_texture_desc);
+    vierkant::DescriptorSetLayoutPtr bindless_texture_layout;
+    vierkant::HeapBlockLayoutPtr bindless_heap_layout;
+    if(heap) { bindless_heap_layout = m_pipeline_cache->heap_block_layout(bindless_texture_desc); }
+    else
+    {
+        bindless_texture_layout = m_pipeline_cache->descriptor_set_layout(bindless_texture_desc);
+    }
 
     // create/resize draw_indirect buffers
     resize_draw_indirect_buffers(frame_assets.drawables.size(), frame_assets);
@@ -349,6 +368,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         uint32_t object_index = 0;
         uint32_t meshlet_visibility_index = 0;
         vierkant::DescriptorSetLayoutPtr descriptor_set_layout = nullptr;
+        vierkant::HeapBlockLayoutPtr heap_layout = nullptr;
         drawable_t *drawable = nullptr;
     };
     std::unordered_map<graphics_pipeline_info_t, std::vector<indexed_drawable_t>> pipeline_drawables;
@@ -383,11 +403,20 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             if(desc_depth_pyramid.images.empty()) { desc_depth_pyramid.images = {m_placeholder_image}; }
         }
 
-        indexed_drawable.descriptor_set_layout = m_pipeline_cache->descriptor_set_layout(drawable.descriptors);
-        pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
+        if(heap)
+        {
+            // set 0: per-draw descriptors, set 1: bindless texture-array
+            indexed_drawable.heap_layout = m_pipeline_cache->heap_block_layout(drawable.descriptors);
+            pipeline_format.heap_block_layouts = {indexed_drawable.heap_layout, bindless_heap_layout};
+        }
+        else
+        {
+            indexed_drawable.descriptor_set_layout = m_pipeline_cache->descriptor_set_layout(drawable.descriptors);
+            pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
 
-        // bindless texture-array
-        pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
+            // bindless texture-array
+            pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
+        }
 
         // enough meshlet-visibility bits for lod0
         indexed_drawable.meshlet_visibility_index = meshlet_visibility_index;
@@ -420,6 +449,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 new_draw.scissor = drawable->pipeline_format.scissor;
                 new_draw.drawable = drawable;
                 new_draw.descriptor_set_layout = indexed_drawable.descriptor_set_layout.get();
+                new_draw.heap_layout = indexed_drawable.heap_layout;
                 indirect_draws.emplace_back(drawable->mesh.get(), std::move(new_draw));
             }
             auto &indirect_draw_asset = indirect_draws.back().second;
@@ -515,6 +545,10 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         frame_assets.render_data_ubo->set_data(&render_data, sizeof(render_data_t));
     }
 
+    // descriptor-heap: one bindless block for all draws
+    vierkant::heap_block_ref_t bindless_heap_block = {};
+    if(heap) { bindless_heap_block = frame_assets.heap_blocks.write(*bindless_heap_layout, bindless_texture_desc); }
+
     // set buffer-descriptors after delegate
     for(const auto &[pipe_fmt, indexed_drawables]: pipeline_drawables)
     {
@@ -529,6 +563,13 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             if(!draw_asset.drawable->use_own_buffers)
             {
                 descriptors[BINDING_RENDER_DATA].buffers = {frame_assets.render_data_ubo};
+            }
+
+            if(heap)
+            {
+                draw_asset.heap_blocks = {frame_assets.heap_blocks.write(*draw_asset.heap_layout, descriptors),
+                                          bindless_heap_block};
+                continue;
             }
 
             auto descriptor_set = vierkant::find_or_create_descriptor_set(
@@ -557,6 +598,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         vkCmdWriteTimestamp2(command_buffer, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, frame_assets.query_pool.get(), 0);
     }
 
+    if(heap) { heap->bind(command_buffer); }
+
     // grouped by pipelines
     for(auto &[pipe_fmt, indirect_draws]: pipelines)
     {
@@ -579,8 +622,19 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         for(auto &[mesh, draw_asset]: indirect_draws)
         {
             push_constants.base_draw_index = draw_asset.first_indexed_draw_index;
-            vkCmdPushConstants(command_buffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0, sizeof(push_constants_t),
-                               &push_constants);
+
+            if(heap)
+            {
+                vierkant::cmd_push_heap_data(
+                        command_buffer, pipe_fmt.push_constant_ranges,
+                        {reinterpret_cast<const uint8_t *>(&push_constants), sizeof(push_constants_t)},
+                        draw_asset.heap_blocks);
+            }
+            else
+            {
+                vkCmdPushConstants(command_buffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0, sizeof(push_constants_t),
+                                   &push_constants);
+            }
 
             // feature enabled/available, mesh exists and contains a meshlet-buffer.
             bool use_meshlets = vkCmdDrawMeshTasksEXT && use_mesh_shader && mesh && mesh->meshlets;
@@ -592,9 +646,12 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             }
 
             // bind descriptor sets (uniforms, samplers)
-            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout(), 0,
-                                    draw_asset.descriptor_set_handles.size(), draw_asset.descriptor_set_handles.data(),
-                                    0, nullptr);
+            if(!heap)
+            {
+                vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout(), 0,
+                                        draw_asset.descriptor_set_handles.size(),
+                                        draw_asset.descriptor_set_handles.data(), 0, nullptr);
+            }
 
             if(dynamic_scissor)
             {

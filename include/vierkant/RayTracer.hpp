@@ -83,6 +83,9 @@ private:
 
         //! cache used descriptor-sets
         vierkant::descriptor_set_map_t descriptor_set_cache;
+
+        //! descriptor-heap blocks written for this frame-slot
+        vierkant::HeapBlockAllocator heap_blocks;
     };
 
     struct shader_binding_table_t

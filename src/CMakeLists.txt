@@ -27,7 +27,7 @@ include_directories(${PROJECT_BINARY_DIR}/include ${CMAKE_BINARY_DIR}/${LIB_NAME
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_library(${LIB_NAME} ${LIB_TYPE} ${FOLDER_SOURCES} ${FOLDER_HEADERS} ${VENDORED_SOURCES})
-add_dependencies(${LIB_NAME} shaders slang_shaders)
+add_dependencies(${LIB_NAME} slang_shaders)
 target_link_libraries(${LIB_NAME} ${LIBS})
 
 # native gamepad-backend (gamepad_xinput.cpp)
