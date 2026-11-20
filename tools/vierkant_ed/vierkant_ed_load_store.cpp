@@ -1382,6 +1382,8 @@ bool VierkantEd::parse_override_settings(int argc, char *argv[])
     options.add_options()("no-raytracing", "disable vulkan raytracing extensions");
     options.add_options()("mesh-shader", "enable vulkan mesh-shader extensions");
     options.add_options()("no-mesh-shader", "disable vulkan mesh-shader extensions");
+    options.add_options()("descriptor-heap", "enable vulkan descriptor-heap extension");
+    options.add_options()("no-descriptor-heap", "disable vulkan descriptor-heap extension");
     options.add_options()("project-root", "asset/project root all scene-paths resolve against",
                           cxxopts::value<std::string>());
     options.add_options()("files", "provided input files", cxxopts::value<std::vector<std::string>>());
@@ -1508,6 +1510,8 @@ bool VierkantEd::parse_override_settings(int argc, char *argv[])
     }
     if(result.count("mesh-shader")) { m_settings.enable_mesh_shader_device_features = true; }
     if(result.count("no-mesh-shader")) { m_settings.enable_mesh_shader_device_features = false; }
+    if(result.count("descriptor-heap")) { m_settings.enable_descriptor_heap = true; }
+    if(result.count("no-descriptor-heap")) { m_settings.enable_descriptor_heap = false; }
     spdlog::set_level(m_settings.log_level);
     return true;
 }

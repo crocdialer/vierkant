@@ -40,15 +40,18 @@ struct heap_block_layout_t
     uint32_t num_bytes = 0;
     uint32_t num_sampler_bytes = 0;
 
-    //! block-alignments, also the index-strides
+    //! block-alignments. the sampler-alignment is also the sampler index-stride.
     uint32_t alignment = 1;
     uint32_t sampler_alignment = 1;
 };
 
-//! block-indices in push-data, one per descriptor-set
+//! block-location in push-data, one per descriptor-set
 struct heap_block_t
 {
-    uint32_t resource_index = 0;
+    //! byte-offset of the resource-block in the resource-heap
+    uint32_t resource_offset = 0;
+
+    //! index of the sampler-block, in units of heap_block_layout_t::sampler_alignment
     uint32_t sampler_index = 0;
 };
 
@@ -97,6 +100,18 @@ heap_block_size_t heap_block_size(const heap_block_layout_t &layout, const descr
  * @return  byte-offset in push-data
  */
 uint32_t heap_push_offset(const std::vector<VkPushConstantRange> &push_constant_ranges);
+
+/**
+ * @brief   cmd_push_heap_data records the push-data of a descriptor-heap pipeline:
+ *          push-constants at offset 0, then one heap_block_t per set. throws if the push-constants overlap the blocks.
+ *
+ * @param   command_buffer          a command-buffer in recording state
+ * @param   push_constant_ranges    the push-constant ranges the pipeline was created with
+ * @param   push_constants          push-constant bytes, may be empty
+ * @param   blocks                  block-indices, one per set
+ */
+void cmd_push_heap_data(VkCommandBuffer command_buffer, const std::vector<VkPushConstantRange> &push_constant_ranges,
+                        std::span<const uint8_t> push_constants, std::span<const heap_block_t> blocks);
 
 /**
  * @brief   create_heap_mappings returns the shader-mappings for one descriptor-set.

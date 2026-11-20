@@ -23,6 +23,9 @@ VkSpirvResourceTypeFlagsEXT resource_mask(VkDescriptorType type)
         case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return VK_SPIRV_RESOURCE_TYPE_COMBINED_SAMPLED_IMAGE_BIT_EXT;
         case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
             return VK_SPIRV_RESOURCE_TYPE_ACCELERATION_STRUCTURE_BIT_EXT;
+
+        // inline uniform-blocks are uniform-buffer data inside the resource-heap
+        case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK: return VK_SPIRV_RESOURCE_TYPE_UNIFORM_BUFFER_BIT_EXT;
         default: break;
     }
     throw std::runtime_error("descriptor-heap: unsupported descriptor-type -> " + std::to_string(type));
@@ -64,9 +67,17 @@ heap_block_layout_t create_heap_block_layout(const vierkant::DevicePtr &device, 
                                       static_cast<uint32_t>(desc.buffers.size()),
                                       static_cast<uint32_t>(desc.acceleration_structures.size())});
 
-        const uint32_t size = is_image(desc.type) ? props.imageDescriptorSize : props.bufferDescriptorSize;
-        const uint32_t alignment =
-                is_image(desc.type) ? props.imageDescriptorAlignment : props.bufferDescriptorAlignment;
+        uint32_t size = is_image(desc.type) ? props.imageDescriptorSize : props.bufferDescriptorSize;
+        uint32_t alignment = is_image(desc.type) ? props.imageDescriptorAlignment : props.bufferDescriptorAlignment;
+
+        if(desc.type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK)
+        {
+            // raw data, read as a uniform-buffer
+            b.count = 1;
+            size = static_cast<uint32_t>(desc.inline_uniform_block.size());
+            alignment = static_cast<uint32_t>(device->properties().core.limits.minUniformBufferOffsetAlignment);
+            ret.alignment = std::max(ret.alignment, alignment);
+        }
         b.offset = align_up(ret.num_bytes, alignment);
         b.stride = align_up(size, alignment);
         if(!b.variable_count) { ret.num_bytes = b.offset + b.count * b.stride; }
@@ -101,7 +112,7 @@ HeapBlockLayoutPtr find_or_create_heap_block_layout(const vierkant::DevicePtr &d
         for(auto &as: desc.acceleration_structures) { as.reset(); }
         desc.image_views.clear();
         desc.buffer_ranges.clear();
-        desc.inline_uniform_block.clear();
+        std::fill(desc.inline_uniform_block.begin(), desc.inline_uniform_block.end(), 0);
     }
 
     auto it = cache.find(descriptors);
@@ -144,6 +155,26 @@ uint32_t heap_push_offset(const std::vector<VkPushConstantRange> &push_constant_
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void cmd_push_heap_data(VkCommandBuffer command_buffer, const std::vector<VkPushConstantRange> &push_constant_ranges,
+                        std::span<const uint8_t> push_constants, std::span<const heap_block_t> blocks)
+{
+    uint32_t push_offset = heap_push_offset(push_constant_ranges);
+    if(push_constants.size() > push_offset)
+    {
+        throw std::runtime_error("descriptor-heap: push-constants exceed the pipeline's push-constant ranges");
+    }
+    std::vector<uint8_t> push_data(push_offset + blocks.size_bytes());
+    memcpy(push_data.data(), push_constants.data(), push_constants.size());
+    memcpy(push_data.data() + push_offset, blocks.data(), blocks.size_bytes());
+
+    VkPushDataInfoEXT push_info = {};
+    push_info.sType = VK_STRUCTURE_TYPE_PUSH_DATA_INFO_EXT;
+    push_info.data = {push_data.data(), push_data.size()};
+    vkCmdPushDataEXT(command_buffer, &push_info);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 std::vector<VkDescriptorSetAndBindingMappingEXT> create_heap_mappings(const vierkant::DevicePtr &device,
                                                                       const heap_block_layout_t &layout, uint32_t set,
                                                                       uint32_t push_offset)
@@ -163,12 +194,24 @@ std::vector<VkDescriptorSetAndBindingMappingEXT> create_heap_mappings(const vier
         mapping.firstBinding = b.binding;
         mapping.bindingCount = 1;
         mapping.resourceMask = resource_mask(b.type);
+
+        // the pushed resource-offset is a byte-offset, used as-is by both sources
+        const uint32_t resource_push_offset = push_offset + offsetof(heap_block_t, resource_offset);
+
+        if(b.type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK)
+        {
+            mapping.source = VK_DESCRIPTOR_MAPPING_SOURCE_RESOURCE_HEAP_DATA_EXT;
+            mapping.sourceData.heapData.heapOffset = b.offset;
+            mapping.sourceData.heapData.pushOffset = resource_push_offset;
+            ret.push_back(mapping);
+            continue;
+        }
         mapping.source = VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_PUSH_INDEX_EXT;
 
         auto &push_index = mapping.sourceData.pushIndex;
         push_index.heapOffset = b.offset;
-        push_index.pushOffset = push_offset + offsetof(heap_block_t, resource_index);
-        push_index.heapIndexStride = layout.alignment;
+        push_index.pushOffset = resource_push_offset;
+        push_index.heapIndexStride = 1;
         push_index.heapArrayStride = b.stride;
 
         if(b.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
@@ -198,7 +241,7 @@ heap_block_t write_heap_block(const vierkant::DevicePtr &device, const heap_bloc
     if(num_bytes)
     {
         block = resource_arena.allocate(num_bytes, layout.alignment);
-        ret.resource_index = static_cast<uint32_t>(block.offset / layout.alignment);
+        ret.resource_offset = static_cast<uint32_t>(block.offset);
     }
     if(num_sampler_bytes)
     {
@@ -290,6 +333,11 @@ heap_block_t write_heap_block(const vierkant::DevicePtr &device, const heap_bloc
                 break;
             }
 
+            case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
+                memcpy(static_cast<uint8_t *>(block.data) + b.offset, desc.inline_uniform_block.data(),
+                       desc.inline_uniform_block.size());
+                break;
+
             case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
             {
                 for(uint32_t i = 0; i < desc.acceleration_structures.size(); ++i)
@@ -330,9 +378,9 @@ HeapBlockAllocator::HeapBlockAllocator(DescriptorHeapPtr heap) : m_heap(std::mov
 
 heap_block_t HeapBlockAllocator::write(const heap_block_layout_t &layout, const descriptor_map_t &descriptors)
 {
-    auto size = heap_block_size(layout, descriptors);
-    auto &resource_arena = arena(DescriptorHeapType::RESOURCE, size.num_bytes, layout.alignment);
-    auto &sampler_arena = arena(DescriptorHeapType::SAMPLER, size.num_sampler_bytes, layout.sampler_alignment);
+    auto [num_bytes, num_sampler_bytes] = heap_block_size(layout, descriptors);
+    auto &resource_arena = arena(DescriptorHeapType::RESOURCE, num_bytes, layout.alignment);
+    auto &sampler_arena = arena(DescriptorHeapType::SAMPLER, num_sampler_bytes, layout.sampler_alignment);
     return write_heap_block(m_heap->device(), layout, descriptors, resource_arena, sampler_arena);
 }
 

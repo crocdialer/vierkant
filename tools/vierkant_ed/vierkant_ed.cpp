@@ -189,6 +189,16 @@ void VierkantEd::create_context_and_window()
         device_info.extensions.push_back(VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME);
     }
 
+    // check descriptor-heap support
+    m_settings.enable_descriptor_heap =
+            m_settings.enable_descriptor_heap &&
+            vierkant::check_device_extension_support(physical_device, vierkant::DescriptorHeap::required_extensions());
+
+    if(m_settings.enable_descriptor_heap)
+    {
+        for(const auto &ext: vierkant::DescriptorHeap::required_extensions()) { device_info.extensions.push_back(ext); }
+    }
+
     m_device = vierkant::Device::create(device_info);
     m_window->create_swapchain(m_device, std::min(m_device->max_usable_samples(), m_settings.window_info.sample_count),
                                m_settings.window_info.vsync, m_settings.window_info.color_mode);
@@ -215,7 +225,17 @@ void VierkantEd::create_context_and_window()
     // create a draw context
     m_draw_context = vierkant::DrawContext(m_device);
 
-    m_pipeline_cache = vierkant::PipelineCache::create(m_device);
+    // with a descriptor-heap, users of the pipeline-cache bind descriptors through it
+    vierkant::DescriptorHeapPtr descriptor_heap;
+    if(m_settings.enable_descriptor_heap)
+    {
+        vierkant::DescriptorHeap::create_info_t heap_info = {};
+        heap_info.device = m_device;
+        heap_info.name = "vierkant_ed";
+        descriptor_heap = vierkant::DescriptorHeap::create(heap_info);
+    }
+    m_pipeline_cache = vierkant::PipelineCache::create(m_device, descriptor_heap);
+    spdlog::debug("descriptor-heap: {}", m_settings.enable_descriptor_heap);
 
     // set some separate queues for background stuff
     uint32_t i = 1;

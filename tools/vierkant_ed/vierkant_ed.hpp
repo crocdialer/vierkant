@@ -94,6 +94,9 @@ public:
 
         bool enable_mesh_shader_device_features = true;
 
+        //! bind descriptors through VK_EXT_descriptor_heap, if supported
+        bool enable_descriptor_heap = true;
+
         vierkant::OrbitCameraPtr orbit_camera = vierkant::OrbitCamera::create();
         vierkant::FlyCameraPtr fly_camera = vierkant::FlyCamera::create();
         CameraControlMode camera_control = CameraControlMode::Orbit;
@@ -411,6 +414,7 @@ void serialize(Archive &ar, VierkantEd::settings_t &settings)
        cereal::make_nvp("enable_raytracing_pipeline_features", settings.enable_raytracing_pipeline_features),
        cereal::make_nvp("enable_ray_query_features", settings.enable_ray_query_features),
        cereal::make_nvp("enable_mesh_shader_device_features", settings.enable_mesh_shader_device_features),
+       cereal::make_optional_nvp("enable_descriptor_heap", settings.enable_descriptor_heap, true),
        cereal::make_nvp("orbit_camera", settings.orbit_camera), cereal::make_nvp("fly_camera", settings.fly_camera),
        cereal::make_optional_nvp("camera_control", settings.camera_control,
                                  VierkantEd::CameraControlMode::Orbit),

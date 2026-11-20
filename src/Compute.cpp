@@ -101,21 +101,9 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
 
             if(heap)
             {
-                // push-data: push-constants, then the block-indices
                 auto block = compute_asset.heap_blocks.write(*heap_layout, computable.descriptors);
-                uint32_t push_offset = vierkant::heap_push_offset(fmt.push_constant_ranges);
-                if(computable.push_constants.size() > push_offset)
-                {
-                    throw std::runtime_error("Compute: push-constants exceed pipeline_info.push_constant_ranges");
-                }
-                std::vector<uint8_t> push_data(push_offset + sizeof(heap_block_t));
-                memcpy(push_data.data(), computable.push_constants.data(), computable.push_constants.size());
-                memcpy(push_data.data() + push_offset, &block, sizeof(heap_block_t));
-
-                VkPushDataInfoEXT push_info = {};
-                push_info.sType = VK_STRUCTURE_TYPE_PUSH_DATA_INFO_EXT;
-                push_info.data = {push_data.data(), push_data.size()};
-                vkCmdPushDataEXT(commandbuffer, &push_info);
+                vierkant::cmd_push_heap_data(commandbuffer, fmt.push_constant_ranges, computable.push_constants,
+                                             {&block, 1});
 
                 vkCmdDispatch(commandbuffer, computable.extent.width, computable.extent.height,
                               computable.extent.depth);

@@ -7,7 +7,7 @@ namespace
 {
 
 constexpr uint32_t num_textures = 3;
-constexpr uint32_t num_values = 8 + num_textures;
+constexpr uint32_t num_values = 9 + num_textures;
 
 using values_t = std::array<glm::uvec4, num_values>;
 
@@ -163,13 +163,20 @@ scene_t create_scene(const vierkant::DevicePtr &device, const glm::uvec4 &ubo_va
     descriptors[7].buffers = {ret.out_buffer};
 
     // variable-count array
-    descriptors[8] = {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT};
-    descriptors[8].variable_count = true;
+    // inline uniform-block
+    glm::uvec4 inline_value = ubo_value + 2u;
+    descriptors[8] = {VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK, VK_SHADER_STAGE_COMPUTE_BIT};
+    descriptors[8].inline_uniform_block.resize(sizeof(glm::uvec4));
+    memcpy(descriptors[8].inline_uniform_block.data(), &inline_value, sizeof(glm::uvec4));
+    ret.expected[8] = inline_value;
+
+    descriptors[9] = {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT};
+    descriptors[9].variable_count = true;
     for(uint32_t i = 0; i < num_textures; ++i)
     {
         auto color = next_color();
-        descriptors[8].images.push_back(create_image(device, fmt, {color}, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
-        ret.expected[8 + i] = bits(color);
+        descriptors[9].images.push_back(create_image(device, fmt, {color}, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+        ret.expected[9 + i] = bits(color);
     }
     return ret;
 }
@@ -223,12 +230,19 @@ TEST(HeapDescriptors, Layout)
     // the variable-count binding is not part of the fixed block-size
     EXPECT_EQ(layout.num_bytes, layout.bindings[1].offset + 2 * layout.bindings[1].stride);
 
-    // a variable-count binding must be last, inline uniform-blocks are not supported
+    // a variable-count binding must be last
     descriptors[3] = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT};
     EXPECT_THROW(vierkant::create_heap_block_layout(test_context.device, descriptors), std::runtime_error);
     descriptors.erase(3);
+
+    // inline uniform-blocks: raw data, aligned for uniform-buffer reads
+    const auto ubo_alignment = test_context.device->properties().core.limits.minUniformBufferOffsetAlignment;
     descriptors[2] = {VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK, VK_SHADER_STAGE_COMPUTE_BIT};
-    EXPECT_THROW(vierkant::create_heap_block_layout(test_context.device, descriptors), std::runtime_error);
+    descriptors[2].inline_uniform_block.resize(20);
+    layout = vierkant::create_heap_block_layout(test_context.device, descriptors);
+    EXPECT_EQ(layout.bindings[2].offset % ubo_alignment, 0);
+    EXPECT_GE(layout.bindings[2].stride, 20);
+    EXPECT_EQ(layout.alignment % ubo_alignment, 0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -247,11 +261,10 @@ TEST(HeapDescriptors, RoundTrip)
 
     // reference: descriptor-sets
     {
-        vierkant::descriptor_count_t counts = {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4},
-                                               {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 8},
-                                               {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 32},
-                                               {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 4},
-                                               {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 8}};
+        vierkant::descriptor_count_t counts = {
+                {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4},         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 8},
+                {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 32},         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 4},
+                {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 8}, {VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK, 256}};
         vierkant::Compute::create_info_t compute_info = {};
         compute_info.pipeline_cache = vierkant::PipelineCache::create(device);
         compute_info.descriptor_pool = vierkant::create_descriptor_pool(device, counts, 8);
@@ -267,7 +280,7 @@ TEST(HeapDescriptors, RoundTrip)
             computable.descriptors = scene->descriptors;
 
             // Compute does not allocate variable descriptor-counts, bind the array with a fixed count
-            computable.descriptors[8].variable_count = false;
+            computable.descriptors[9].variable_count = false;
             computable.push_constants.resize(sizeof(uint32_t));
             memcpy(computable.push_constants.data(), &num_textures, sizeof(uint32_t));
         }

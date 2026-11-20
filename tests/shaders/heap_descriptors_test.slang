@@ -31,7 +31,10 @@ struct ubo_t
 
 [[vk::binding(7, 0)]] RWStructuredBuffer<uint4> out_values;
 
-[[vk::binding(8, 0)]] Texture2D<float4> textures[];
+// set-path: inline uniform-block, heap-path: data inside the heap-block
+[[vk::binding(8, 0)]] ConstantBuffer<ubo_t> inline_block;
+
+[[vk::binding(9, 0)]] Texture2D<float4> textures[];
 
 [shader("compute")]
 [numthreads(1, 1, 1)]
@@ -49,5 +52,7 @@ void main()
     out_values[6] = asuint(mip_view.Load(int3(0, 0, 0)));
     out_values[7] = asuint(array_view.Load(int4(0, 0, 4, 0)));
 
-    for(uint i = 0; i < params.num_textures; ++i) { out_values[8 + i] = asuint(textures[i].Load(int3(0, 0, 0))); }
+    out_values[8] = inline_block.value;
+
+    for(uint i = 0; i < params.num_textures; ++i) { out_values[9 + i] = asuint(textures[i].Load(int3(0, 0, 0))); }
 }
