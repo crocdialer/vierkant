@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vierkant/Image.hpp>
+#include <vierkant/PipelineCache.hpp>
 
 namespace vierkant
 {
@@ -43,11 +44,13 @@ vierkant::ImagePtr upload_cubemap(const vierkant::DevicePtr &device, const cubem
  *          runs on the GPU where the cubemap already lives, so only the compressed blocks are read
  *          back. the source has to be a sampleable float-format cubemap, alpha is dropped.
  *
- * @param   cubemap a 6-layer image, created with VK_IMAGE_USAGE_SAMPLED_BIT.
- * @param   queue   a VkQueue used for the dispatch and the readback.
+ * @param   cubemap         a 6-layer image, created with VK_IMAGE_USAGE_SAMPLED_BIT.
+ * @param   queue           a VkQueue used for the dispatch and the readback.
+ * @param   pipeline_cache  optional vierkant::PipelineCachePtr
  * @return  host-side BC6H blocks, empty if 'cubemap' is not a compressible cubemap.
  */
-cubemap_data_t compress_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue);
+cubemap_data_t compress_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue,
+                                const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
 
 //! number of bytes one mip-level of a cubemap occupies (all 6 faces), block-aware.
 size_t cubemap_level_num_bytes(VkFormat format, uint32_t level_size);

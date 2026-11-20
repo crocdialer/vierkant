@@ -7,6 +7,7 @@
 #include <vierkant/Device.hpp>
 #include <vierkant/PipelineCache.hpp>
 #include <vierkant/descriptor.hpp>
+#include <vierkant/heap_descriptors.hpp>
 
 namespace vierkant
 {
@@ -18,7 +19,7 @@ static inline uint32_t group_count(uint32_t thread_count, uint32_t local_size)
 
 /**
  * @brief   Compute can be used to run compute-pipelines.
- *
+ *          descriptors are bound through the pipeline-cache's descriptor-heap, if it has one, else as descriptor-sets.
  */
 class Compute
 {
@@ -74,6 +75,9 @@ private:
 
         //! cache used descriptor-sets
         vierkant::descriptor_set_map_t descriptor_set_cache;
+
+        //! descriptor-heap blocks written for this frame-slot
+        vierkant::HeapBlockAllocator heap_blocks;
     };
 
     vierkant::DevicePtr m_device;

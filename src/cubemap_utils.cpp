@@ -590,7 +590,8 @@ vierkant::ImagePtr upload_cubemap(const vierkant::DevicePtr &device, const cubem
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-cubemap_data_t compress_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue)
+cubemap_data_t compress_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue,
+                                const vierkant::PipelineCachePtr &pipeline_cache)
 {
     constexpr uint32_t num_faces = 6;
     constexpr VkFormat bc6h_format = VK_FORMAT_BC6H_UFLOAT_BLOCK;
@@ -633,6 +634,7 @@ cubemap_data_t compress_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue
     vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, num_mips},
                                                       {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, num_mips}};
     vierkant::Compute::create_info_t compute_info = {};
+    compute_info.pipeline_cache = pipeline_cache;
     compute_info.descriptor_pool = vierkant::create_descriptor_pool(device, descriptor_counts, num_mips);
     vierkant::Compute compute(device, compute_info);
 

@@ -37,7 +37,11 @@ Compute::Compute(const vierkant::DevicePtr &device, const create_info_t &create_
 
     m_compute_assets.resize(create_info.num_frames_in_flight);
 
-    if(create_info.descriptor_pool) { m_descriptor_pool = create_info.descriptor_pool; }
+    if(const auto &heap = m_pipeline_cache->descriptor_heap())
+    {
+        for(auto &asset: m_compute_assets) { asset.heap_blocks = vierkant::HeapBlockAllocator(heap); }
+    }
+    else if(create_info.descriptor_pool) { m_descriptor_pool = create_info.descriptor_pool; }
     else
     {
         vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 256},
@@ -54,20 +58,34 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
     m_current_index = (m_current_index + 1) % m_compute_assets.size();
     vierkant::descriptor_set_map_t next_descriptor_set_cache;
 
+    // the GPU is done with this frame-slot's heap-blocks
+    const auto &heap = m_pipeline_cache->descriptor_heap();
+    if(heap) { compute_asset.heap_blocks.reset(); }
+
     struct item_t
     {
         computable_t computable;
         DescriptorSetLayoutPtr set_layout;
+        HeapBlockLayoutPtr heap_layout;
     };
     std::unordered_map<vierkant::compute_pipeline_info_t, std::vector<item_t>> pipelines;
 
     for(auto &computable: computables)
     {
+        if(heap)
+        {
+            auto heap_layout = m_pipeline_cache->heap_block_layout(computable.descriptors);
+            computable.pipeline_info.heap_block_layouts = {heap_layout};
+            pipelines[computable.pipeline_info].push_back({computable, nullptr, heap_layout});
+            continue;
+        }
         auto descriptor_set_layout = m_pipeline_cache->descriptor_set_layout(computable.descriptors);
         computable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
 
-        pipelines[computable.pipeline_info].push_back({computable, descriptor_set_layout});
+        pipelines[computable.pipeline_info].push_back({computable, descriptor_set_layout, nullptr});
     }
+
+    if(heap) { heap->bind(commandbuffer); }
 
     for(auto &[fmt, items]: pipelines)
     {
@@ -79,7 +97,30 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
 
         for(auto &item: items)
         {
-            auto &[computable, set_layout] = item;
+            auto &[computable, set_layout, heap_layout] = item;
+
+            if(heap)
+            {
+                // push-data: push-constants, then the block-indices
+                auto block = compute_asset.heap_blocks.write(*heap_layout, computable.descriptors);
+                uint32_t push_offset = vierkant::heap_push_offset(fmt.push_constant_ranges);
+                if(computable.push_constants.size() > push_offset)
+                {
+                    throw std::runtime_error("Compute: push-constants exceed pipeline_info.push_constant_ranges");
+                }
+                std::vector<uint8_t> push_data(push_offset + sizeof(heap_block_t));
+                memcpy(push_data.data(), computable.push_constants.data(), computable.push_constants.size());
+                memcpy(push_data.data() + push_offset, &block, sizeof(heap_block_t));
+
+                VkPushDataInfoEXT push_info = {};
+                push_info.sType = VK_STRUCTURE_TYPE_PUSH_DATA_INFO_EXT;
+                push_info.data = {push_data.data(), push_data.size()};
+                vkCmdPushDataEXT(commandbuffer, &push_info);
+
+                vkCmdDispatch(commandbuffer, computable.extent.width, computable.extent.height,
+                              computable.extent.depth);
+                continue;
+            }
 
             if(!computable.push_constants.empty())
             {

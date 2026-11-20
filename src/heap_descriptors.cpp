@@ -84,6 +84,57 @@ heap_block_layout_t create_heap_block_layout(const vierkant::DevicePtr &device, 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+HeapBlockLayoutPtr find_or_create_heap_block_layout(const vierkant::DevicePtr &device, descriptor_map_t descriptors,
+                                                    std::unordered_map<descriptor_map_t, HeapBlockLayoutPtr> &cache)
+{
+    // keep types and array-lengths, drop everything else
+    for(auto &[binding, desc]: descriptors)
+    {
+        if(desc.variable_count)
+        {
+            desc.images.clear();
+            desc.buffers.clear();
+            desc.acceleration_structures.clear();
+        }
+        for(auto &img: desc.images) { img.reset(); }
+        for(auto &buf: desc.buffers) { buf.reset(); }
+        for(auto &as: desc.acceleration_structures) { as.reset(); }
+        desc.image_views.clear();
+        desc.buffer_ranges.clear();
+        desc.inline_uniform_block.clear();
+    }
+
+    auto it = cache.find(descriptors);
+    if(it == cache.end())
+    {
+        auto layout = std::make_shared<heap_block_layout_t>(create_heap_block_layout(device, descriptors));
+        it = cache.emplace(std::move(descriptors), std::move(layout)).first;
+    }
+    return it->second;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+heap_block_size_t heap_block_size(const heap_block_layout_t &layout, const descriptor_map_t &descriptors)
+{
+    heap_block_size_t ret = {layout.num_bytes, layout.num_sampler_bytes};
+
+    for(const auto &b: layout.bindings)
+    {
+        if(!b.variable_count) { continue; }
+        const auto &desc = descriptors.at(b.binding);
+        auto count = static_cast<uint32_t>(std::max({desc.images.size(), desc.buffers.size(), size_t(1)}));
+        ret.num_bytes = std::max(ret.num_bytes, b.offset + count * b.stride);
+        if(b.sampler_stride)
+        {
+            ret.num_sampler_bytes = std::max(ret.num_sampler_bytes, b.sampler_offset + count * b.sampler_stride);
+        }
+    }
+    return ret;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 uint32_t heap_push_offset(const std::vector<VkPushConstantRange> &push_constant_ranges)
 {
     uint32_t end = 0;
@@ -139,21 +190,7 @@ heap_block_t write_heap_block(const vierkant::DevicePtr &device, const heap_bloc
                               DescriptorArena &sampler_arena)
 {
     const auto &props = device->properties().descriptor_heap;
-
-    // block-sizes, including a variable-count binding
-    uint32_t num_bytes = layout.num_bytes, num_sampler_bytes = layout.num_sampler_bytes;
-
-    for(const auto &b: layout.bindings)
-    {
-        if(!b.variable_count) { continue; }
-        const auto &desc = descriptors.at(b.binding);
-        auto count = static_cast<uint32_t>(std::max({desc.images.size(), desc.buffers.size(), size_t(1)}));
-        num_bytes = std::max(num_bytes, b.offset + count * b.stride);
-        if(b.sampler_stride)
-        {
-            num_sampler_bytes = std::max(num_sampler_bytes, b.sampler_offset + count * b.sampler_stride);
-        }
-    }
+    const auto [num_bytes, num_sampler_bytes] = heap_block_size(layout, descriptors);
 
     heap_block_t ret = {};
     DescriptorArena::allocation_t block = {}, sampler_block = {};
@@ -285,6 +322,51 @@ heap_block_t write_heap_block(const vierkant::DevicePtr &device, const heap_bloc
                 "write_heap_block: vkWriteSamplerDescriptorsEXT failed");
     }
     return ret;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+HeapBlockAllocator::HeapBlockAllocator(DescriptorHeapPtr heap) : m_heap(std::move(heap)) {}
+
+heap_block_t HeapBlockAllocator::write(const heap_block_layout_t &layout, const descriptor_map_t &descriptors)
+{
+    auto size = heap_block_size(layout, descriptors);
+    auto &resource_arena = arena(DescriptorHeapType::RESOURCE, size.num_bytes, layout.alignment);
+    auto &sampler_arena = arena(DescriptorHeapType::SAMPLER, size.num_sampler_bytes, layout.sampler_alignment);
+    return write_heap_block(m_heap->device(), layout, descriptors, resource_arena, sampler_arena);
+}
+
+void HeapBlockAllocator::reset()
+{
+    for(auto &arenas: m_arenas)
+    {
+        if(arenas.size() == 1) { arenas.back()->reset(); }
+        else if(arenas.size() > 1)
+        {
+            // merge into one arena of the combined size
+            auto type = arenas.back()->type();
+            VkDeviceSize num_bytes = 0;
+            for(const auto &a: arenas) { num_bytes += a->num_bytes(); }
+            arenas.clear();
+            arenas.push_back(m_heap->create_arena(type, num_bytes));
+        }
+    }
+}
+
+DescriptorArena &HeapBlockAllocator::arena(DescriptorHeapType type, VkDeviceSize num_bytes, VkDeviceSize alignment)
+{
+    // initial arena-sizes, they double when exhausted
+    constexpr VkDeviceSize initial_resource_bytes = 16 << 10, initial_sampler_bytes = 1 << 10;
+
+    auto &arenas = m_arenas[static_cast<uint32_t>(type)];
+    if(arenas.empty() || !arenas.back()->can_allocate(num_bytes, alignment))
+    {
+        VkDeviceSize size =
+                arenas.empty() ? (type == DescriptorHeapType::RESOURCE ? initial_resource_bytes : initial_sampler_bytes)
+                               : 2 * arenas.back()->num_bytes();
+        arenas.push_back(m_heap->create_arena(type, std::max(size, num_bytes + alignment)));
+    }
+    return *arenas.back();
 }
 
 }// namespace vierkant

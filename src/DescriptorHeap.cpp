@@ -155,6 +155,12 @@ DescriptorArena::~DescriptorArena() { m_heap->free_arena(m_type, m_allocation); 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool DescriptorArena::can_allocate(VkDeviceSize num_bytes, VkDeviceSize alignment) const
+{
+    VkDeviceSize offset = align_up(m_offset + m_num_bytes_used, std::max<VkDeviceSize>(alignment, 1));
+    return offset + num_bytes <= m_offset + m_num_bytes;
+}
+
 DescriptorArena::allocation_t DescriptorArena::allocate(VkDeviceSize num_bytes, VkDeviceSize alignment)
 {
     // align relative to the heap-start, which is what descriptor-alignments refer to

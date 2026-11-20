@@ -93,6 +93,9 @@ public:
      */
     [[nodiscard]] const vierkant::BufferPtr &buffer(DescriptorHeapType type) const;
 
+    //! the device this heap was created for
+    [[nodiscard]] const vierkant::DevicePtr &device() const { return m_device; }
+
 private:
     friend class DescriptorArena;
 
@@ -160,6 +163,11 @@ public:
      * @return  an allocation_t
      */
     allocation_t allocate(VkDeviceSize num_bytes, VkDeviceSize alignment);
+
+    /**
+     * @return  true, if allocate() with the same arguments would succeed
+     */
+    [[nodiscard]] bool can_allocate(VkDeviceSize num_bytes, VkDeviceSize alignment) const;
 
     /**
      * @brief   release all allocations. the GPU must be done with them.
