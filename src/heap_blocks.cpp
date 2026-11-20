@@ -72,7 +72,6 @@ heap_block_layout_t create_heap_block_layout(const vierkant::DevicePtr &device, 
 
     heap_block_layout_t ret;
     ret.alignment = std::max(props.imageDescriptorAlignment, props.bufferDescriptorAlignment);
-    ret.sampler_alignment = props.samplerDescriptorAlignment;
 
     for(const auto &[binding, desc]: descriptors)
     {
@@ -223,8 +222,8 @@ create_heap_mappings(const vierkant::DevicePtr &device, const std::vector<HeapBl
             if(b.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
             {
                 push_index.samplerHeapOffset = b.sampler_offset;
-                push_index.samplerPushOffset = block_offset + offsetof(heap_block_ref_t, sampler_index);
-                push_index.samplerHeapIndexStride = layouts[set]->sampler_alignment;
+                push_index.samplerPushOffset = block_offset + offsetof(heap_block_ref_t, sampler_offset);
+                push_index.samplerHeapIndexStride = 1;
                 push_index.samplerHeapArrayStride = b.sampler_stride;
             }
             ret.push_back(mapping);
@@ -366,7 +365,7 @@ heap_block_ref_t HeapBlockAllocator::write(const heap_block_layout_t &layout, co
     if(num_sampler_bytes)
     {
         auto sampler_block = m_heap->sampler_block(sampler_slots, num_sampler_bytes);
-        ret.sampler_index = static_cast<uint32_t>(sampler_block->offset() / layout.sampler_alignment);
+        ret.sampler_offset = static_cast<uint32_t>(sampler_block->offset());
         m_sampler_blocks.insert(std::move(sampler_block));
     }
     return ret;

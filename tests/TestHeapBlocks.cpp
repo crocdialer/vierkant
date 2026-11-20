@@ -405,10 +405,10 @@ TEST(HeapBlocks, ManyAllocators)
     // one allocator per frame-slot of each binder. far more than the sampler-heap holds sampler-ranges.
     constexpr uint32_t num_allocators = 1024;
     std::vector<vierkant::HeapBlockAllocator> allocators(num_allocators, vierkant::HeapBlockAllocator(heap));
-    std::set<uint32_t> sampler_indices;
+    std::set<uint32_t> sampler_offsets;
     for(auto &allocator: allocators)
     {
-        ASSERT_NO_THROW(sampler_indices.insert(allocator.write(layout, descriptors).sampler_index));
+        ASSERT_NO_THROW(sampler_offsets.insert(allocator.write(layout, descriptors).sampler_offset));
     }
-    EXPECT_EQ(sampler_indices.size(), 1);
+    EXPECT_EQ(sampler_offsets.size(), 1);
 }

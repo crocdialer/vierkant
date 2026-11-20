@@ -41,9 +41,8 @@ struct heap_block_layout_t
     uint32_t num_bytes = 0;
     uint32_t num_sampler_bytes = 0;
 
-    //! block-alignments. the sampler-alignment is also the sampler index-stride.
+    //! resource-block alignment
     uint32_t alignment = 1;
-    uint32_t sampler_alignment = 1;
 };
 
 //! location of a block, pushed once per descriptor-set
@@ -52,8 +51,8 @@ struct heap_block_ref_t
     //! byte-offset of the resource-block in the resource-heap
     uint32_t resource_offset = 0;
 
-    //! index of the sampler-block, in units of heap_block_layout_t::sampler_alignment
-    uint32_t sampler_index = 0;
+    //! byte-offset of the sampler-block in the sampler-heap
+    uint32_t sampler_offset = 0;
 };
 
 /**
