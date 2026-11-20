@@ -627,11 +627,7 @@ cubemap_data_t compress_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue
     view_create_info.subresourceRange.baseArrayLayer = 0;
     view_create_info.subresourceRange.layerCount = num_faces;
 
-    VkImageView raw_view = VK_NULL_HANDLE;
-    vkCheck(vkCreateImageView(device->handle(), &view_create_info, nullptr, &raw_view),
-            "compress_cubemap: failed to create array-view");
-    vierkant::VkImageViewPtr array_view(raw_view,
-                                        [device](VkImageView v) { vkDestroyImageView(device->handle(), v, nullptr); });
+    auto array_view = vierkant::create_image_view(device, view_create_info);
 
     // Compute's default descriptor-pool has no SAMPLED_IMAGE, which is what a Texture2DArray binds as
     vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, num_mips},
@@ -690,7 +686,7 @@ cubemap_data_t compress_cubemap(const vierkant::ImagePtr &cubemap, VkQueue queue
         desc_src.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
         desc_src.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
         desc_src.images = {cubemap};
-        desc_src.image_views = {array_view.get()};
+        desc_src.image_views = {array_view};
 
         auto &desc_blocks = computable.descriptors[1];
         desc_blocks.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;

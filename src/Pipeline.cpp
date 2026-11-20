@@ -1,4 +1,5 @@
 #include "vierkant/Pipeline.hpp"
+#include "vierkant/heap_descriptors.hpp"
 
 namespace vierkant
 {
@@ -224,17 +225,23 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::raytracing_pipeline_inf
 
 PipelinePtr Pipeline::create(DevicePtr device, vierkant::compute_pipeline_info_t compute_info)
 {
-    // define pipeline layout (uniforms, push-constants, ...)
-    VkPipelineLayoutCreateInfo pipeline_layout_info = {};
-    pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipeline_layout_info.setLayoutCount = static_cast<uint32_t>(compute_info.descriptor_set_layouts.size());
-    pipeline_layout_info.pSetLayouts = compute_info.descriptor_set_layouts.data();
-    pipeline_layout_info.pushConstantRangeCount = static_cast<uint32_t>(compute_info.push_constant_ranges.size());
-    pipeline_layout_info.pPushConstantRanges = compute_info.push_constant_ranges.data();
-
+    // a descriptor-heap pipeline has no layout
+    const bool use_heap = !compute_info.heap_block_layouts.empty();
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
-    vkCheck(vkCreatePipelineLayout(device->handle(), &pipeline_layout_info, nullptr, &pipeline_layout),
-            "failed to create pipeline layout!");
+
+    if(!use_heap)
+    {
+        // define pipeline layout (uniforms, push-constants, ...)
+        VkPipelineLayoutCreateInfo pipeline_layout_info = {};
+        pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipeline_layout_info.setLayoutCount = static_cast<uint32_t>(compute_info.descriptor_set_layouts.size());
+        pipeline_layout_info.pSetLayouts = compute_info.descriptor_set_layouts.data();
+        pipeline_layout_info.pushConstantRangeCount = static_cast<uint32_t>(compute_info.push_constant_ranges.size());
+        pipeline_layout_info.pPushConstantRanges = compute_info.push_constant_ranges.data();
+
+        vkCheck(vkCreatePipelineLayout(device->handle(), &pipeline_layout_info, nullptr, &pipeline_layout),
+                "failed to create pipeline layout!");
+    }
 
     // our shader stages
     vierkant::shader_stage_map_t shader_map;
@@ -247,6 +254,31 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::compute_pipeline_info_t
     pipeline_create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipeline_create_info.layout = pipeline_layout;
     pipeline_create_info.stage = stage_create_infos.back();
+
+    // descriptor-heap: shader-mappings for all sets, block-indices follow the push-constants
+    std::vector<VkDescriptorSetAndBindingMappingEXT> mappings;
+    VkShaderDescriptorSetAndBindingMappingInfoEXT mapping_info = {};
+    VkPipelineCreateFlags2CreateInfo flags_info = {};
+
+    if(use_heap)
+    {
+        uint32_t push_offset = vierkant::heap_push_offset(compute_info.push_constant_ranges);
+        for(uint32_t set = 0; set < compute_info.heap_block_layouts.size(); ++set)
+        {
+            auto set_mappings = vierkant::create_heap_mappings(device, *compute_info.heap_block_layouts[set], set,
+                                                               push_offset + set * sizeof(heap_block_t));
+            mappings.insert(mappings.end(), set_mappings.begin(), set_mappings.end());
+        }
+        mapping_info.sType = VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT;
+        mapping_info.pNext = pipeline_create_info.stage.pNext;
+        mapping_info.mappingCount = static_cast<uint32_t>(mappings.size());
+        mapping_info.pMappings = mappings.data();
+        pipeline_create_info.stage.pNext = &mapping_info;
+
+        flags_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO;
+        flags_info.flags = VK_PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT;
+        pipeline_create_info.pNext = &flags_info;
+    }
 
     VkPipeline pipeline = VK_NULL_HANDLE;
     vkCheck(vkCreateComputePipelines(device->handle(), VK_NULL_HANDLE, 1, &pipeline_create_info, VK_NULL_HANDLE,

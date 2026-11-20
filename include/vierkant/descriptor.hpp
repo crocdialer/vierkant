@@ -55,7 +55,7 @@ struct descriptor_t
     std::vector<vierkant::ImagePtr> images;
 
     //! optional array of image-views. if no value for an image index is found, the default view is used.
-    std::vector<VkImageView> image_views;
+    std::vector<vierkant::image_view_t> image_views;
 
     //! used for descriptors containing (an array of) raytracing acceleration-structures
     std::vector<AccelerationStructurePtr> acceleration_structures;

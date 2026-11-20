@@ -8,6 +8,17 @@ namespace vierkant
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+image_view_t create_image_view(const DevicePtr &device, const VkImageViewCreateInfo &info)
+{
+    assert(!info.pNext);
+    VkImageView image_view;
+    vkCheck(vkCreateImageView(device->handle(), &info, nullptr, &image_view), "failed to create image view!");
+    return {VkImageViewPtr(image_view, [device](VkImageView v) { vkDestroyImageView(device->handle(), v, nullptr); }),
+            info};
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 VkDeviceSize num_bytes(VkFormat format)
 {
     switch(format)
@@ -335,11 +346,7 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
     view_create_info.subresourceRange.baseArrayLayer = 0;
     view_create_info.subresourceRange.layerCount = m_format.num_layers;
 
-    VkImageView image_view;
-    vkCheck(vkCreateImageView(m_device->handle(), &view_create_info, nullptr, &image_view),
-            "failed to create texture image view!");
-    m_image_view = {image_view,
-                    [device = m_device](VkImageView v) { vkDestroyImageView(device->handle(), v, nullptr); }};
+    m_image_view = create_image_view(m_device, view_create_info);
 
     m_mip_image_views.resize(m_num_mip_levels);
 
@@ -347,16 +354,12 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
     {
         view_create_info.subresourceRange.baseMipLevel = i;
         view_create_info.subresourceRange.levelCount = 1;
-        VkImageView mip_image_view;
-        vkCheck(vkCreateImageView(m_device->handle(), &view_create_info, nullptr, &mip_image_view),
-                "failed to create texture image view!");
-        m_mip_image_views[i] = {mip_image_view, [device = m_device](VkImageView v) {
-                                    vkDestroyImageView(device->handle(), v, nullptr);
-                                }};
+        m_mip_image_views[i] = create_image_view(m_device, view_create_info);
     }
     ////////////////////////////////////////// create image sampler ////////////////////////////////////////////////////
 
-    if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT) { m_sampler = m_device->sampler(m_format.sampler_state); }
+    m_sampler_state = m_format.sampler_state;
+    if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT) { m_sampler = m_device->sampler(m_sampler_state); }
 
     ////////////////////////////////////////// layout transitions //////////////////////////////////////////////////////
 
@@ -735,14 +738,16 @@ ImagePtr Image::clone(VkComponentMapping cmp_map) const
     view_create_info.subresourceRange.baseArrayLayer = 0;
     view_create_info.subresourceRange.layerCount = ret->num_layers();
 
-    VkImageView image_view;
-    vkCheck(vkCreateImageView(m_device->handle(), &view_create_info, nullptr, &image_view),
-            "failed to create texture image view!");
-    const vierkant::VkImageViewPtr swizzle_view = {
-            image_view, [device = m_device](VkImageView v) { vkDestroyImageView(device->handle(), v, nullptr); }};
-
-    ret->set_image_view(swizzle_view);
+    ret->set_image_view(create_image_view(m_device, view_create_info));
     return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Image::set_sampler(const sampler_state_t &state)
+{
+    m_sampler_state = state;
+    m_sampler = m_device->sampler(state);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

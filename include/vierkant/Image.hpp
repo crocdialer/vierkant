@@ -15,6 +15,24 @@ using VkImagePtr = std::shared_ptr<VkImage_T>;
 using VkImageViewPtr = std::shared_ptr<VkImageView_T>;
 using VkImageLayoutPtr = std::shared_ptr<VkImageLayout>;
 
+//! a shared VkImageView and the create-info it was made from (pNext is null)
+struct image_view_t
+{
+    VkImageViewPtr handle = nullptr;
+    VkImageViewCreateInfo info = {};
+
+    bool operator==(const image_view_t &other) const { return handle == other.handle; }
+};
+
+/**
+ * @brief   create_image_view creates a shared VkImageView and keeps its create-info.
+ *
+ * @param   device  handle for a vierkant::Device
+ * @param   info    the create-info for the image-view. pNext must be null.
+ * @return  the newly created image_view_t
+ */
+image_view_t create_image_view(const DevicePtr &device, const VkImageViewCreateInfo &info);
+
 VkDeviceSize num_bytes(VkFormat format);
 
 VkDeviceSize num_bytes(VkIndexType format);
@@ -143,19 +161,24 @@ public:
     /**
      * @return  image view handle
      */
-    [[nodiscard]] VkImageView image_view() const { return m_image_view.get(); };
+    [[nodiscard]] VkImageView image_view() const { return m_image_view.handle.get(); };
 
     /**
-     * @brief   set a new shared VkImageView-handle.
+     * @return  the default image view, with its create-info
+     */
+    [[nodiscard]] const image_view_t &view() const { return m_image_view; };
+
+    /**
+     * @brief   set a new default image view.
      *
-     * @param   sampler desired imageview
+     * @param   image_view  desired imageview
      */
-    void set_image_view(VkImageViewPtr image_view) { m_image_view = std::move(image_view); }
+    void set_image_view(image_view_t image_view) { m_image_view = std::move(image_view); }
 
     /**
-     * @return  image view handles for mips
+     * @return  image views for mips
      */
-    [[nodiscard]] const std::vector<VkImageViewPtr> &mip_image_views() const { return m_mip_image_views; };
+    [[nodiscard]] const std::vector<image_view_t> &mip_image_views() const { return m_mip_image_views; };
 
     /**
      * @return  shared image sampler handle
@@ -163,11 +186,16 @@ public:
     [[nodiscard]] VkSamplerPtr sampler() const { return m_sampler; };
 
     /**
-     * @brief   set a new shared VkSampler-handle.
-     *
-     * @param   sampler desired sampler
+     * @return  the sampler-state the sampler was created from
      */
-    void set_sampler(VkSamplerPtr sampler) { m_sampler = std::move(sampler); }
+    [[nodiscard]] const sampler_state_t &sampler_state() const { return m_sampler_state; };
+
+    /**
+     * @brief   set a new sampler, retrieved from the device's sampler-cache.
+     *
+     * @param   state   desired sampler-state
+     */
+    void set_sampler(const sampler_state_t &state);
 
     /**
      * @return  current image layout
@@ -264,14 +292,17 @@ private:
     // image handle
     VkImagePtr m_image = nullptr;
 
-    // image view handle
-    VkImageViewPtr m_image_view = nullptr;
+    // image view
+    image_view_t m_image_view;
 
-    // image view handles for mipmap-levels
-    std::vector<VkImageViewPtr> m_mip_image_views;
+    // image views for mipmap-levels
+    std::vector<image_view_t> m_mip_image_views;
 
     // sampler handle
     VkSamplerPtr m_sampler = nullptr;
+
+    // sampler-state for m_sampler
+    sampler_state_t m_sampler_state = {};
 
     // current image layout
     VkImageLayoutPtr m_image_layout = nullptr;

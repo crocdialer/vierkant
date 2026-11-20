@@ -519,19 +519,15 @@ std::vector<Device::memory_budget_t> Device::memory_budgets() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkSamplerPtr Device::sampler(const sampler_state_t &state)
+VkSamplerCreateInfo sampler_create_info(const sampler_state_t &state, VkSamplerReductionModeCreateInfo &reduction_info)
 {
-    std::unique_lock lock(m_sampler_mutex);
-    auto it = m_samplers.find(state);
-    if(it != m_samplers.end()) { return it->second; }
-
-    VkSamplerReductionModeCreateInfo reduction_mode_info = {};
-    reduction_mode_info.sType = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
-    reduction_mode_info.reductionMode = state.reduction_mode;
+    reduction_info = {};
+    reduction_info.sType = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
+    reduction_info.reductionMode = state.reduction_mode;
 
     VkSamplerCreateInfo sampler_create_info = {};
     sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    sampler_create_info.pNext = &reduction_mode_info;
+    sampler_create_info.pNext = &reduction_info;
     sampler_create_info.magFilter = state.mag_filter;
     sampler_create_info.minFilter = state.min_filter;
     sampler_create_info.addressModeU = state.address_mode_u;
@@ -551,6 +547,19 @@ VkSamplerPtr Device::sampler(const sampler_state_t &state)
     // is equivalent to a per-image one and keeps the cache from fragmenting.
     // unnormalized coordinates require minLod == maxLod == 0 though.
     sampler_create_info.maxLod = state.normalized_coords ? VK_LOD_CLAMP_NONE : 0.f;
+    return sampler_create_info;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+VkSamplerPtr Device::sampler(const sampler_state_t &state)
+{
+    std::unique_lock lock(m_sampler_mutex);
+    auto it = m_samplers.find(state);
+    if(it != m_samplers.end()) { return it->second; }
+
+    VkSamplerReductionModeCreateInfo reduction_mode_info;
+    auto sampler_create_info = vierkant::sampler_create_info(state, reduction_mode_info);
 
     VkSampler sampler_handle;
     vkCheck(vkCreateSampler(m_device, &sampler_create_info, nullptr, &sampler_handle),

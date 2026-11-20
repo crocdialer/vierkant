@@ -256,6 +256,15 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              vierkant::Image::Format format, VkQueue load_queue);
 
 /**
+ * @brief   sampler_state translates a texture_sampler_t descriptor into a sampler_state_t.
+ *
+ * @param   device      handle to a vierkant::Device, provides the anisotropy-limit
+ * @param   ts          a texture_sampler_t descriptor
+ * @return  the corresponding sampler_state_t
+ */
+vierkant::sampler_state_t sampler_state(const vierkant::DevicePtr &device, const vierkant::texture_sampler_t &ts);
+
+/**
  * @brief   create_sampler retrieves a shared VkSampler for a texture_sampler_t descriptor.
  *
  * @param   device      handle to a vierkant::Device
