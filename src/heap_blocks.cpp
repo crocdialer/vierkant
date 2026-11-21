@@ -1,6 +1,8 @@
 #include <deque>
 #include <vierkant/heap_blocks.hpp>
 
+#include <ranges>
+
 namespace vierkant
 {
 
@@ -123,7 +125,7 @@ HeapBlockLayoutPtr find_or_create_heap_block_layout(const vierkant::DevicePtr &d
                                                     std::unordered_map<descriptor_map_t, HeapBlockLayoutPtr> &cache)
 {
     // keep types and array-lengths, drop everything else
-    for(auto &[binding, desc]: descriptors)
+    for(auto &desc: descriptors | std::views::values)
     {
         if(desc.variable_count)
         {
@@ -136,7 +138,7 @@ HeapBlockLayoutPtr find_or_create_heap_block_layout(const vierkant::DevicePtr &d
         for(auto &as: desc.acceleration_structures) { as.reset(); }
         desc.image_views.clear();
         desc.buffer_ranges.clear();
-        std::fill(desc.inline_uniform_block.begin(), desc.inline_uniform_block.end(), 0);
+        std::ranges::fill(desc.inline_uniform_block, 0);
     }
 
     auto it = cache.find(descriptors);
@@ -159,7 +161,7 @@ void cmd_push_heap_data(VkCommandBuffer command_buffer, const std::vector<VkPush
         throw std::runtime_error("descriptor-heap: push-constants exceed the pipeline's push-constant ranges");
     }
 
-    std::array<uint8_t, max_push_data_size> push_data;
+    std::array<uint8_t, max_push_data_size> push_data{};
     size_t num_bytes = push_offset + blocks.size_bytes();
     if(num_bytes > push_data.size()) { throw std::runtime_error("descriptor-heap: push-data exceeds 256 bytes"); }
     memcpy(push_data.data(), push_constants.data(), push_constants.size());
@@ -273,9 +275,7 @@ heap_block_ref_t HeapBlockAllocator::write(const heap_block_layout_t &layout, co
 
     for(const auto &b: layout.bindings)
     {
-        const auto &desc = descriptors.at(b.binding);
-
-        switch(desc.type)
+        switch(const auto &desc = descriptors.at(b.binding); desc.type)
         {
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
@@ -390,7 +390,7 @@ void HeapBlockAllocator::reset()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkDeviceSize HeapBlockAllocator::allocate(VkDeviceSize num_bytes, VkDeviceSize alignment)
+VkDeviceSize HeapBlockAllocator::allocate(const VkDeviceSize num_bytes, const VkDeviceSize alignment)
 {
     // initial range-size, it doubles when full
     constexpr VkDeviceSize initial_num_bytes = 16 << 10;

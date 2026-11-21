@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <crocore/Cache.hpp>
-
+#include <unordered_map>
 #include <vierkant/Device.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/PipelineCache.hpp>
@@ -126,7 +125,7 @@ private:
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 
-    crocore::Cache_<VkPipeline, shader_binding_table_t> m_binding_tables;
+    std::unordered_map<VkPipeline, shader_binding_table_t> m_binding_tables;
 
     std::vector<trace_assets_t> m_trace_assets;
 

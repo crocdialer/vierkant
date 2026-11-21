@@ -113,7 +113,7 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
             if(!computable.push_constants.empty())
             {
                 // push constant range
-                VkPushConstantRange push_constant_range = {};
+                VkPushConstantRange push_constant_range;
                 push_constant_range.offset = 0;
                 push_constant_range.size = computable.push_constants.size();
                 push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;

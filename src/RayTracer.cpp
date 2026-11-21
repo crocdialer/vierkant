@@ -1,16 +1,8 @@
-#include <ranges>
+#include <algorithm>
 #include <vierkant/RayTracer.hpp>
 
 namespace vierkant
 {
-
-inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
-{
-    VkTransformMatrixKHR ret;
-    auto transpose = glm::transpose(m);
-    memcpy(&ret, glm::value_ptr(transpose), sizeof(VkTransformMatrixKHR));
-    return ret;
-}
 
 std::vector<const char *> RayTracer::required_extensions()
 { return {VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME}; }
@@ -91,13 +83,13 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
         tracable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
     }
 
-    bool variable_count = std::ranges::any_of(tracable.descriptors,
-                                              [](const auto &pair) { return pair.second.variable_count; });
+    const bool variable_count =
+            std::ranges::any_of(tracable.descriptors, [](const auto &pair) { return pair.second.variable_count; });
 
     // push constant range
     if(!tracable.push_constants.empty())
     {
-        VkPushConstantRange push_constant_range = {};
+        VkPushConstantRange push_constant_range;
         push_constant_range.offset = 0;
         push_constant_range.size = tracable.push_constants.size();
         push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
@@ -105,20 +97,18 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     }
 
     // create or retrieve an existing raytracing pipeline
-    auto pipeline = m_pipeline_cache->pipeline(tracable.pipeline_info);
+    const auto pipeline = m_pipeline_cache->pipeline(tracable.pipeline_info);
 
-    // create the binding table
-    shader_binding_table_t binding_table = {};
-
-    try
+    // create/retrieve a binding table
+    auto it = m_binding_tables.find(pipeline->handle());
+    if(it == m_binding_tables.end())
     {
-        binding_table = m_binding_tables.get(pipeline->handle());
-    } catch(std::out_of_range &e)
-    {
-        binding_table = m_binding_tables.put(
-                pipeline->handle(),
-                create_shader_binding_table(pipeline->handle(), tracable.pipeline_info));
+        it = m_binding_tables
+                     .emplace(pipeline->handle(),
+                              create_shader_binding_table(pipeline->handle(), tracable.pipeline_info))
+                     .first;
     }
+    const auto &binding_table = it->second;
 
     // bind raytracing pipeline
     pipeline->bind(commandbuffer);

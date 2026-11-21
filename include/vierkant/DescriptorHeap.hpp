@@ -13,11 +13,10 @@ namespace vierkant
 {
 
 DEFINE_CLASS_PTR(DescriptorHeap)
-
 DEFINE_CLASS_PTR(DescriptorRange)
 
 //! round up to a multiple of alignment
-constexpr VkDeviceSize align_up(VkDeviceSize value, VkDeviceSize alignment)
+constexpr VkDeviceSize align_up(const VkDeviceSize value, const VkDeviceSize alignment)
 { return (value + alignment - 1) / alignment * alignment; }
 
 //! descriptor-heaps come in two types, bound separately
@@ -36,9 +35,6 @@ struct sampler_slot_t
 
     bool operator==(const sampler_slot_t &other) const = default;
 };
-
-//! a shared, write-once range of the sampler-heap
-using SamplerBlockPtr = std::shared_ptr<const DescriptorRange>;
 
 /**
  * @brief   DescriptorHeap owns a resource- and a sampler-heap (VK_EXT_descriptor_heap).
@@ -102,7 +98,7 @@ public:
      * @param   num_bytes   size of the block in bytes
      * @return  a shared, write-once range of the sampler-heap
      */
-    SamplerBlockPtr sampler_block(const std::vector<sampler_slot_t> &slots, uint32_t num_bytes);
+    DescriptorRangeConstPtr sampler_block(const std::vector<sampler_slot_t> &slots, uint32_t num_bytes);
 
     /**
      * @brief   bind both heaps to a command-buffer
@@ -125,8 +121,6 @@ public:
     [[nodiscard]] const vierkant::DevicePtr &device() const { return m_device; }
 
 private:
-    friend class DescriptorRange;
-
     struct heap_t
     {
         vierkant::BufferPtr buffer;
@@ -185,8 +179,6 @@ public:
     DescriptorRange(DescriptorRange &&) = delete;
 
     DescriptorRange &operator=(DescriptorRange other) = delete;
-
-    ~DescriptorRange();
 
     [[nodiscard]] DescriptorHeapType type() const { return m_type; }
 

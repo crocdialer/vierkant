@@ -142,7 +142,7 @@ private:
     VkDeviceSize m_num_bytes_used = 0;
 
     //! sampler-blocks used since the last reset()
-    std::unordered_set<SamplerBlockPtr> m_sampler_blocks;
+    std::unordered_set<DescriptorRangeConstPtr> m_sampler_blocks;
 };
 
 }// namespace vierkant

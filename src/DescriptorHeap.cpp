@@ -34,12 +34,20 @@ DescriptorHeap::DescriptorHeap(const create_info_t &create_info) : m_device(crea
         const char *suffix;
     };
     const heap_params_t params[] = {
-            {DescriptorHeapType::RESOURCE, create_info.resource_heap_size, props.maxResourceHeapSize,
-             props.resourceHeapAlignment, props.minResourceHeapReservedRange,
-             std::max(props.imageDescriptorAlignment, props.bufferDescriptorAlignment), "resource"},
-            {DescriptorHeapType::SAMPLER, create_info.sampler_heap_size, props.maxSamplerHeapSize,
-             props.samplerHeapAlignment, props.minSamplerHeapReservedRange, props.samplerDescriptorAlignment,
-             "sampler"}};
+            {.type = DescriptorHeapType::RESOURCE,
+             .num_bytes = create_info.resource_heap_size,
+             .max_num_bytes = props.maxResourceHeapSize,
+             .heap_alignment = props.resourceHeapAlignment,
+             .reserved_range = props.minResourceHeapReservedRange,
+             .range_alignment = std::max(props.imageDescriptorAlignment, props.bufferDescriptorAlignment),
+             .suffix = "resource"},
+            {.type = DescriptorHeapType::SAMPLER,
+             .num_bytes = create_info.sampler_heap_size,
+             .max_num_bytes = props.maxSamplerHeapSize,
+             .heap_alignment = props.samplerHeapAlignment,
+             .reserved_range = props.minSamplerHeapReservedRange,
+             .range_alignment = props.samplerDescriptorAlignment,
+             .suffix = "sampler"}};
 
     for(const auto &p: params)
     {
@@ -83,14 +91,14 @@ DescriptorHeap::DescriptorHeap(const create_info_t &create_info) : m_device(crea
 DescriptorHeap::~DescriptorHeap()
 {
     // ranges keep the heap alive, so all virtual allocations are gone by now
-    for(auto &heap: m_heaps) { vmaDestroyVirtualBlock(heap.virtual_block); }
+    for(const auto &heap: m_heaps) { vmaDestroyVirtualBlock(heap.virtual_block); }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorRangePtr DescriptorHeap::create_range(DescriptorHeapType type, VkDeviceSize num_bytes)
 {
-    auto &heap = m_heaps[static_cast<uint32_t>(type)];
+    const auto &heap = m_heaps[static_cast<uint32_t>(type)];
 
     VmaVirtualAllocationCreateInfo alloc_info = {};
     alloc_info.size = num_bytes;
@@ -109,15 +117,19 @@ DescriptorRangePtr DescriptorHeap::create_range(DescriptorHeapType type, VkDevic
                 std::format("vierkant::DescriptorHeap: could not create range of {} bytes", num_bytes));
     }
     offset += heap.range_offset;
-    return DescriptorRangePtr(
-            new DescriptorRange(shared_from_this(), type, offset, num_bytes, heap.data + offset, allocation));
+    return {new DescriptorRange(shared_from_this(), type, offset, num_bytes, heap.data + offset, allocation),
+            [](DescriptorRange *range) {
+                range->m_heap->free_range(range->type(), range->m_allocation);
+                std::default_delete<DescriptorRange>()(range);
+            }};
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-SamplerBlockPtr DescriptorHeap::sampler_block(const std::vector<sampler_slot_t> &slots, uint32_t num_bytes)
+DescriptorRangeConstPtr DescriptorHeap::sampler_block(const std::vector<sampler_slot_t> &slots,
+                                                      const uint32_t num_bytes)
 {
-    sampler_block_key_t key = {num_bytes, slots};
+    sampler_block_key_t key = {.num_bytes = num_bytes, .slots = slots};
     std::lock_guard lock(m_sampler_mutex);
 
     auto &entry = m_sampler_blocks[key];
@@ -129,10 +141,10 @@ SamplerBlockPtr DescriptorHeap::sampler_block(const std::vector<sampler_slot_t> 
     std::vector<VkSamplerCreateInfo> sampler_infos;
     std::vector<VkHostAddressRangeEXT> sampler_dst;
     std::deque<VkSamplerReductionModeCreateInfo> reduction_infos;
-    for(const auto &slot: slots)
+    for(const auto &[offset, state]: slots)
     {
-        sampler_infos.push_back(sampler_create_info(slot.state, reduction_infos.emplace_back()));
-        sampler_dst.push_back({range->data() + slot.offset, props.samplerDescriptorSize});
+        sampler_infos.push_back(sampler_create_info(state, reduction_infos.emplace_back()));
+        sampler_dst.push_back({.address = range->data() + offset, .size = props.samplerDescriptorSize});
     }
     if(!sampler_infos.empty())
     {
@@ -143,11 +155,13 @@ SamplerBlockPtr DescriptorHeap::sampler_block(const std::vector<sampler_slot_t> 
 
     // the last holder removes the expired entry, then frees the range
     auto *range_ptr = range.get();
-    SamplerBlockPtr block(range_ptr, [this, key = std::move(key), range](const DescriptorRange *) mutable {
+    DescriptorRangeConstPtr block(range_ptr, [this, key = std::move(key), range](const DescriptorRange *) mutable {
         {
-            std::lock_guard lock(m_sampler_mutex);
-            auto it = m_sampler_blocks.find(key);
-            if(it != m_sampler_blocks.end() && it->second.expired()) { m_sampler_blocks.erase(it); }
+            std::lock_guard scope_lock(m_sampler_mutex);
+            if(const auto it = m_sampler_blocks.find(key); it != m_sampler_blocks.end() && it->second.expired())
+            {
+                m_sampler_blocks.erase(it);
+            }
         }
         range.reset();
     });
@@ -161,10 +175,10 @@ size_t DescriptorHeap::sampler_block_key_hash_t::operator()(const sampler_block_
 {
     size_t h = 0;
     hash_combine(h, key.num_bytes);
-    for(const auto &slot: key.slots)
+    for(const auto &[offset, state]: key.slots)
     {
-        hash_combine(h, slot.offset);
-        hash_combine(h, slot.state);
+        hash_combine(h, offset);
+        hash_combine(h, state);
     }
     return h;
 }
@@ -202,9 +216,5 @@ DescriptorRange::DescriptorRange(DescriptorHeapPtr heap, DescriptorHeapType type
     : m_heap(std::move(heap)), m_type(type), m_offset(offset), m_num_bytes(num_bytes), m_data(data),
       m_allocation(allocation)
 {}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-DescriptorRange::~DescriptorRange() { m_heap->free_range(m_type, m_allocation); }
 
 }// namespace vierkant
