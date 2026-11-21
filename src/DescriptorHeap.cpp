@@ -118,8 +118,8 @@ DescriptorRangePtr DescriptorHeap::create_range(DescriptorHeapType type, VkDevic
     }
     offset += heap.range_offset;
     return {new DescriptorRange(shared_from_this(), type, offset, num_bytes, heap.data + offset, allocation),
-            [](DescriptorRange *range) {
-                range->m_heap->free_range(range->type(), range->m_allocation);
+            [this, type, allocation](DescriptorRange *range) {
+                free_range(type, allocation);
                 std::default_delete<DescriptorRange>()(range);
             }};
 }
