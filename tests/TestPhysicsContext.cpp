@@ -657,3 +657,54 @@ TEST(PhysicsContext, fixed_timestep_is_framerate_independent)
     // same second of simulated time, delivered at 64hz and at 16hz
     EXPECT_NEAR(drop_box(fixed_timestep, 64), drop_box(4.0 * fixed_timestep, 16), 1.e-4f);
 }
+
+TEST(PhysicsContext, clone_objects)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+
+    // two bodies, constrained to each other and to a body outside the cloned set
+    const auto outside_id = vierkant::BodyId::random();
+    auto a = object_store->create_object();
+    auto b = object_store->create_object();
+    const auto id_a = a->add_component<vierkant::physics_component_t>({.mode = physics_component_t::ACTIVE}).body_id;
+    const auto id_b = b->add_component<vierkant::physics_component_t>().body_id;
+
+    vierkant::constraint_component_t constraint_cmp = {};
+    constraint_cmp.body_constraints = {{constraint::point_t{}, id_a, id_b}, {constraint::point_t{}, id_a, outside_id}};
+    a->add_component(constraint_cmp);
+
+    const std::set<vierkant::Object3DPtr> objects = {a, b};
+    auto clones = vierkant::clone_objects(*object_store, objects);
+    ASSERT_EQ(clones.size(), 2);
+
+    // clones follow the set's order
+    auto *clone_a = (*objects.begin() == a ? clones[0] : clones[1]).get();
+    auto *clone_b = (*objects.begin() == a ? clones[1] : clones[0]).get();
+    const auto &clone_phys_a = clone_a->get_component<vierkant::physics_component_t>();
+    const auto &clone_phys_b = clone_b->get_component<vierkant::physics_component_t>();
+
+    // fresh body-ids, reset mode
+    EXPECT_NE(clone_phys_a.body_id, id_a);
+    EXPECT_NE(clone_phys_b.body_id, id_b);
+    EXPECT_NE(clone_phys_a.body_id, clone_phys_b.body_id);
+    EXPECT_EQ(clone_phys_a.mode, vierkant::physics_component_t::INACTIVE);
+
+    // constraints inside the set follow the clones, the outside reference is kept
+    const auto &cloned_constraints = clone_a->get_component<vierkant::constraint_component_t>().body_constraints;
+    ASSERT_EQ(cloned_constraints.size(), 2);
+    EXPECT_EQ(cloned_constraints[0].body_id1, clone_phys_a.body_id);
+    EXPECT_EQ(cloned_constraints[0].body_id2, clone_phys_b.body_id);
+    EXPECT_EQ(cloned_constraints[1].body_id1, clone_phys_a.body_id);
+    EXPECT_EQ(cloned_constraints[1].body_id2, outside_id);
+
+    // originals are untouched
+    EXPECT_EQ(a->get_component<vierkant::physics_component_t>().body_id, id_a);
+    EXPECT_EQ(a->get_component<vierkant::constraint_component_t>().body_constraints[0].body_id2, id_b);
+
+    // a seed derives the same ids on every call
+    auto seeded_1 = vierkant::clone_objects(*object_store, {a}, "seed");
+    auto seeded_2 = vierkant::clone_objects(*object_store, {a}, "seed");
+    EXPECT_EQ(seeded_1[0]->get_component<vierkant::physics_component_t>().body_id,
+              seeded_2[0]->get_component<vierkant::physics_component_t>().body_id);
+    EXPECT_NE(seeded_1[0]->get_component<vierkant::physics_component_t>().body_id, id_a);
+}

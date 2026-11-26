@@ -94,7 +94,7 @@ void VierkantEd::create_ui()
                     case vierkant::Key::_V:
                     {
                         auto copy_dst = m_selected_objects.empty() ? m_scene->root() : *m_selected_objects.begin();
-                        auto clones = clone_objects(m_copy_objects);
+                        auto clones = vierkant::clone_objects(*m_object_store, m_copy_objects);
                         for(const auto &cloned_obj: clones) { copy_dst->add_child(cloned_obj); }
                         break;
                     }

@@ -1013,7 +1013,8 @@ void VierkantEd::build_scene(const std::optional<scene_data_t> &scene_data_in, b
                             // keeps them constant across reloads, so constraints referencing this sub-scene's
                             // bodies (incl. from the enclosing scene) keep resolving after save/load.
                             const std::string instance_seed = containing_key + "/" + std::to_string(j);
-                            for(auto clones = clone_objects({children.begin(), children.end()}, instance_seed);
+                            for(auto clones = vierkant::clone_objects(
+                                        *m_object_store, {children.begin(), children.end()}, instance_seed);
                                 const auto &child: clones)
                             {
                                 scene_asset.objects[j]->add_child(child);
@@ -1143,67 +1144,6 @@ void VierkantEd::build_scene(const std::optional<scene_data_t> &scene_data_in, b
         main_queue().post(done_cb);
     };
     background_queue().post(load_task);
-}
-
-std::vector<vierkant::Object3DPtr> VierkantEd::clone_objects(const std::set<vierkant::Object3DPtr> &objects,
-                                                            const std::optional<std::string> &instance_seed) const
-{
-    std::unordered_map<vierkant::BodyId, vierkant::BodyId> body_id_map = {
-            {vierkant::BodyId::nil(), vierkant::BodyId::nil()}};
-
-    // derive a new body-id for a cloned body. with an instance-seed the result is deterministic
-    // (stable across reloads), so persisted constraints referencing sub-scene bodies keep resolving;
-    // without a seed a fresh random id is used (a genuinely new object, e.g. copy/paste).
-    auto make_body_id = [&instance_seed](const vierkant::BodyId &orig) {
-        return instance_seed ? vierkant::BodyId::from_name(*instance_seed + orig.str()) : vierkant::BodyId::random();
-    };
-
-    auto remap_id = [&body_id_map](vierkant::BodyId &body_id) {
-        if(auto it = body_id_map.find(body_id); it != body_id_map.end()) { body_id = it->second; }
-    };
-
-    std::vector<vierkant::Object3DPtr> clones;
-    clones.reserve(objects.size());
-
-    // 1st pass, generate clones + new body-ids and init map
-    for(const auto &obj: objects)
-    {
-        auto cloned_obj = m_object_store->clone(obj.get());
-        clones.push_back(cloned_obj);
-
-        vierkant::LambdaVisitor visitor;
-        visitor.traverse(*cloned_obj, [&body_id_map, &make_body_id](auto &obj) -> bool {
-            if(auto *phy_cmp_ptr = obj.template get_component_ptr<vierkant::physics_component_t>())
-            {
-                phy_cmp_ptr->mode = vierkant::physics_component_t::INACTIVE;
-
-                // assign new body id
-                auto new_body_id = make_body_id(phy_cmp_ptr->body_id);
-                body_id_map[phy_cmp_ptr->body_id] = new_body_id;
-                phy_cmp_ptr->body_id = new_body_id;
-            }
-            return true;
-        });
-    }
-
-    // 2nd pass: adjust body-ids in constraints
-    for(const auto &cloned_obj: clones)
-    {
-        vierkant::LambdaVisitor visitor;
-        visitor.traverse(*cloned_obj, [&remap_id](auto &obj) -> bool {
-            // remap body-ids for constraints
-            if(auto *constraint_cmp = obj.template get_component_ptr<vierkant::constraint_component_t>())
-            {
-                for(auto &body_constraint: constraint_cmp->body_constraints)
-                {
-                    remap_id(body_constraint.body_id1);
-                    remap_id(body_constraint.body_id2);
-                }
-            }
-            return true;
-        });
-    }
-    return clones;
 }
 
 vierkant::model::load_mesh_result_t VierkantEd::load_mesh(const std::filesystem::path &path)

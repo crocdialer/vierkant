@@ -1556,6 +1556,70 @@ void PhysicsContext::set_callbacks(uint32_t objectId, const PhysicsContext::call
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+std::vector<vierkant::Object3DPtr> clone_objects(vierkant::ObjectStore &object_store,
+                                                 const std::set<vierkant::Object3DPtr> &objects,
+                                                 const std::optional<std::string> &instance_seed)
+{
+    std::unordered_map<vierkant::BodyId, vierkant::BodyId> body_id_map = {
+            {vierkant::BodyId::nil(), vierkant::BodyId::nil()}};
+
+    // derive a new body-id for a cloned body. with an instance-seed the result is deterministic
+    // (stable across reloads), so persisted constraints referencing sub-scene bodies keep resolving;
+    // without a seed a fresh random id is used (a genuinely new object, e.g. copy/paste).
+    auto make_body_id = [&instance_seed](const vierkant::BodyId &orig) {
+        return instance_seed ? vierkant::BodyId::from_name(*instance_seed + orig.str()) : vierkant::BodyId::random();
+    };
+
+    auto remap_id = [&body_id_map](vierkant::BodyId &body_id) {
+        if(auto it = body_id_map.find(body_id); it != body_id_map.end()) { body_id = it->second; }
+    };
+
+    std::vector<vierkant::Object3DPtr> clones;
+    clones.reserve(objects.size());
+
+    // 1st pass, generate clones + new body-ids and init map
+    for(const auto &obj: objects)
+    {
+        auto cloned_obj = object_store.clone(obj.get());
+        clones.push_back(cloned_obj);
+
+        vierkant::LambdaVisitor visitor;
+        visitor.traverse(*cloned_obj, [&body_id_map, &make_body_id](auto &obj) -> bool {
+            if(auto *phy_cmp_ptr = obj.template get_component_ptr<vierkant::physics_component_t>())
+            {
+                phy_cmp_ptr->mode = vierkant::physics_component_t::INACTIVE;
+
+                // assign new body id
+                auto new_body_id = make_body_id(phy_cmp_ptr->body_id);
+                body_id_map[phy_cmp_ptr->body_id] = new_body_id;
+                phy_cmp_ptr->body_id = new_body_id;
+            }
+            return true;
+        });
+    }
+
+    // 2nd pass: adjust body-ids in constraints
+    for(const auto &cloned_obj: clones)
+    {
+        vierkant::LambdaVisitor visitor;
+        visitor.traverse(*cloned_obj, [&remap_id](auto &obj) -> bool {
+            // remap body-ids for constraints
+            if(auto *constraint_cmp = obj.template get_component_ptr<vierkant::constraint_component_t>())
+            {
+                for(auto &body_constraint: constraint_cmp->body_constraints)
+                {
+                    remap_id(body_constraint.body_id1);
+                    remap_id(body_constraint.body_id2);
+                }
+            }
+            return true;
+        });
+    }
+    return clones;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void PhysicsScene::add_object(const Object3DPtr &object)
 {
     vierkant::Scene::add_object(object);

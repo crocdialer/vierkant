@@ -4,6 +4,7 @@
 #include <crocore/NamedUUID.hpp>
 #include <crocore/ThreadPool.hpp>
 
+#include <set>
 #include <variant>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Scene.hpp>
@@ -440,6 +441,20 @@ private:
     std::unique_ptr<engine, std::function<void(engine *)>> m_engine;
 };
 
+/**
+ * @brief   clone_objects clones a set of objects, assigning fresh physics body-ids and remapping
+ *          constraints within the cloned set.
+ *
+ * @param   object_store    the store used to create the clones
+ * @param   objects         a set of objects to clone, including their sub-trees
+ * @param   instance_seed   optional seed. when provided, new body-ids are derived deterministically from it
+ *                          (stable across reloads, e.g. for sub-scene instances); otherwise fresh random ids
+ *                          are used (e.g. copy/paste).
+ * @return  the cloned objects
+ */
+std::vector<vierkant::Object3DPtr> clone_objects(vierkant::ObjectStore &object_store,
+                                                 const std::set<vierkant::Object3DPtr> &objects,
+                                                 const std::optional<std::string> &instance_seed = {});
 
 class PhysicsScene : public vierkant::Scene
 {
