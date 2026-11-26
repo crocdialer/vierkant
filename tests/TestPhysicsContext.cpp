@@ -729,3 +729,35 @@ TEST(PhysicsContext, lifetime_releases_body)
     EXPECT_EQ(box->parent(), nullptr);
     EXPECT_FALSE(context.contains(box->id()));
 }
+
+TEST(PhysicsContext, emitter_spawns_bodies)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+
+    auto emitter = object_store->create_object();
+    emitter->add_component<vierkant::emitter_component_t>({.burst = 3, .extents = glm::vec3(2.f)});
+
+    auto tmpl = object_store->create_object();
+    tmpl->enabled = false;
+    tmpl->add_component<vierkant::physics_component_t>(
+            {.shape = collision::box_t{.half_extents = glm::vec3(.5f)}, .mass = 1.f});
+    emitter->add_child(tmpl);
+    scene->add_object(emitter);
+
+    emitter->get_component<vierkant::emitter_component_t>().emit();
+    scene->update(1.0 / 60.0);
+
+    // clones get bodies in the same frame, with distinct body-ids. the disabled template has none.
+    std::set<vierkant::BodyId> body_ids;
+    for(const auto &obj: scene->root()->children)
+    {
+        if(obj == emitter) { continue; }
+        EXPECT_TRUE(context.contains(obj->id()));
+        body_ids.insert(obj->get_component<vierkant::physics_component_t>().body_id);
+    }
+    EXPECT_EQ(body_ids.size(), 3);
+    EXPECT_FALSE(body_ids.contains(tmpl->get_component<vierkant::physics_component_t>().body_id));
+    EXPECT_FALSE(context.contains(tmpl->id()));
+}

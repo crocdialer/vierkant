@@ -251,13 +251,14 @@ void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_l
 
 void Scene::update(double time_delta)
 {
-    // removal changes the graph, so expired objects are removed after the traversal
+    // removal and spawning change the graph, so both happen after the traversal
     std::vector<Object3DPtr> expired;
+    std::vector<Object3D *> emitters;
 
     LambdaVisitor visitor;
     visitor.traverse(*m_root,
-                     [time_delta, animation_delta = time_delta * animation_speed, frame = m_current_frame,
-                      &expired](Object3D &obj) -> bool {
+                     [time_delta, animation_delta = time_delta * animation_speed, frame = m_current_frame, &expired,
+                      &emitters](Object3D &obj) -> bool {
                          if(obj.enabled)
                          {
                              if(auto *lifetime_cmp = obj.get_component_ptr<lifetime_component_t>())
@@ -269,6 +270,8 @@ void Scene::update(double time_delta)
                                      return false;
                                  }
                              }
+                             if(obj.has_component<emitter_component_t>()) { emitters.push_back(&obj); }
+
                              auto animation_cmp = obj.get_component_ptr<animation_component_t>();
                              auto mesh_cmp = obj.get_component_ptr<mesh_component_t>();
 
@@ -316,9 +319,50 @@ void Scene::update(double time_delta)
                      });
 
     for(const auto &obj: expired) { remove_object(obj); }
+    for(auto *emitter: emitters) { spawn(*emitter, time_delta * animation_speed); }
 
     // increase framenumbrs after update
     m_current_frame++;
+}
+
+void Scene::spawn(Object3D &emitter, double animation_delta)
+{
+    auto &cmp = emitter.get_component<emitter_component_t>();
+    cmp.accumulator += std::max(animation_delta * cmp.rate, 0.0);
+    const double num_continuous = std::floor(cmp.accumulator);
+    cmp.accumulator -= num_continuous;
+    const uint32_t num_spawns = cmp.pending + static_cast<uint32_t>(num_continuous);
+    cmp.pending = 0;
+
+    std::vector<Object3DPtr> templates;
+    for(const auto &child: emitter.children)
+    {
+        if(!child->enabled) { templates.push_back(child); }
+    }
+    auto *parent = emitter.parent();
+    if(!num_spawns || templates.empty() || !parent) { return; }
+
+    if(!cmp.rng) { cmp.rng = std::mt19937(cmp.seed); }
+    std::uniform_int_distribution<size_t> template_dist(0, templates.size() - 1);
+    std::uniform_real_distribution<float> offset_dist(-1.f, 1.f);
+    const auto emitter_transform = emitter.global_transform();
+
+    for(uint32_t i = 0; i < num_spawns; ++i)
+    {
+        const auto &tmpl = templates[template_dist(*cmp.rng)];
+        // sequenced draws, argument evaluation-order is unspecified
+        glm::vec3 offset;
+        for(uint32_t c = 0; c < 3; ++c) { offset[c] = cmp.extents[c] * offset_dist(*cmp.rng); }
+        const vierkant::transform_t template_transform =
+                tmpl->transform() ? *tmpl->transform() : vierkant::transform_t{};
+
+        auto clone = vierkant::clone_objects(*m_object_store, {tmpl}).front();
+        clone->enabled = true;
+        if(cmp.lifetime) { clone->add_component<lifetime_component_t>({.remaining = *cmp.lifetime}); }
+        parent->add_child(clone);
+        clone->set_global_transform(emitter_transform * vierkant::transform_t{.translation = offset} *
+                                    template_transform);
+    }
 }
 
 Object3D *Scene::object_by_id(uint32_t object_id) const

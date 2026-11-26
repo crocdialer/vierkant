@@ -1,5 +1,8 @@
 #pragma once
 
+#include <optional>
+#include <random>
+
 #include <entt/entity/registry.hpp>
 
 #include <crocore/ThreadPool.hpp>
@@ -24,6 +27,40 @@ struct subscene_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
     vierkant::SceneId scene_id = vierkant::SceneId::nil();
+};
+
+/**
+ * @brief   emitter_component_t spawns clones of its object's disabled children (templates).
+ *
+ * clones are regular objects, added to the emitter's parent. spawning happens in Scene::update,
+ * driven by the animation-scaled delta.
+ */
+struct emitter_component_t
+{
+    VIERKANT_ENABLE_AS_COMPONENT();
+
+    //! spawns per second, 0 disables continuous spawning
+    double rate = 0.0;
+
+    //! number of spawns per emit()
+    uint32_t burst = 0;
+
+    //! half-extents of the spawn-volume, emitter-local, centered on a template's position
+    glm::vec3 extents = glm::vec3(0.f);
+
+    //! seed for spawn-positions and template-selection
+    uint32_t seed = 0;
+
+    //! optional lifetime in seconds, added to each clone
+    std::optional<double> lifetime = {};
+
+    //! request 'burst' spawns, handled in the next Scene::update
+    void emit() { pending += burst; }
+
+    // runtime-state
+    double accumulator = 0.0;
+    uint32_t pending = 0;
+    std::optional<std::mt19937> rng = {};
 };
 
 class Scene
@@ -139,6 +176,9 @@ protected:
                    const vierkant::AssetProviderPtr &asset_provider);
 
 private:
+    //! spawn clones for an emitter-object, see emitter_component_t
+    void spawn(vierkant::Object3D &emitter, double animation_delta);
+
     static constexpr char s_scene_root_name[] = "scene root";
 
     std::shared_ptr<vierkant::ObjectStore> m_object_store;
