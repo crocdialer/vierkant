@@ -802,6 +802,27 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
                 }
                 ImGui::EndMenu();
             }
+
+            // emitter, spawning physics-cubes from a disabled template-child
+            if(ImGui::Button("emitter"))
+            {
+                auto emitter = scene->create_object();
+                emitter->name = spdlog::fmt_lib::format("emitter_{}", emitter->id() % 1000);
+                emitter->set_transform({.translation = {0.f, 10.f, 0.f}});
+                emitter->add_component<vierkant::emitter_component_t>({.burst = 25, .extents = glm::vec3(1.f)});
+
+                if(auto tmpl = scene->create_primitive_object(vierkant::primitive_type::BOX))
+                {
+                    tmpl->name = "cube";
+                    tmpl->enabled = false;
+                    const auto &mesh = tmpl->get_component<vierkant::mesh_component_t>().mesh;
+                    tmpl->add_component<vierkant::physics_component_t>(
+                            {.shape = vierkant::collision::box_t{mesh->entries.front().bounding_box.half_extents()},
+                             .mass = 1.f});
+                    emitter->add_child(tmpl);
+                }
+                scene->add_object(emitter);
+            }
             ImGui::EndDisabled();
             ImGui::EndMenu();
         }
@@ -1766,6 +1787,70 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
     }
 
     if(light_changed) { mark_dirty(object, flag_component_t::DIRTY_LIGHT); }
+
+    // lifetime-component: authored via an emitter, only shown (and removable) where present
+    if(auto *lifetime_cmp = object->get_component_ptr<vierkant::lifetime_component_t>())
+    {
+        bool keep = true;
+        if(ImGui::Checkbox("lifetime", &keep)) { object->remove_component<vierkant::lifetime_component_t>(); }
+        else
+        {
+            ImGui::SameLine();
+            ImGui::InputDouble("remaining (s)", &lifetime_cmp->remaining, 0.0, 0.0, "%.2f");
+        }
+    }
+
+    // emitter-component: spawns clones of the object's disabled children
+    bool has_emitter = object->has_component<vierkant::emitter_component_t>();
+    if(ImGui::Checkbox("emitter", &has_emitter))
+    {
+        if(has_emitter) { object->add_component<vierkant::emitter_component_t>(); }
+        else
+        {
+            object->remove_component<vierkant::emitter_component_t>();
+        }
+    }
+    if(has_emitter)
+    {
+        auto &emitter_cmp = object->get_component<vierkant::emitter_component_t>();
+        ImGui::SameLine();
+        if(ImGui::Button("emit")) { emitter_cmp.emit(); }
+
+        const auto num_templates = std::ranges::count_if(object->children, [](const auto &c) { return !c->enabled; });
+        if(ImGui::TreeNodeEx(&emitter_cmp, ImGuiTreeNodeFlags_DefaultOpen, "templates: %d",
+                             static_cast<int>(num_templates)))
+        {
+            if(ImGui::InputDouble("rate (1/s)", &emitter_cmp.rate, 0.0, 0.0, "%.2f"))
+            {
+                emitter_cmp.rate = std::max(emitter_cmp.rate, 0.0);
+            }
+
+            int burst = static_cast<int>(emitter_cmp.burst);
+            if(ImGui::InputInt("burst", &burst)) { emitter_cmp.burst = static_cast<uint32_t>(std::max(burst, 0)); }
+
+            ImGui::InputFloat3("extents", glm::value_ptr(emitter_cmp.extents));
+
+            // a new seed restarts the random-sequence
+            int seed = static_cast<int>(emitter_cmp.seed);
+            if(ImGui::InputInt("seed", &seed))
+            {
+                emitter_cmp.seed = static_cast<uint32_t>(seed);
+                emitter_cmp.rng.reset();
+            }
+
+            bool has_clone_lifetime = emitter_cmp.lifetime.has_value();
+            if(ImGui::Checkbox("clone lifetime", &has_clone_lifetime))
+            {
+                emitter_cmp.lifetime = has_clone_lifetime ? std::optional<double>(1.0) : std::nullopt;
+            }
+            if(emitter_cmp.lifetime)
+            {
+                ImGui::SameLine();
+                ImGui::InputDouble("##clone_lifetime", &*emitter_cmp.lifetime, 0.0, 0.0, "%.2f s");
+            }
+            ImGui::TreePop();
+        }
+    }
 
     bool has_physics = object->has_component<vierkant::physics_component_t>();
     if(ImGui::Checkbox("physics", &has_physics))
