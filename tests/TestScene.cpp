@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 #include <vierkant/Scene.hpp>
 
+#include <cereal/archives/json.hpp>
+#include <serialization/components.hpp>
+
 using namespace vierkant;
 //____________________________________________________________________________//
 
@@ -235,4 +238,57 @@ TEST(Scene, emitter_multiple_templates)
     EXPECT_GT(counts["template"], 0);
     EXPECT_GT(counts["other"], 0);
     EXPECT_EQ(counts["template"] + counts["other"], 64);
+}
+
+namespace
+{
+
+//! JSON round-trip for a component
+template<typename T>
+T json_roundtrip(const T &in)
+{
+    std::stringstream ss;
+    {
+        cereal::JSONOutputArchive archive(ss);
+        archive(cereal::make_nvp("cmp", in));
+    }
+    T out = {};
+    {
+        cereal::JSONInputArchive archive(ss);
+        archive(cereal::make_nvp("cmp", out));
+    }
+    return out;
+}
+
+}// namespace
+
+TEST(Scene, emitter_lifetime_serialization)
+{
+    // a lifetime resumes where it left off
+    auto scene = vierkant::Scene::create();
+    auto obj = scene->create_object();
+    obj->add_component<lifetime_component_t>({.remaining = 1.0});
+    scene->add_object(obj);
+    scene->update(0.75);
+    EXPECT_DOUBLE_EQ(json_roundtrip(obj->get_component<lifetime_component_t>()).remaining, 0.25);
+
+    // parameters persist, runtime-state does not
+    emitter_component_t emitter = {.rate = 2.5, .burst = 25, .extents = {1.f, 2.f, 3.f}, .seed = 42, .lifetime = 4.0};
+    emitter.emit();
+    emitter.accumulator = .5;
+    emitter.rng = std::mt19937(1);
+
+    auto loaded = json_roundtrip(emitter);
+    EXPECT_EQ(loaded.rate, emitter.rate);
+    EXPECT_EQ(loaded.burst, emitter.burst);
+    EXPECT_EQ(loaded.extents, emitter.extents);
+    EXPECT_EQ(loaded.seed, emitter.seed);
+    EXPECT_EQ(loaded.lifetime, emitter.lifetime);
+    EXPECT_EQ(loaded.pending, 0);
+    EXPECT_EQ(loaded.accumulator, 0.0);
+    EXPECT_FALSE(loaded.rng);
+
+    // lifetime is optional
+    emitter.lifetime = {};
+    EXPECT_FALSE(json_roundtrip(emitter).lifetime);
 }

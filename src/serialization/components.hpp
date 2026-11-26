@@ -27,6 +27,7 @@
 #include <vierkant/Mesh.hpp>
 #include <vierkant/PBRDeferred.hpp>
 #include <vierkant/PBRPathTracer.hpp>
+#include <vierkant/Scene.hpp>
 #include <vierkant/Window.hpp>
 #include <vierkant/camera_params.hpp>
 #include <vierkant/punctual_light.hpp>
@@ -267,6 +268,20 @@ template<class Archive>
 void serialize(Archive &archive, vierkant::lightsource_component_t &light_cmp)
 {
     archive(cereal::make_nvp("light_id", light_cmp.light_id));
+}
+
+template<class Archive>
+void serialize(Archive &archive, vierkant::lifetime_component_t &lifetime_cmp)
+{
+    archive(cereal::make_nvp("remaining", lifetime_cmp.remaining));
+}
+
+template<class Archive>
+void serialize(Archive &archive, vierkant::emitter_component_t &emitter_cmp)
+{
+    archive(cereal::make_nvp("rate", emitter_cmp.rate), cereal::make_nvp("burst", emitter_cmp.burst),
+            cereal::make_nvp("extents", emitter_cmp.extents), cereal::make_nvp("seed", emitter_cmp.seed),
+            cereal::make_optional_nvp("lifetime", emitter_cmp.lifetime));
 }
 
 template<class Archive>

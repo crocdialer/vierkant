@@ -630,6 +630,16 @@ void VierkantEd::save_scene(std::filesystem::path path)
             node.light_state = obj.get_component<vierkant::lightsource_component_t>();
         }
 
+        if(obj.has_component<vierkant::emitter_component_t>())
+        {
+            node.emitter_state = obj.get_component<vierkant::emitter_component_t>();
+        }
+
+        if(obj.has_component<vierkant::lifetime_component_t>())
+        {
+            node.lifetime_state = obj.get_component<vierkant::lifetime_component_t>();
+        }
+
         if(obj.has_component<vierkant::mesh_component_t>())
         {
             const auto &mesh_component = obj.get_component<vierkant::mesh_component_t>();
@@ -928,6 +938,8 @@ void VierkantEd::build_scene(const std::optional<scene_data_t> &scene_data_in, b
                 if(node.constraints) { obj->add_component(*node.constraints); }
                 if(node.camera_state) { obj->add_component(*node.camera_state); }
                 if(node.light_state) { obj->add_component(*node.light_state); }
+                if(node.emitter_state) { obj->add_component(*node.emitter_state); }
+                if(node.lifetime_state) { obj->add_component(*node.lifetime_state); }
 
                 out_objects.push_back(obj);
             }
