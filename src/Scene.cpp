@@ -251,12 +251,24 @@ void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_l
 
 void Scene::update(double time_delta)
 {
+    // removal changes the graph, so expired objects are removed after the traversal
+    std::vector<Object3DPtr> expired;
+
     LambdaVisitor visitor;
     visitor.traverse(*m_root,
-                     [time_delta, animation_delta = time_delta * animation_speed,
-                      frame = m_current_frame](Object3D &obj) -> bool {
+                     [time_delta, animation_delta = time_delta * animation_speed, frame = m_current_frame,
+                      &expired](Object3D &obj) -> bool {
                          if(obj.enabled)
                          {
+                             if(auto *lifetime_cmp = obj.get_component_ptr<lifetime_component_t>())
+                             {
+                                 lifetime_cmp->remaining -= animation_delta;
+                                 if(lifetime_cmp->remaining <= 0.0)
+                                 {
+                                     expired.push_back(obj.shared_from_this());
+                                     return false;
+                                 }
+                             }
                              auto animation_cmp = obj.get_component_ptr<animation_component_t>();
                              auto mesh_cmp = obj.get_component_ptr<mesh_component_t>();
 
@@ -302,6 +314,8 @@ void Scene::update(double time_delta)
                          }
                          return false;
                      });
+
+    for(const auto &obj: expired) { remove_object(obj); }
 
     // increase framenumbrs after update
     m_current_frame++;

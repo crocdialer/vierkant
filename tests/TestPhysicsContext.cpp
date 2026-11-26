@@ -708,3 +708,24 @@ TEST(PhysicsContext, clone_objects)
               seeded_2[0]->get_component<vierkant::physics_component_t>().body_id);
     EXPECT_NE(seeded_1[0]->get_component<vierkant::physics_component_t>().body_id, id_a);
 }
+
+TEST(PhysicsContext, lifetime_releases_body)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+
+    auto box = object_store->create_object();
+    box->set_transform({});
+    box->add_component<vierkant::physics_component_t>(
+            {.shape = collision::box_t{.half_extents = glm::vec3(.5f)}, .mass = 1.f});
+    box->add_component<vierkant::lifetime_component_t>({.remaining = 0.5});
+    scene->add_object(box);
+
+    scene->update(0.25);
+    EXPECT_TRUE(context.contains(box->id()));
+
+    scene->update(0.25);
+    EXPECT_EQ(box->parent(), nullptr);
+    EXPECT_FALSE(context.contains(box->id()));
+}
