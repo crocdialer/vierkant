@@ -1671,6 +1671,45 @@ void draw_selection_ui(const vierkant::ScenePtr &scene, const std::set<vierkant:
     draw_material_assign_ui(scene, collect_mesh_objects(selection));
 }
 
+//! a component the inspector can add
+struct addable_component_t
+{
+    const char *name;
+    bool (*has)(const Object3DPtr &);
+    void (*add)(const Object3DPtr &);
+};
+
+static bool has_physics_component(const Object3DPtr &object)
+{
+    // a pending removal counts as gone
+    auto *phys_cmp = object->get_component_ptr<vierkant::physics_component_t>();
+    return phys_cmp && phys_cmp->mode != physics_component_t::REMOVE;
+}
+
+static const addable_component_t addable_components[] = {
+        {"lightsource", [](const Object3DPtr &o) { return o->has_component<vierkant::lightsource_component_t>(); },
+         [](const Object3DPtr &o) {
+             o->add_component<vierkant::lightsource_component_t>();
+             mark_dirty(o, flag_component_t::DIRTY_LIGHT);
+         }},
+        {"lifetime", [](const Object3DPtr &o) { return o->has_component<vierkant::lifetime_component_t>(); },
+         [](const Object3DPtr &o) { o->add_component<vierkant::lifetime_component_t>(); }},
+        {"emitter", [](const Object3DPtr &o) { return o->has_component<vierkant::emitter_component_t>(); },
+         [](const Object3DPtr &o) { o->add_component<vierkant::emitter_component_t>(); }},
+        {"physics", has_physics_component,
+         [](const Object3DPtr &o) {
+             o->add_component<vierkant::physics_component_t>().mode = physics_component_t::UPDATE;
+         }},
+};
+
+//! checked checkbox for a present component, returns false once unchecked
+static bool keep_component(const char *label)
+{
+    bool keep = true;
+    ImGui::Checkbox(label, &keep);
+    return keep;
+}
+
 void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
 {
     constexpr char window_name[] = "object";
@@ -1751,16 +1790,24 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
         }
     }
 
+    // components: listed below when present, unchecking removes them
+    if(std::ranges::any_of(addable_components, [&object](const auto &c) { return !c.has(object); }) &&
+       ImGui::BeginCombo("##add_component", "add component"))
+    {
+        for(const auto &c: addable_components)
+        {
+            if(!c.has(object) && ImGui::Selectable(c.name)) { c.add(object); }
+        }
+        ImGui::EndCombo();
+    }
+
     // lightsource-component: references a lightsource-asset by id
     bool light_changed = false;
     bool has_light = object->has_component<vierkant::lightsource_component_t>();
-    if(ImGui::Checkbox("lightsource", &has_light))
+    if(has_light && !keep_component("lightsource"))
     {
-        if(has_light) { object->add_component<vierkant::lightsource_component_t>(); }
-        else
-        {
-            object->remove_component<vierkant::lightsource_component_t>();
-        }
+        object->remove_component<vierkant::lightsource_component_t>();
+        has_light = false;
         light_changed = true;
     }
     if(has_light)
@@ -1788,11 +1835,10 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
 
     if(light_changed) { mark_dirty(object, flag_component_t::DIRTY_LIGHT); }
 
-    // lifetime-component: authored via an emitter, only shown (and removable) where present
+    // lifetime-component: removes its object when it runs out
     if(auto *lifetime_cmp = object->get_component_ptr<vierkant::lifetime_component_t>())
     {
-        bool keep = true;
-        if(ImGui::Checkbox("lifetime", &keep)) { object->remove_component<vierkant::lifetime_component_t>(); }
+        if(!keep_component("lifetime")) { object->remove_component<vierkant::lifetime_component_t>(); }
         else
         {
             ImGui::SameLine();
@@ -1802,13 +1848,10 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
 
     // emitter-component: spawns clones of the object's disabled children
     bool has_emitter = object->has_component<vierkant::emitter_component_t>();
-    if(ImGui::Checkbox("emitter", &has_emitter))
+    if(has_emitter && !keep_component("emitter"))
     {
-        if(has_emitter) { object->add_component<vierkant::emitter_component_t>(); }
-        else
-        {
-            object->remove_component<vierkant::emitter_component_t>();
-        }
+        object->remove_component<vierkant::emitter_component_t>();
+        has_emitter = false;
     }
     if(has_emitter)
     {
@@ -1876,19 +1919,12 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
         }
     }
 
-    bool has_physics = object->has_component<vierkant::physics_component_t>();
-    if(ImGui::Checkbox("physics", &has_physics))
+    // physics-component: removal is deferred, the PhysicsScene releases the body first
+    bool has_physics = has_physics_component(object);
+    if(has_physics && !keep_component("physics"))
     {
-        if(has_physics && !object->has_component<vierkant::physics_component_t>())
-        {
-            vierkant::object_component auto &cmp = object->add_component<vierkant::physics_component_t>();
-            cmp.mode = physics_component_t::UPDATE;
-        }
-        else if(!has_physics && object->has_component<vierkant::physics_component_t>())
-        {
-            vierkant::object_component auto &cmp = object->add_component<vierkant::physics_component_t>();
-            cmp.mode = physics_component_t::REMOVE;
-        }
+        object->get_component<vierkant::physics_component_t>().mode = physics_component_t::REMOVE;
+        has_physics = false;
     }
 
     if(has_physics)
