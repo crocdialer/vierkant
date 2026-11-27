@@ -1848,6 +1848,30 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
                 ImGui::SameLine();
                 ImGui::InputFloat2("##clone_lifetime", &emitter_cmp.lifetime->x, "%.2f s");
             }
+
+            bool has_clone_speed = emitter_cmp.speed.has_value();
+            if(ImGui::Checkbox("clone speed", &has_clone_speed))
+            {
+                emitter_cmp.speed = has_clone_speed ? std::optional(glm::vec2(5.f)) : std::nullopt;
+            }
+            if(emitter_cmp.speed)
+            {
+                ImGui::SameLine();
+                ImGui::InputFloat2("##clone_speed", &emitter_cmp.speed->x, "%.2f m/s");
+                ImGui::InputFloat3("direction", glm::value_ptr(emitter_cmp.direction));
+                ImGui::SliderAngle("cone angle", &emitter_cmp.cone_angle, 0.f, 180.f);
+            }
+
+            bool has_clone_angular_speed = emitter_cmp.angular_speed.has_value();
+            if(ImGui::Checkbox("clone angular speed", &has_clone_angular_speed))
+            {
+                emitter_cmp.angular_speed = has_clone_angular_speed ? std::optional(glm::vec2(1.f)) : std::nullopt;
+            }
+            if(emitter_cmp.angular_speed)
+            {
+                ImGui::SameLine();
+                ImGui::InputFloat2("##clone_angular_speed", &emitter_cmp.angular_speed->x, "%.2f rad/s");
+            }
             ImGui::TreePop();
         }
     }
@@ -1994,6 +2018,10 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
             change |= ImGui::InputFloat("restitution", &phys_cmp.restitution);
             change |= ImGui::InputFloat("linear_damping", &phys_cmp.linear_damping);
             change |= ImGui::InputFloat("angular_damping", &phys_cmp.angular_damping);
+
+            // read back from the simulation each frame, an edit re-creates the body with it
+            change |= ImGui::InputFloat3("linear_velocity", glm::value_ptr(phys_cmp.linear_velocity));
+            change |= ImGui::InputFloat3("angular_velocity", glm::value_ptr(phys_cmp.angular_velocity));
             change |= ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
             change |= ImGui::Checkbox("sensor", &phys_cmp.sensor);
             bool is_character = phys_cmp.character.has_value();
