@@ -1725,6 +1725,15 @@ void PhysicsScene::update(double time_delta)
         if(!phys_cmp) { continue; }
         bool obj_enabled = obj->global_enable();
 
+        // before the enabled-check, which would reset the mode of a disabled object
+        if(phys_cmp->mode == physics_component_t::REMOVE)
+        {
+            m_context.remove_object(obj->id(), *phys_cmp);
+            obj->remove_component<physics_component_t>();
+            set_simulation_driven(obj, false);
+            continue;
+        }
+
         if(phys_cmp->mode == physics_component_t::UPDATE)
         {
             if(auto mesh_shape = std::get_if<collision::mesh_t>(&phys_cmp->shape))
@@ -1736,12 +1745,22 @@ void PhysicsScene::update(double time_delta)
                     mesh_shape->library = mesh_cmp->library;
                 }
             }
-            m_context.add_object(obj->id(), obj->global_transform(), *phys_cmp);
 
-            // check if additional constraints-pass is required
-            phys_cmp->mode = obj->has_component<vierkant::constraint_component_t>()
-                                     ? physics_component_t::CONSTRAINT_UPDATE
-                                     : physics_component_t::ACTIVE;
+            // a disabled object gets its body once enabled
+            if(obj_enabled)
+            {
+                m_context.add_object(obj->id(), obj->global_transform(), *phys_cmp);
+
+                // check if additional constraints-pass is required
+                phys_cmp->mode = obj->has_component<vierkant::constraint_component_t>()
+                                         ? physics_component_t::CONSTRAINT_UPDATE
+                                         : physics_component_t::ACTIVE;
+            }
+            else
+            {
+                phys_cmp->mode = physics_component_t::INACTIVE;
+                m_context.remove_object(obj->id(), *phys_cmp);
+            }
         }
         else if(obj_enabled && phys_cmp->mode == physics_component_t::INACTIVE)
         {
@@ -1756,13 +1775,6 @@ void PhysicsScene::update(double time_delta)
         {
             phys_cmp->mode = physics_component_t::INACTIVE;
             m_context.remove_object(obj->id(), *phys_cmp);
-        }
-        else if(phys_cmp->mode == physics_component_t::REMOVE)
-        {
-            m_context.remove_object(obj->id(), *phys_cmp);
-            obj->remove_component<physics_component_t>();
-            set_simulation_driven(obj, false);
-            continue;
         }
 
         set_simulation_driven(obj, obj_enabled && !is_movable(*phys_cmp));

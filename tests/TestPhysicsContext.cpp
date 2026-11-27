@@ -885,3 +885,37 @@ TEST(PhysicsContext, velocity_serialization)
     EXPECT_EQ(loaded.angular_velocity, glm::vec3(0.f));
     EXPECT_EQ(loaded.mass, cmp.mass);
 }
+
+TEST(PhysicsContext, mode_on_disabled_object)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+
+    auto create_box = [&] {
+        auto box = object_store->create_object();
+        box->set_transform({});
+        box->enabled = false;
+        box->add_component<vierkant::physics_component_t>(
+                {.shape = collision::box_t{.half_extents = glm::vec3(.5f)}, .mass = 1.f});
+        scene->add_object(box);
+        scene->update(0.0);
+        return box;
+    };
+
+    // REMOVE takes effect while disabled
+    auto box = create_box();
+    box->get_component<vierkant::physics_component_t>().mode = vierkant::physics_component_t::REMOVE;
+    scene->update(0.0);
+    EXPECT_FALSE(box->has_component<vierkant::physics_component_t>());
+
+    // UPDATE while disabled creates no body, enabling does
+    box = create_box();
+    box->get_component<vierkant::physics_component_t>().mode = vierkant::physics_component_t::UPDATE;
+    scene->update(0.0);
+    EXPECT_FALSE(context.contains(box->id()));
+    EXPECT_EQ(box->get_component<vierkant::physics_component_t>().mode, vierkant::physics_component_t::INACTIVE);
+    box->enabled = true;
+    scene->update(0.0);
+    EXPECT_TRUE(context.contains(box->id()));
+}
