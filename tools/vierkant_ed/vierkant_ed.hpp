@@ -249,12 +249,6 @@ private:
     void build_scene(const std::optional<scene_data_t> &scene_data, bool import = false,
                      vierkant::SceneId scene_id = {});
 
-    //! clone a set of objects, assigning fresh physics body-ids and remapping their constraints.
-    //! when 'instance_seed' is provided, new body-ids are derived deterministically from it (stable
-    //! across reloads, e.g. for sub-scene instances); otherwise fresh random ids are used (e.g. copy/paste).
-    std::vector<vierkant::Object3DPtr> clone_objects(const std::set<vierkant::Object3DPtr> &objects,
-                                                     const std::optional<std::string> &instance_seed = {}) const;
-
     struct overlay_assets_t
     {
         vierkant::CommandBuffer command_buffer;

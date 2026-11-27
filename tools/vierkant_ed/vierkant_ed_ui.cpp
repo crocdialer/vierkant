@@ -8,7 +8,6 @@
 #include "vierkant/Visitor.hpp"
 
 #include <crocore/filesystem.hpp>
-#include <glm/gtc/random.hpp>
 #include <vierkant/imgui/imgui_util.h>
 
 ImGuiFileDialog g_file_dialog;
@@ -94,7 +93,7 @@ void VierkantEd::create_ui()
                     case vierkant::Key::_V:
                     {
                         auto copy_dst = m_selected_objects.empty() ? m_scene->root() : *m_selected_objects.begin();
-                        auto clones = clone_objects(m_copy_objects);
+                        auto clones = vierkant::clone_objects(*m_object_store, m_copy_objects);
                         for(const auto &cloned_obj: clones) { copy_dst->add_child(cloned_obj); }
                         break;
                     }
@@ -535,42 +534,6 @@ void VierkantEd::create_ui()
                     {
                         m_editor_camera->set_transform(m_camera_control.current->transform());
                         if(m_path_tracer) { m_path_tracer->reset_accumulator(); }
-                    }
-                    ImGui::EndMenu();
-                }
-
-                ImGui::Separator();
-                ImGui::Spacing();
-
-                if(ImGui::BeginMenu("add"))
-                {
-                    if(ImGui::Button("physics boxes (25)"))
-                    {
-                        auto box_mesh = m_scene->asset_provider()->primitive_mesh(vierkant::primitive_type::BOX);
-                        auto cubes = m_scene->any_object_by_name("cubes");
-                        if(!cubes)
-                        {
-                            auto new_group = m_object_store->create_object();
-                            new_group->name = "cubes";
-                            m_scene->add_object(new_group);
-                            cubes = new_group.get();
-                        }
-
-                        for(uint32_t i = 0; box_mesh && i < 25; ++i)
-                        {
-                            auto new_obj = m_scene->create_mesh_object({box_mesh});
-                            new_obj->name = spdlog::fmt_lib::format("cube_{}", new_obj->id() % 1000);
-                            new_obj->set_transform({.translation = glm::vec3(0.f, 10.f, 0.f) + glm::ballRand(1.f)});
-                            vierkant::object_component auto &cmp =
-                                    new_obj->add_component<vierkant::physics_component_t>();
-                            vierkant::collision::box_t box = {box_mesh->entries.front().bounding_box.half_extents()};
-                            cmp.shape = box;
-                            cmp.mass = 1.f;
-
-                            // add to group
-                            cubes->add_child(new_obj);
-                            cubes->name = spdlog::fmt_lib::format("cubes ({})", cubes->children.size());
-                        }
                     }
                     ImGui::EndMenu();
                 }

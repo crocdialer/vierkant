@@ -84,6 +84,15 @@ struct timer_component_t
     bool repeat = false;
 };
 
+//! removes its object from the scene, once 'remaining' reaches zero. only counts down while enabled.
+struct lifetime_component_t
+{
+    VIERKANT_ENABLE_AS_COMPONENT();
+
+    //! remaining lifetime in seconds
+    double remaining = 1.0;
+};
+
 constexpr inline uint32_t msb(uint32_t v)
 {
     uint32_t ret = 0;

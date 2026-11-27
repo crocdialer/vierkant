@@ -2,6 +2,8 @@
 #include "vierkant/Visitor.hpp"
 #include "vierkant/physics_context.hpp"
 
+#include <glm/gtx/quaternion.hpp>
+
 #include <deque>
 #include <ranges>
 #include <stack>
@@ -251,12 +253,27 @@ void Scene::prune_assets(const std::unordered_set<vierkant::MaterialId> &extra_l
 
 void Scene::update(double time_delta)
 {
+    // removal and spawning change the graph, so both happen after the traversal
+    std::vector<Object3DPtr> expired;
+    std::vector<Object3D *> emitters;
+
     LambdaVisitor visitor;
     visitor.traverse(*m_root,
-                     [time_delta, animation_delta = time_delta * animation_speed,
-                      frame = m_current_frame](Object3D &obj) -> bool {
+                     [time_delta, animation_delta = time_delta * animation_speed, frame = m_current_frame, &expired,
+                      &emitters](Object3D &obj) -> bool {
                          if(obj.enabled)
                          {
+                             if(auto *lifetime_cmp = obj.get_component_ptr<lifetime_component_t>())
+                             {
+                                 lifetime_cmp->remaining -= animation_delta;
+                                 if(lifetime_cmp->remaining <= 0.0)
+                                 {
+                                     expired.push_back(obj.shared_from_this());
+                                     return false;
+                                 }
+                             }
+                             if(obj.has_component<emitter_component_t>()) { emitters.push_back(&obj); }
+
                              auto animation_cmp = obj.get_component_ptr<animation_component_t>();
                              auto mesh_cmp = obj.get_component_ptr<mesh_component_t>();
 
@@ -303,8 +320,95 @@ void Scene::update(double time_delta)
                          return false;
                      });
 
+    for(const auto &obj: expired) { remove_object(obj); }
+    for(auto *emitter: emitters) { spawn(*emitter, time_delta * animation_speed); }
+
     // increase framenumbrs after update
     m_current_frame++;
+}
+
+//! uniform in [range.x, range.y], range.x for an empty range
+static float random_in_range(const glm::vec2 &range, std::mt19937 &rng)
+{ return range.x <= range.y ? std::uniform_real_distribution<float>(range.x, range.y)(rng) : range.x; }
+
+//! unit-vector, uniform on the cap of a cone around a normalized 'axis'
+static glm::vec3 random_cone_direction(const glm::vec3 &axis, float half_angle, std::mt19937 &rng)
+{
+    // uniform z, not uniform angle, else directions bunch up at the axis
+    const float z = std::uniform_real_distribution<float>(std::cos(half_angle), 1.f)(rng);
+    const float phi = std::uniform_real_distribution<float>(0.f, glm::two_pi<float>())(rng);
+    const float r = std::sqrt(std::max(1.f - z * z, 0.f));
+    return glm::rotation(glm::vec3(0.f, 0.f, 1.f), axis) * glm::vec3(r * std::cos(phi), r * std::sin(phi), z);
+}
+
+void Scene::spawn(Object3D &emitter, double animation_delta)
+{
+    auto &cmp = emitter.get_component<emitter_component_t>();
+    cmp.accumulator += std::max(animation_delta * cmp.rate, 0.0);
+    const double num_continuous = std::floor(cmp.accumulator);
+    cmp.accumulator -= num_continuous;
+    const uint32_t num_spawns = cmp.pending + static_cast<uint32_t>(num_continuous);
+    cmp.pending = 0;
+
+    std::vector<Object3DPtr> templates;
+    for(const auto &child: emitter.children)
+    {
+        if(!child->enabled) { templates.push_back(child); }
+    }
+    auto *parent = emitter.parent();
+    if(!num_spawns || templates.empty() || !parent) { return; }
+
+    if(!cmp.rng) { cmp.rng = std::mt19937(cmp.seed); }
+    std::uniform_int_distribution<size_t> template_dist(0, templates.size() - 1);
+    std::uniform_real_distribution<float> offset_dist(-1.f, 1.f);
+    const auto emitter_transform = emitter.global_transform();
+    const bool has_direction = glm::length2(cmp.direction) > 0.f;
+    const glm::vec3 direction = has_direction ? glm::normalize(cmp.direction) : glm::vec3(0.f);
+
+    for(uint32_t i = 0; i < num_spawns; ++i)
+    {
+        const auto &tmpl = templates[template_dist(*cmp.rng)];
+        // sequenced draws, argument evaluation-order is unspecified
+        glm::vec3 offset;
+        for(uint32_t c = 0; c < 3; ++c) { offset[c] = cmp.extents[c] * offset_dist(*cmp.rng); }
+        const vierkant::transform_t template_transform =
+                tmpl->transform() ? *tmpl->transform() : vierkant::transform_t{};
+
+        auto clone = vierkant::clone_objects(*m_object_store, {tmpl}).front();
+        clone->enabled = true;
+        if(cmp.lifetime)
+        {
+            clone->add_component<lifetime_component_t>({.remaining = random_in_range(*cmp.lifetime, *cmp.rng)});
+        }
+
+        // start velocity, added to every body in the clone's subtree
+        glm::vec3 linear_velocity(0.f), angular_velocity(0.f);
+        if(cmp.speed && has_direction)
+        {
+            const glm::vec3 dir = random_cone_direction(direction, cmp.cone_angle, *cmp.rng);
+            linear_velocity = emitter_transform.rotation * dir * random_in_range(*cmp.speed, *cmp.rng);
+        }
+        if(cmp.angular_speed)
+        {
+            const glm::vec3 axis = random_cone_direction({0.f, 0.f, 1.f}, glm::pi<float>(), *cmp.rng);
+            angular_velocity = axis * random_in_range(*cmp.angular_speed, *cmp.rng);
+        }
+        if(linear_velocity != glm::vec3(0.f) || angular_velocity != glm::vec3(0.f))
+        {
+            vierkant::LambdaVisitor visitor;
+            visitor.traverse(*clone, [&](auto &obj) -> bool {
+                if(auto *phys_cmp = obj.template get_component_ptr<vierkant::physics_component_t>())
+                {
+                    phys_cmp->linear_velocity += linear_velocity;
+                    phys_cmp->angular_velocity += angular_velocity;
+                }
+                return true;
+            });
+        }
+        parent->add_child(clone);
+        clone->set_global_transform(emitter_transform * vierkant::transform_t{.translation = offset} *
+                                    template_transform);
+    }
 }
 
 Object3D *Scene::object_by_id(uint32_t object_id) const

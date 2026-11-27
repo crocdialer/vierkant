@@ -3,6 +3,12 @@
 #include <vierkant/Scene.hpp>
 #include <vierkant/physics_context.hpp>
 
+#include <cereal/archives/json.hpp>
+#include <cereal/types/unordered_set.hpp>
+#include <serialization/collision_cereal.hpp>
+#include <serialization/components.hpp>
+#include <serialization/optional_nvp_json.hpp>
+
 using namespace vierkant;
 //____________________________________________________________________________//
 
@@ -656,4 +662,260 @@ TEST(PhysicsContext, fixed_timestep_is_framerate_independent)
 
     // same second of simulated time, delivered at 64hz and at 16hz
     EXPECT_NEAR(drop_box(fixed_timestep, 64), drop_box(4.0 * fixed_timestep, 16), 1.e-4f);
+}
+
+TEST(PhysicsContext, clone_objects)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+
+    // two bodies, constrained to each other and to a body outside the cloned set
+    const auto outside_id = vierkant::BodyId::random();
+    auto a = object_store->create_object();
+    auto b = object_store->create_object();
+    const auto id_a = a->add_component<vierkant::physics_component_t>({.mode = physics_component_t::ACTIVE}).body_id;
+    const auto id_b = b->add_component<vierkant::physics_component_t>().body_id;
+
+    vierkant::constraint_component_t constraint_cmp = {};
+    constraint_cmp.body_constraints = {{constraint::point_t{}, id_a, id_b}, {constraint::point_t{}, id_a, outside_id}};
+    a->add_component(constraint_cmp);
+
+    const std::set<vierkant::Object3DPtr> objects = {a, b};
+    auto clones = vierkant::clone_objects(*object_store, objects);
+    ASSERT_EQ(clones.size(), 2);
+
+    // clones follow the set's order
+    auto *clone_a = (*objects.begin() == a ? clones[0] : clones[1]).get();
+    auto *clone_b = (*objects.begin() == a ? clones[1] : clones[0]).get();
+    const auto &clone_phys_a = clone_a->get_component<vierkant::physics_component_t>();
+    const auto &clone_phys_b = clone_b->get_component<vierkant::physics_component_t>();
+
+    // fresh body-ids, reset mode
+    EXPECT_NE(clone_phys_a.body_id, id_a);
+    EXPECT_NE(clone_phys_b.body_id, id_b);
+    EXPECT_NE(clone_phys_a.body_id, clone_phys_b.body_id);
+    EXPECT_EQ(clone_phys_a.mode, vierkant::physics_component_t::INACTIVE);
+
+    // constraints inside the set follow the clones, the outside reference is kept
+    const auto &cloned_constraints = clone_a->get_component<vierkant::constraint_component_t>().body_constraints;
+    ASSERT_EQ(cloned_constraints.size(), 2);
+    EXPECT_EQ(cloned_constraints[0].body_id1, clone_phys_a.body_id);
+    EXPECT_EQ(cloned_constraints[0].body_id2, clone_phys_b.body_id);
+    EXPECT_EQ(cloned_constraints[1].body_id1, clone_phys_a.body_id);
+    EXPECT_EQ(cloned_constraints[1].body_id2, outside_id);
+
+    // originals are untouched
+    EXPECT_EQ(a->get_component<vierkant::physics_component_t>().body_id, id_a);
+    EXPECT_EQ(a->get_component<vierkant::constraint_component_t>().body_constraints[0].body_id2, id_b);
+
+    // a seed derives the same ids on every call
+    auto seeded_1 = vierkant::clone_objects(*object_store, {a}, "seed");
+    auto seeded_2 = vierkant::clone_objects(*object_store, {a}, "seed");
+    EXPECT_EQ(seeded_1[0]->get_component<vierkant::physics_component_t>().body_id,
+              seeded_2[0]->get_component<vierkant::physics_component_t>().body_id);
+    EXPECT_NE(seeded_1[0]->get_component<vierkant::physics_component_t>().body_id, id_a);
+}
+
+TEST(PhysicsContext, lifetime_releases_body)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+
+    auto box = object_store->create_object();
+    box->set_transform({});
+    box->add_component<vierkant::physics_component_t>(
+            {.shape = collision::box_t{.half_extents = glm::vec3(.5f)}, .mass = 1.f});
+    box->add_component<vierkant::lifetime_component_t>({.remaining = 0.5});
+    scene->add_object(box);
+
+    scene->update(0.25);
+    EXPECT_TRUE(context.contains(box->id()));
+
+    scene->update(0.25);
+    EXPECT_EQ(box->parent(), nullptr);
+    EXPECT_FALSE(context.contains(box->id()));
+}
+
+TEST(PhysicsContext, emitter_spawns_bodies)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+
+    auto emitter = object_store->create_object();
+    emitter->add_component<vierkant::emitter_component_t>({.burst = 3, .extents = glm::vec3(2.f)});
+
+    auto tmpl = object_store->create_object();
+    tmpl->enabled = false;
+    tmpl->add_component<vierkant::physics_component_t>(
+            {.shape = collision::box_t{.half_extents = glm::vec3(.5f)}, .mass = 1.f});
+    emitter->add_child(tmpl);
+    scene->add_object(emitter);
+
+    emitter->get_component<vierkant::emitter_component_t>().emit();
+    scene->update(1.0 / 60.0);
+
+    // clones get bodies in the same frame, with distinct body-ids. the disabled template has none.
+    std::set<vierkant::BodyId> body_ids;
+    for(const auto &obj: scene->root()->children)
+    {
+        if(obj == emitter) { continue; }
+        EXPECT_TRUE(context.contains(obj->id()));
+        body_ids.insert(obj->get_component<vierkant::physics_component_t>().body_id);
+    }
+    EXPECT_EQ(body_ids.size(), 3);
+    EXPECT_FALSE(body_ids.contains(tmpl->get_component<vierkant::physics_component_t>().body_id));
+    EXPECT_FALSE(context.contains(tmpl->id()));
+}
+
+TEST(PhysicsContext, velocity_on_creation)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+    context.set_gravity({});
+
+    const glm::vec3 linear_velocity = {1.f, 2.f, 3.f}, angular_velocity = {0.f, 1.f, 0.f};
+    auto create_box = [&](bool kinematic) {
+        auto box = object_store->create_object();
+        box->set_transform({});
+        box->add_component<vierkant::physics_component_t>({.shape = collision::box_t{.half_extents = glm::vec3(.5f)},
+                                                           .mass = 1.f,
+                                                           .linear_velocity = linear_velocity,
+                                                           .angular_velocity = angular_velocity,
+                                                           .kinematic = kinematic});
+        scene->add_object(box);
+        return box;
+    };
+    auto dynamic_box = create_box(false);
+    auto kinematic_box = create_box(true);
+    scene->update(0.0);
+
+    EXPECT_EQ(context.body_interface().velocity(dynamic_box->id()), linear_velocity);
+    EXPECT_EQ(context.body_interface().angular_velocity(dynamic_box->id()), angular_velocity);
+
+    // kinematic bodies are moved by their transform, not by a velocity
+    EXPECT_EQ(context.body_interface().velocity(kinematic_box->id()), glm::vec3(0.f));
+    EXPECT_EQ(context.body_interface().angular_velocity(kinematic_box->id()), glm::vec3(0.f));
+}
+
+TEST(PhysicsContext, velocity_survives_recreate)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+    context.set_gravity({0.f, -9.81f, 0.f});
+
+    // gravity changes the linear velocity, damping the angular one: both differ from the start values
+    auto box = object_store->create_object();
+    box->set_transform({});
+    box->add_component<vierkant::physics_component_t>({.shape = collision::box_t{.half_extents = glm::vec3(.5f)},
+                                                       .mass = 1.f,
+                                                       .angular_velocity = {0.f, 2.f, 0.f}});
+    scene->add_object(box);
+    for(uint32_t i = 0; i < 30; ++i) { scene->update(1.0 / 60.0); }
+
+    const auto &cmp = box->get_component<vierkant::physics_component_t>();
+    const glm::vec3 linear_velocity = context.body_interface().velocity(box->id());
+    const glm::vec3 angular_velocity = context.body_interface().angular_velocity(box->id());
+    ASSERT_LT(linear_velocity.y, -4.f);
+    ASSERT_LT(angular_velocity.y, 2.f);
+    EXPECT_EQ(cmp.linear_velocity, linear_velocity);
+    EXPECT_EQ(cmp.angular_velocity, angular_velocity);
+
+    auto expect_velocity = [&] {
+        EXPECT_TRUE(context.contains(box->id()));
+        EXPECT_EQ(context.body_interface().velocity(box->id()), linear_velocity);
+        EXPECT_EQ(context.body_interface().angular_velocity(box->id()), angular_velocity);
+    };
+
+    // re-create, as after an inspector edit
+    box->get_component<vierkant::physics_component_t>().mode = vierkant::physics_component_t::UPDATE;
+    scene->update(0.0);
+    expect_velocity();
+
+    // disable and enable
+    box->enabled = false;
+    scene->update(0.0);
+    EXPECT_FALSE(context.contains(box->id()));
+    box->enabled = true;
+    scene->update(0.0);
+    expect_velocity();
+}
+
+TEST(PhysicsContext, velocity_serialization)
+{
+    vierkant::physics_component_t cmp = {.shape = collision::box_t{.half_extents = glm::vec3(.5f)},
+                                         .mass = 1.f,
+                                         .linear_velocity = {1.f, 2.f, 3.f},
+                                         .angular_velocity = {4.f, 5.f, 6.f}};
+
+    auto write = [](const vierkant::physics_component_t &in) {
+        std::stringstream ss;
+        {
+            cereal::JSONOutputArchive archive(ss);
+            archive(cereal::make_nvp("cmp", in));
+        }
+        return ss.str();
+    };
+    auto read = [](const std::string &json) {
+        std::stringstream ss(json);
+        vierkant::physics_component_t out = {};
+        cereal::JSONInputArchive archive(ss);
+        archive(cereal::make_nvp("cmp", out));
+        return out;
+    };
+
+    const std::string json = write(cmp);
+    auto loaded = read(json);
+    EXPECT_EQ(loaded.linear_velocity, cmp.linear_velocity);
+    EXPECT_EQ(loaded.angular_velocity, cmp.angular_velocity);
+
+    // a file written before the velocity-fields loads with zero
+    CEREAL_RAPIDJSON_NAMESPACE::Document doc;
+    doc.Parse(json.c_str());
+    ASSERT_TRUE(doc["cmp"].RemoveMember("linear_velocity"));
+    ASSERT_TRUE(doc["cmp"].RemoveMember("angular_velocity"));
+    CEREAL_RAPIDJSON_NAMESPACE::StringBuffer buffer;
+    CEREAL_RAPIDJSON_NAMESPACE::Writer<CEREAL_RAPIDJSON_NAMESPACE::StringBuffer> writer(buffer);
+    doc.Accept(writer);
+
+    loaded = read(buffer.GetString());
+    EXPECT_EQ(loaded.linear_velocity, glm::vec3(0.f));
+    EXPECT_EQ(loaded.angular_velocity, glm::vec3(0.f));
+    EXPECT_EQ(loaded.mass, cmp.mass);
+}
+
+TEST(PhysicsContext, mode_on_disabled_object)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+
+    auto create_box = [&] {
+        auto box = object_store->create_object();
+        box->set_transform({});
+        box->enabled = false;
+        box->add_component<vierkant::physics_component_t>(
+                {.shape = collision::box_t{.half_extents = glm::vec3(.5f)}, .mass = 1.f});
+        scene->add_object(box);
+        scene->update(0.0);
+        return box;
+    };
+
+    // REMOVE takes effect while disabled
+    auto box = create_box();
+    box->get_component<vierkant::physics_component_t>().mode = vierkant::physics_component_t::REMOVE;
+    scene->update(0.0);
+    EXPECT_FALSE(box->has_component<vierkant::physics_component_t>());
+
+    // UPDATE while disabled creates no body, enabling does
+    box = create_box();
+    box->get_component<vierkant::physics_component_t>().mode = vierkant::physics_component_t::UPDATE;
+    scene->update(0.0);
+    EXPECT_FALSE(context.contains(box->id()));
+    EXPECT_EQ(box->get_component<vierkant::physics_component_t>().mode, vierkant::physics_component_t::INACTIVE);
+    box->enabled = true;
+    scene->update(0.0);
+    EXPECT_TRUE(context.contains(box->id()));
 }

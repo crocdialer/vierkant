@@ -802,6 +802,27 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
                 }
                 ImGui::EndMenu();
             }
+
+            // emitter, spawning physics-cubes from a disabled template-child
+            if(ImGui::Button("emitter"))
+            {
+                auto emitter = scene->create_object();
+                emitter->name = spdlog::fmt_lib::format("emitter_{}", emitter->id() % 1000);
+                emitter->set_transform({});
+                emitter->add_component<vierkant::emitter_component_t>({.burst = 25, .extents = glm::vec3(1.f)});
+
+                if(auto tmpl = scene->create_primitive_object(vierkant::primitive_type::BOX))
+                {
+                    tmpl->name = "cube";
+                    tmpl->enabled = false;
+                    const auto &mesh = tmpl->get_component<vierkant::mesh_component_t>().mesh;
+                    tmpl->add_component<vierkant::physics_component_t>(
+                            {.shape = vierkant::collision::box_t{mesh->entries.front().bounding_box.half_extents()},
+                             .mass = 1.f});
+                    emitter->add_child(tmpl);
+                }
+                scene->add_object(emitter);
+            }
             ImGui::EndDisabled();
             ImGui::EndMenu();
         }
@@ -1650,6 +1671,45 @@ void draw_selection_ui(const vierkant::ScenePtr &scene, const std::set<vierkant:
     draw_material_assign_ui(scene, collect_mesh_objects(selection));
 }
 
+//! a component the inspector can add
+struct addable_component_t
+{
+    const char *name;
+    bool (*has)(const Object3DPtr &);
+    void (*add)(const Object3DPtr &);
+};
+
+static bool has_physics_component(const Object3DPtr &object)
+{
+    // a pending removal counts as gone
+    auto *phys_cmp = object->get_component_ptr<vierkant::physics_component_t>();
+    return phys_cmp && phys_cmp->mode != physics_component_t::REMOVE;
+}
+
+static const addable_component_t addable_components[] = {
+        {"lightsource", [](const Object3DPtr &o) { return o->has_component<vierkant::lightsource_component_t>(); },
+         [](const Object3DPtr &o) {
+             o->add_component<vierkant::lightsource_component_t>();
+             mark_dirty(o, flag_component_t::DIRTY_LIGHT);
+         }},
+        {"lifetime", [](const Object3DPtr &o) { return o->has_component<vierkant::lifetime_component_t>(); },
+         [](const Object3DPtr &o) { o->add_component<vierkant::lifetime_component_t>(); }},
+        {"emitter", [](const Object3DPtr &o) { return o->has_component<vierkant::emitter_component_t>(); },
+         [](const Object3DPtr &o) { o->add_component<vierkant::emitter_component_t>(); }},
+        {"physics", has_physics_component,
+         [](const Object3DPtr &o) {
+             o->add_component<vierkant::physics_component_t>().mode = physics_component_t::UPDATE;
+         }},
+};
+
+//! checked checkbox for a present component, returns false once unchecked
+static bool keep_component(const char *label)
+{
+    bool keep = true;
+    ImGui::Checkbox(label, &keep);
+    return keep;
+}
+
 void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
 {
     constexpr char window_name[] = "object";
@@ -1730,16 +1790,24 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
         }
     }
 
+    // components: listed below when present, unchecking removes them
+    if(std::ranges::any_of(addable_components, [&object](const auto &c) { return !c.has(object); }) &&
+       ImGui::BeginCombo("##add_component", "add component"))
+    {
+        for(const auto &c: addable_components)
+        {
+            if(!c.has(object) && ImGui::Selectable(c.name)) { c.add(object); }
+        }
+        ImGui::EndCombo();
+    }
+
     // lightsource-component: references a lightsource-asset by id
     bool light_changed = false;
     bool has_light = object->has_component<vierkant::lightsource_component_t>();
-    if(ImGui::Checkbox("lightsource", &has_light))
+    if(has_light && !keep_component("lightsource"))
     {
-        if(has_light) { object->add_component<vierkant::lightsource_component_t>(); }
-        else
-        {
-            object->remove_component<vierkant::lightsource_component_t>();
-        }
+        object->remove_component<vierkant::lightsource_component_t>();
+        has_light = false;
         light_changed = true;
     }
     if(has_light)
@@ -1767,19 +1835,96 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
 
     if(light_changed) { mark_dirty(object, flag_component_t::DIRTY_LIGHT); }
 
-    bool has_physics = object->has_component<vierkant::physics_component_t>();
-    if(ImGui::Checkbox("physics", &has_physics))
+    // lifetime-component: removes its object when it runs out
+    if(auto *lifetime_cmp = object->get_component_ptr<vierkant::lifetime_component_t>())
     {
-        if(has_physics && !object->has_component<vierkant::physics_component_t>())
+        if(!keep_component("lifetime")) { object->remove_component<vierkant::lifetime_component_t>(); }
+        else
         {
-            vierkant::object_component auto &cmp = object->add_component<vierkant::physics_component_t>();
-            cmp.mode = physics_component_t::UPDATE;
+            ImGui::SameLine();
+            ImGui::InputDouble("remaining (s)", &lifetime_cmp->remaining, 0.0, 0.0, "%.2f");
         }
-        else if(!has_physics && object->has_component<vierkant::physics_component_t>())
+    }
+
+    // emitter-component: spawns clones of the object's disabled children
+    bool has_emitter = object->has_component<vierkant::emitter_component_t>();
+    if(has_emitter && !keep_component("emitter"))
+    {
+        object->remove_component<vierkant::emitter_component_t>();
+        has_emitter = false;
+    }
+    if(has_emitter)
+    {
+        auto &emitter_cmp = object->get_component<vierkant::emitter_component_t>();
+        ImGui::SameLine();
+        if(ImGui::Button("emit")) { emitter_cmp.emit(); }
+
+        const auto num_templates = std::ranges::count_if(object->children, [](const auto &c) { return !c->enabled; });
+        if(ImGui::TreeNodeEx(&emitter_cmp, ImGuiTreeNodeFlags_DefaultOpen, "templates: %d",
+                             static_cast<int>(num_templates)))
         {
-            vierkant::object_component auto &cmp = object->add_component<vierkant::physics_component_t>();
-            cmp.mode = physics_component_t::REMOVE;
+            if(ImGui::InputDouble("rate (1/s)", &emitter_cmp.rate, 0.0, 0.0, "%.2f"))
+            {
+                emitter_cmp.rate = std::max(emitter_cmp.rate, 0.0);
+            }
+
+            int burst = static_cast<int>(emitter_cmp.burst);
+            if(ImGui::InputInt("burst", &burst)) { emitter_cmp.burst = static_cast<uint32_t>(std::max(burst, 0)); }
+
+            ImGui::InputFloat3("extents", glm::value_ptr(emitter_cmp.extents));
+
+            // a new seed restarts the random-sequence
+            int seed = static_cast<int>(emitter_cmp.seed);
+            if(ImGui::InputInt("seed", &seed))
+            {
+                emitter_cmp.seed = static_cast<uint32_t>(seed);
+                emitter_cmp.rng.reset();
+            }
+
+            bool has_clone_lifetime = emitter_cmp.lifetime.has_value();
+            if(ImGui::Checkbox("clone lifetime", &has_clone_lifetime))
+            {
+                emitter_cmp.lifetime = has_clone_lifetime ? std::optional(glm::vec2(1.f)) : std::nullopt;
+            }
+            if(emitter_cmp.lifetime)
+            {
+                ImGui::SameLine();
+                ImGui::InputFloat2("##clone_lifetime", &emitter_cmp.lifetime->x, "%.2f s");
+            }
+
+            bool has_clone_speed = emitter_cmp.speed.has_value();
+            if(ImGui::Checkbox("clone speed", &has_clone_speed))
+            {
+                emitter_cmp.speed = has_clone_speed ? std::optional(glm::vec2(5.f)) : std::nullopt;
+            }
+            if(emitter_cmp.speed)
+            {
+                ImGui::SameLine();
+                ImGui::InputFloat2("##clone_speed", &emitter_cmp.speed->x, "%.2f m/s");
+                ImGui::InputFloat3("direction", glm::value_ptr(emitter_cmp.direction));
+                ImGui::SliderAngle("cone angle", &emitter_cmp.cone_angle, 0.f, 180.f);
+            }
+
+            bool has_clone_angular_speed = emitter_cmp.angular_speed.has_value();
+            if(ImGui::Checkbox("clone angular speed", &has_clone_angular_speed))
+            {
+                emitter_cmp.angular_speed = has_clone_angular_speed ? std::optional(glm::vec2(1.f)) : std::nullopt;
+            }
+            if(emitter_cmp.angular_speed)
+            {
+                ImGui::SameLine();
+                ImGui::InputFloat2("##clone_angular_speed", &emitter_cmp.angular_speed->x, "%.2f rad/s");
+            }
+            ImGui::TreePop();
         }
+    }
+
+    // physics-component: removal is deferred, the PhysicsScene releases the body first
+    bool has_physics = has_physics_component(object);
+    if(has_physics && !keep_component("physics"))
+    {
+        object->get_component<vierkant::physics_component_t>().mode = physics_component_t::REMOVE;
+        has_physics = false;
     }
 
     if(has_physics)
@@ -1834,7 +1979,7 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
                         break;
                     }
                     case 6:
-                        phys_cmp.shape = collision::mesh_t();
+                        phys_cmp.shape.emplace<collision::mesh_t>();
                         need_shape_transform = false;
                         break;
                     default: break;
@@ -1909,6 +2054,10 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
             change |= ImGui::InputFloat("restitution", &phys_cmp.restitution);
             change |= ImGui::InputFloat("linear_damping", &phys_cmp.linear_damping);
             change |= ImGui::InputFloat("angular_damping", &phys_cmp.angular_damping);
+
+            // read back from the simulation each frame, an edit re-creates the body with it
+            change |= ImGui::InputFloat3("linear_velocity", glm::value_ptr(phys_cmp.linear_velocity));
+            change |= ImGui::InputFloat3("angular_velocity", glm::value_ptr(phys_cmp.angular_velocity));
             change |= ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
             change |= ImGui::Checkbox("sensor", &phys_cmp.sensor);
             bool is_character = phys_cmp.character.has_value();

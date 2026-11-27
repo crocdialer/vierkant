@@ -4,6 +4,7 @@
 #include <crocore/NamedUUID.hpp>
 #include <crocore/ThreadPool.hpp>
 
+#include <set>
 #include <variant>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Scene.hpp>
@@ -326,6 +327,13 @@ struct physics_component_t
     float restitution = 0.f;
     float linear_damping = 0.05f;
     float angular_damping = 0.05f;
+
+    //! world-space velocity of the center of mass (m/s), dynamic bodies only
+    glm::vec3 linear_velocity = {};
+
+    //! world-space angular velocity (rad/s), dynamic bodies only
+    glm::vec3 angular_velocity = {};
+
     bool kinematic = false;
     bool sensor = false;
 
@@ -384,6 +392,7 @@ public:
         virtual void add_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) = 0;
         [[nodiscard]] virtual glm::vec3 velocity(uint32_t objectId) const = 0;
         virtual void set_velocity(uint32_t objectId, const glm::vec3 &velocity) = 0;
+        [[nodiscard]] virtual glm::vec3 angular_velocity(uint32_t objectId) const = 0;
         virtual void activate(uint32_t objectId) = 0;
         virtual void activate_in_aabb(const vierkant::AABB &aabb) = 0;
         virtual bool is_active(uint32_t objectId) = 0;
@@ -440,6 +449,20 @@ private:
     std::unique_ptr<engine, std::function<void(engine *)>> m_engine;
 };
 
+/**
+ * @brief   clone_objects clones a set of objects, assigning fresh physics body-ids and remapping
+ *          constraints within the cloned set.
+ *
+ * @param   object_store    the store used to create the clones
+ * @param   objects         a set of objects to clone, including their sub-trees
+ * @param   instance_seed   optional seed. when provided, new body-ids are derived deterministically from it
+ *                          (stable across reloads, e.g. for sub-scene instances); otherwise fresh random ids
+ *                          are used (e.g. copy/paste).
+ * @return  the cloned objects
+ */
+std::vector<vierkant::Object3DPtr> clone_objects(vierkant::ObjectStore &object_store,
+                                                 const std::set<vierkant::Object3DPtr> &objects,
+                                                 const std::optional<std::string> &instance_seed = {});
 
 class PhysicsScene : public vierkant::Scene
 {
