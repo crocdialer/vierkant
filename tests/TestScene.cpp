@@ -200,7 +200,7 @@ TEST(Scene, emitter_seed)
 TEST(Scene, emitter_lifetime)
 {
     auto scene = vierkant::Scene::create();
-    auto emitter = create_emitter(scene, {.burst = 3, .lifetime = 1.0});
+    auto emitter = create_emitter(scene, {.burst = 3, .lifetime = glm::vec2(1.f)});
     emitter->get_component<emitter_component_t>().emit();
 
     scene->update(0.0);
@@ -213,6 +213,28 @@ TEST(Scene, emitter_lifetime)
 
     scene->update(1.0);
     EXPECT_TRUE(spawned(scene, emitter).empty());
+}
+
+TEST(Scene, emitter_lifetime_range)
+{
+    auto scene = vierkant::Scene::create();
+    auto emitter = create_emitter(scene, {.burst = 20, .lifetime = glm::vec2(1.f, 3.f)});
+    emitter->get_component<emitter_component_t>().emit();
+
+    scene->update(0.0);
+    auto clones = spawned(scene, emitter);
+    ASSERT_EQ(clones.size(), 20);
+
+    std::set<double> lifetimes;
+    for(const auto &clone: clones)
+    {
+        double remaining = clone->get_component<lifetime_component_t>().remaining;
+        EXPECT_GE(remaining, 1.0);
+        EXPECT_LE(remaining, 3.0);
+        lifetimes.insert(remaining);
+    }
+    // drawn per clone, not one value for all
+    EXPECT_GT(lifetimes.size(), 1);
 }
 
 TEST(Scene, emitter_multiple_templates)
@@ -273,7 +295,11 @@ TEST(Scene, emitter_lifetime_serialization)
     EXPECT_DOUBLE_EQ(json_roundtrip(obj->get_component<lifetime_component_t>()).remaining, 0.25);
 
     // parameters persist, runtime-state does not
-    emitter_component_t emitter = {.rate = 2.5, .burst = 25, .extents = {1.f, 2.f, 3.f}, .seed = 42, .lifetime = 4.0};
+    emitter_component_t emitter = {.rate = 2.5,
+                                   .burst = 25,
+                                   .extents = {1.f, 2.f, 3.f},
+                                   .seed = 42,
+                                   .lifetime = glm::vec2(4.f)};
     emitter.emit();
     emitter.accumulator = .5;
     emitter.rng = std::mt19937(1);

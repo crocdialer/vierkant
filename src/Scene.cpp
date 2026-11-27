@@ -358,7 +358,12 @@ void Scene::spawn(Object3D &emitter, double animation_delta)
 
         auto clone = vierkant::clone_objects(*m_object_store, {tmpl}).front();
         clone->enabled = true;
-        if(cmp.lifetime) { clone->add_component<lifetime_component_t>({.remaining = *cmp.lifetime}); }
+        if(cmp.lifetime)
+        {
+            const auto [min, max] = std::pair(cmp.lifetime->x, cmp.lifetime->y);
+            const float lifetime = min <= max ? std::uniform_real_distribution<float>(min, max)(*cmp.rng) : min;
+            clone->add_component<lifetime_component_t>({.remaining = lifetime});
+        }
         parent->add_child(clone);
         clone->set_global_transform(emitter_transform * vierkant::transform_t{.translation = offset} *
                                     template_transform);

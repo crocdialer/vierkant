@@ -808,7 +808,7 @@ void draw_scene_ui(const ScenePtr &scene, Object3DPtr &camera, std::set<vierkant
             {
                 auto emitter = scene->create_object();
                 emitter->name = spdlog::fmt_lib::format("emitter_{}", emitter->id() % 1000);
-                emitter->set_transform({.translation = {0.f, 10.f, 0.f}});
+                emitter->set_transform({});
                 emitter->add_component<vierkant::emitter_component_t>({.burst = 25, .extents = glm::vec3(1.f)});
 
                 if(auto tmpl = scene->create_primitive_object(vierkant::primitive_type::BOX))
@@ -1841,12 +1841,12 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
             bool has_clone_lifetime = emitter_cmp.lifetime.has_value();
             if(ImGui::Checkbox("clone lifetime", &has_clone_lifetime))
             {
-                emitter_cmp.lifetime = has_clone_lifetime ? std::optional<double>(1.0) : std::nullopt;
+                emitter_cmp.lifetime = has_clone_lifetime ? std::optional(glm::vec2(1.f)) : std::nullopt;
             }
             if(emitter_cmp.lifetime)
             {
                 ImGui::SameLine();
-                ImGui::InputDouble("##clone_lifetime", &*emitter_cmp.lifetime, 0.0, 0.0, "%.2f s");
+                ImGui::InputFloat2("##clone_lifetime", &emitter_cmp.lifetime->x, "%.2f s");
             }
             ImGui::TreePop();
         }
@@ -1919,7 +1919,7 @@ void draw_object_ui(const vierkant::ScenePtr &scene, const Object3DPtr &object)
                         break;
                     }
                     case 6:
-                        phys_cmp.shape = collision::mesh_t();
+                        phys_cmp.shape.emplace<collision::mesh_t>();
                         need_shape_transform = false;
                         break;
                     default: break;

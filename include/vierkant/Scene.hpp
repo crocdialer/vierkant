@@ -51,8 +51,8 @@ struct emitter_component_t
     //! seed for spawn-positions and template-selection
     uint32_t seed = 0;
 
-    //! optional lifetime in seconds, added to each clone
-    std::optional<double> lifetime = {};
+    //! optional lifetime-span in seconds, added to each clone
+    std::optional<glm::vec2> lifetime = {};
 
     //! request 'burst' spawns, handled in the next Scene::update
     void emit() { pending += burst; }
