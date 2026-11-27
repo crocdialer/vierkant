@@ -761,3 +761,78 @@ TEST(PhysicsContext, emitter_spawns_bodies)
     EXPECT_FALSE(body_ids.contains(tmpl->get_component<vierkant::physics_component_t>().body_id));
     EXPECT_FALSE(context.contains(tmpl->id()));
 }
+
+TEST(PhysicsContext, velocity_on_creation)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+    context.set_gravity({});
+
+    const glm::vec3 linear_velocity = {1.f, 2.f, 3.f}, angular_velocity = {0.f, 1.f, 0.f};
+    auto create_box = [&](bool kinematic) {
+        auto box = object_store->create_object();
+        box->set_transform({});
+        box->add_component<vierkant::physics_component_t>({.shape = collision::box_t{.half_extents = glm::vec3(.5f)},
+                                                           .mass = 1.f,
+                                                           .linear_velocity = linear_velocity,
+                                                           .angular_velocity = angular_velocity,
+                                                           .kinematic = kinematic});
+        scene->add_object(box);
+        return box;
+    };
+    auto dynamic_box = create_box(false);
+    auto kinematic_box = create_box(true);
+    scene->update(0.0);
+
+    EXPECT_EQ(context.body_interface().velocity(dynamic_box->id()), linear_velocity);
+    EXPECT_EQ(context.body_interface().angular_velocity(dynamic_box->id()), angular_velocity);
+
+    // kinematic bodies are moved by their transform, not by a velocity
+    EXPECT_EQ(context.body_interface().velocity(kinematic_box->id()), glm::vec3(0.f));
+    EXPECT_EQ(context.body_interface().angular_velocity(kinematic_box->id()), glm::vec3(0.f));
+}
+
+TEST(PhysicsContext, velocity_survives_recreate)
+{
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
+    auto &context = scene->physics_context();
+    context.set_gravity({0.f, -9.81f, 0.f});
+
+    // gravity changes the linear velocity, damping the angular one: both differ from the start values
+    auto box = object_store->create_object();
+    box->set_transform({});
+    box->add_component<vierkant::physics_component_t>({.shape = collision::box_t{.half_extents = glm::vec3(.5f)},
+                                                       .mass = 1.f,
+                                                       .angular_velocity = {0.f, 2.f, 0.f}});
+    scene->add_object(box);
+    for(uint32_t i = 0; i < 30; ++i) { scene->update(1.0 / 60.0); }
+
+    const auto &cmp = box->get_component<vierkant::physics_component_t>();
+    const glm::vec3 linear_velocity = context.body_interface().velocity(box->id());
+    const glm::vec3 angular_velocity = context.body_interface().angular_velocity(box->id());
+    ASSERT_LT(linear_velocity.y, -4.f);
+    ASSERT_LT(angular_velocity.y, 2.f);
+    EXPECT_EQ(cmp.linear_velocity, linear_velocity);
+    EXPECT_EQ(cmp.angular_velocity, angular_velocity);
+
+    auto expect_velocity = [&] {
+        EXPECT_TRUE(context.contains(box->id()));
+        EXPECT_EQ(context.body_interface().velocity(box->id()), linear_velocity);
+        EXPECT_EQ(context.body_interface().angular_velocity(box->id()), angular_velocity);
+    };
+
+    // re-create, as after an inspector edit
+    box->get_component<vierkant::physics_component_t>().mode = vierkant::physics_component_t::UPDATE;
+    scene->update(0.0);
+    expect_velocity();
+
+    // disable and enable
+    box->enabled = false;
+    scene->update(0.0);
+    EXPECT_FALSE(context.contains(box->id()));
+    box->enabled = true;
+    scene->update(0.0);
+    expect_velocity();
+}

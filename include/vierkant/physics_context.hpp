@@ -327,6 +327,13 @@ struct physics_component_t
     float restitution = 0.f;
     float linear_damping = 0.05f;
     float angular_damping = 0.05f;
+
+    //! world-space velocity of the center of mass (m/s), dynamic bodies only
+    glm::vec3 linear_velocity = {};
+
+    //! world-space angular velocity (rad/s), dynamic bodies only
+    glm::vec3 angular_velocity = {};
+
     bool kinematic = false;
     bool sensor = false;
 
@@ -385,6 +392,7 @@ public:
         virtual void add_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) = 0;
         [[nodiscard]] virtual glm::vec3 velocity(uint32_t objectId) const = 0;
         virtual void set_velocity(uint32_t objectId, const glm::vec3 &velocity) = 0;
+        [[nodiscard]] virtual glm::vec3 angular_velocity(uint32_t objectId) const = 0;
         virtual void activate(uint32_t objectId) = 0;
         virtual void activate_in_aabb(const vierkant::AABB &aabb) = 0;
         virtual bool is_active(uint32_t objectId) = 0;

@@ -508,6 +508,15 @@ public:
         }
     }
 
+    [[nodiscard]] glm::vec3 angular_velocity(uint32_t objectId) const override
+    {
+        if(auto body_id = get_body_id(objectId))
+        {
+            return type_cast(m_jolt_body_interface.GetAngularVelocity(*body_id));
+        }
+        return {};
+    }
+
     void activate(uint32_t objectId) override
     {
         if(auto body_id = get_body_id(objectId)) { m_jolt_body_interface.ActivateBody(*body_id); }
@@ -1043,6 +1052,13 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
             body_create_info.mLinearDamping = cmp.linear_damping;
             body_create_info.mAngularDamping = cmp.angular_damping;
             body_create_info.mMotionQuality = JPH::EMotionQuality::LinearCast;
+
+            // a kinematic body would drift with it, between the per-frame set_transform calls
+            if(motion_type == JPH::EMotionType::Dynamic)
+            {
+                body_create_info.mLinearVelocity = type_cast(cmp.linear_velocity);
+                body_create_info.mAngularVelocity = type_cast(cmp.angular_velocity);
+            }
 
             {
                 std::unique_lock lock(m_engine->jolt.mutex);
@@ -1886,7 +1902,7 @@ void PhysicsScene::update(double time_delta)
 
     for(auto *obj: visitor.objects)
     {
-        if(const auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>())
+        if(auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>())
         {
             // manually update non-moving/kinematic objects
             if(!is_movable(*phys_cmp))
@@ -1898,6 +1914,10 @@ void PhysicsScene::update(double time_delta)
                    m_context.body_interface().get_transform(obj->id(), transform))
                 {
                     obj->set_transform(transform);
+
+                    // velocity is body-state, keep it for a re-created body
+                    phys_cmp->linear_velocity = m_context.body_interface().velocity(obj->id());
+                    phys_cmp->angular_velocity = m_context.body_interface().angular_velocity(obj->id());
                 }
             }
         }
