@@ -50,10 +50,6 @@ function(STRINGIFY_SLANG_SHADERS SLANG_FOLDER TARGET_NAME SLANG_COMPILER SPIRV_O
     set(OUTPUT_HEADER "${SOURCE_OUT_DIR}/include/${TARGET_NAME}/shaders_slang.hpp")
     set(OUTPUT_SOURCE "${SOURCE_OUT_DIR}/src/shaders_slang.cpp")
 
-    # cleanup leftovers
-    remove(${OUTPUT_HEADER})
-    remove(${OUTPUT_SOURCE})
-
     # create output implementation and header
     file(WRITE ${OUTPUT_HEADER}
             "/* Generated file, do not edit! */\n\n"
