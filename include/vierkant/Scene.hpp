@@ -54,6 +54,18 @@ struct emitter_component_t
     //! optional lifetime-span in seconds, added to each clone
     std::optional<glm::vec2> lifetime = {};
 
+    //! optional start speed (min, max) in m/s, drawn per clone
+    std::optional<glm::vec2> speed = {};
+
+    //! emitter-local axis of the velocity cone
+    glm::vec3 direction = {0.f, 1.f, 0.f};
+
+    //! half-angle of the velocity cone in radians, 0 is a jet, pi is a sphere
+    float cone_angle = 0.f;
+
+    //! optional angular speed (min, max) in rad/s, around a random axis per clone
+    std::optional<glm::vec2> angular_speed = {};
+
     //! request 'burst' spawns, handled in the next Scene::update
     void emit() { pending += burst; }
 

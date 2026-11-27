@@ -281,7 +281,11 @@ void serialize(Archive &archive, vierkant::emitter_component_t &emitter_cmp)
 {
     archive(cereal::make_nvp("rate", emitter_cmp.rate), cereal::make_nvp("burst", emitter_cmp.burst),
             cereal::make_nvp("extents", emitter_cmp.extents), cereal::make_nvp("seed", emitter_cmp.seed),
-            cereal::make_optional_nvp("lifetime", emitter_cmp.lifetime));
+            cereal::make_optional_nvp("lifetime", emitter_cmp.lifetime),
+            cereal::make_optional_nvp("speed", emitter_cmp.speed),
+            cereal::make_optional_nvp("direction", emitter_cmp.direction, glm::vec3(0.f, 1.f, 0.f)),
+            cereal::make_optional_nvp("cone_angle", emitter_cmp.cone_angle),
+            cereal::make_optional_nvp("angular_speed", emitter_cmp.angular_speed));
 }
 
 template<class Archive>

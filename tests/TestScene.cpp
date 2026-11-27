@@ -3,6 +3,8 @@
 
 #include <cereal/archives/json.hpp>
 #include <serialization/components.hpp>
+#include <serialization/optional_nvp_json.hpp>
+#include <vierkant/physics_context.hpp>
 
 using namespace vierkant;
 //____________________________________________________________________________//
@@ -299,7 +301,11 @@ TEST(Scene, emitter_lifetime_serialization)
                                    .burst = 25,
                                    .extents = {1.f, 2.f, 3.f},
                                    .seed = 42,
-                                   .lifetime = glm::vec2(4.f)};
+                                   .lifetime = glm::vec2(4.f),
+                                   .speed = glm::vec2(1.f, 2.f),
+                                   .direction = {1.f, 0.f, 0.f},
+                                   .cone_angle = .5f,
+                                   .angular_speed = glm::vec2(3.f, 4.f)};
     emitter.emit();
     emitter.accumulator = .5;
     emitter.rng = std::mt19937(1);
@@ -310,6 +316,10 @@ TEST(Scene, emitter_lifetime_serialization)
     EXPECT_EQ(loaded.extents, emitter.extents);
     EXPECT_EQ(loaded.seed, emitter.seed);
     EXPECT_EQ(loaded.lifetime, emitter.lifetime);
+    EXPECT_EQ(loaded.speed, emitter.speed);
+    EXPECT_EQ(loaded.direction, emitter.direction);
+    EXPECT_EQ(loaded.cone_angle, emitter.cone_angle);
+    EXPECT_EQ(loaded.angular_speed, emitter.angular_speed);
     EXPECT_EQ(loaded.pending, 0);
     EXPECT_EQ(loaded.accumulator, 0.0);
     EXPECT_FALSE(loaded.rng);
@@ -317,4 +327,143 @@ TEST(Scene, emitter_lifetime_serialization)
     // lifetime is optional
     emitter.lifetime = {};
     EXPECT_FALSE(json_roundtrip(emitter).lifetime);
+
+    // a file written before the velocity-fields loads with their defaults
+    std::stringstream ss;
+    {
+        cereal::JSONOutputArchive archive(ss);
+        archive(cereal::make_nvp("cmp", emitter));
+    }
+    CEREAL_RAPIDJSON_NAMESPACE::Document doc;
+    doc.Parse(ss.str().c_str());
+    for(const char *key: {"speed", "direction", "cone_angle", "angular_speed"})
+    {
+        ASSERT_TRUE(doc["cmp"].RemoveMember(key)) << key;
+    }
+    CEREAL_RAPIDJSON_NAMESPACE::StringBuffer buffer;
+    CEREAL_RAPIDJSON_NAMESPACE::Writer<CEREAL_RAPIDJSON_NAMESPACE::StringBuffer> writer(buffer);
+    doc.Accept(writer);
+
+    std::stringstream old_file(buffer.GetString());
+    emitter_component_t old_loaded = {};
+    old_loaded.direction = {};
+    {
+        cereal::JSONInputArchive archive(old_file);
+        archive(cereal::make_nvp("cmp", old_loaded));
+    }
+    EXPECT_EQ(old_loaded.rate, emitter.rate);
+    EXPECT_FALSE(old_loaded.speed);
+    EXPECT_EQ(old_loaded.direction, glm::vec3(0.f, 1.f, 0.f));
+    EXPECT_EQ(old_loaded.cone_angle, 0.f);
+    EXPECT_FALSE(old_loaded.angular_speed);
+}
+
+namespace
+{
+
+//! emitter with one physics-template, its children[0]
+Object3DPtr create_physics_emitter(const vierkant::ScenePtr &scene, const emitter_component_t &params)
+{
+    auto emitter = create_emitter(scene, params);
+    emitter->children.front()->add_component<physics_component_t>({.mass = 1.f});
+    emitter->get_component<emitter_component_t>().emit();
+    return emitter;
+}
+
+//! angle between two non-zero vectors
+float angle(const glm::vec3 &a, const glm::vec3 &b)
+{ return std::acos(glm::clamp(glm::dot(glm::normalize(a), glm::normalize(b)), -1.f, 1.f)); }
+
+}// namespace
+
+TEST(Scene, emitter_velocity_cone)
+{
+    constexpr float cone_angle = .3f;
+    auto scene = vierkant::Scene::create();
+    auto emitter = create_physics_emitter(
+            scene, {.burst = 50, .speed = glm::vec2(2.f, 4.f), .direction = {2.f, 0.f, 0.f}, .cone_angle = cone_angle});
+
+    // the emitter's rotation aims the cone: local +x is world +y
+    emitter->set_transform({.translation = {0.f, 10.f, 0.f},
+                            .rotation = glm::angleAxis(glm::half_pi<float>(), glm::vec3(0.f, 0.f, 1.f))});
+
+    // the template's own velocity is kept, a child-body gets the same velocity
+    const glm::vec3 template_velocity = {0.f, 0.f, 5.f};
+    auto tmpl = emitter->children.front();
+    tmpl->get_component<physics_component_t>().linear_velocity = template_velocity;
+    auto tmpl_child = scene->create_object();
+    tmpl_child->add_component<physics_component_t>({.mass = 1.f, .linear_velocity = template_velocity});
+    tmpl->add_child(tmpl_child);
+
+    scene->update(0.0);
+    auto clones = spawned(scene, emitter);
+    ASSERT_EQ(clones.size(), 50);
+
+    float max_angle = 0.f;
+    for(const auto &clone: clones)
+    {
+        const auto &phys_cmp = clone->get_component<physics_component_t>();
+        const glm::vec3 v = phys_cmp.linear_velocity - template_velocity;
+        EXPECT_GE(glm::length(v), 2.f - 1.e-5f);
+        EXPECT_LE(glm::length(v), 4.f + 1.e-5f);
+        EXPECT_LE(angle(v, {0.f, 1.f, 0.f}), cone_angle + 1.e-4f);
+        max_angle = std::max(max_angle, angle(v, {0.f, 1.f, 0.f}));
+        EXPECT_EQ(phys_cmp.angular_velocity, glm::vec3(0.f));
+        EXPECT_EQ(clone->children.front()->get_component<physics_component_t>().linear_velocity,
+                  phys_cmp.linear_velocity);
+    }
+    // spread over the cone, not only the axis
+    EXPECT_GT(max_angle, .5f * cone_angle);
+    EXPECT_EQ(tmpl->get_component<physics_component_t>().linear_velocity, template_velocity);
+}
+
+TEST(Scene, emitter_velocity_cone_uniform)
+{
+    // uniform on the cap: for a hemisphere the mean cosine to the axis is 1/2. uniform angles give 2/pi
+    auto scene = vierkant::Scene::create();
+    auto emitter =
+            create_physics_emitter(scene, {.burst = 500, .speed = glm::vec2(1.f), .cone_angle = glm::half_pi<float>()});
+    scene->update(0.0);
+
+    float sum_cos = 0.f;
+    for(const auto &clone: spawned(scene, emitter))
+    {
+        sum_cos += glm::normalize(clone->get_component<physics_component_t>().linear_velocity).y;
+    }
+    EXPECT_NEAR(sum_cos / 500.f, .5f, .05f);
+}
+
+TEST(Scene, emitter_velocity_jet)
+{
+    auto scene = vierkant::Scene::create();
+    auto emitter = create_physics_emitter(scene, {.burst = 5, .speed = glm::vec2(3.f), .direction = {0.f, 0.f, -1.f}});
+    scene->update(0.0);
+
+    for(const auto &clone: spawned(scene, emitter))
+    {
+        const glm::vec3 v = clone->get_component<physics_component_t>().linear_velocity;
+        EXPECT_NEAR(glm::distance(v, glm::vec3(0.f, 0.f, -3.f)), 0.f, 1.e-5f);
+    }
+}
+
+TEST(Scene, emitter_angular_speed)
+{
+    auto scene = vierkant::Scene::create();
+    auto emitter = create_physics_emitter(scene, {.burst = 50, .angular_speed = glm::vec2(1.f, 2.f)});
+    scene->update(0.0);
+
+    auto clones = spawned(scene, emitter);
+    ASSERT_EQ(clones.size(), 50);
+    const glm::vec3 first_axis = clones.front()->get_component<physics_component_t>().angular_velocity;
+    float max_angle = 0.f;
+    for(const auto &clone: clones)
+    {
+        const auto &phys_cmp = clone->get_component<physics_component_t>();
+        EXPECT_GE(glm::length(phys_cmp.angular_velocity), 1.f - 1.e-5f);
+        EXPECT_LE(glm::length(phys_cmp.angular_velocity), 2.f + 1.e-5f);
+        EXPECT_EQ(phys_cmp.linear_velocity, glm::vec3(0.f));
+        max_angle = std::max(max_angle, angle(phys_cmp.angular_velocity, first_axis));
+    }
+    // random axes, not one for all
+    EXPECT_GT(max_angle, glm::half_pi<float>());
 }
