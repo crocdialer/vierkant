@@ -157,8 +157,11 @@ void serialize(Archive &archive, vierkant::physics_component_t &c)
             cereal::make_nvp("shape_transform", c.shape_transform), cereal::make_nvp("mass", c.mass),
             cereal::make_nvp("friction", c.friction), cereal::make_nvp("restitution", c.restitution),
             cereal::make_nvp("linear_damping", c.linear_damping),
-            cereal::make_nvp("angular_damping", c.angular_damping), cereal::make_nvp("kinematic", c.kinematic),
-            cereal::make_nvp("sensor", c.sensor), cereal::make_optional_nvp("character_state", c.character));
+            cereal::make_nvp("angular_damping", c.angular_damping),
+            cereal::make_optional_nvp("linear_velocity", c.linear_velocity),
+            cereal::make_optional_nvp("angular_velocity", c.angular_velocity),
+            cereal::make_nvp("kinematic", c.kinematic), cereal::make_nvp("sensor", c.sensor),
+            cereal::make_optional_nvp("character_state", c.character));
 }
 
 template<class Archive>

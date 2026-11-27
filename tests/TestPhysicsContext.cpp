@@ -3,6 +3,12 @@
 #include <vierkant/Scene.hpp>
 #include <vierkant/physics_context.hpp>
 
+#include <cereal/archives/json.hpp>
+#include <cereal/types/unordered_set.hpp>
+#include <serialization/collision_cereal.hpp>
+#include <serialization/components.hpp>
+#include <serialization/optional_nvp_json.hpp>
+
 using namespace vierkant;
 //____________________________________________________________________________//
 
@@ -835,4 +841,47 @@ TEST(PhysicsContext, velocity_survives_recreate)
     box->enabled = true;
     scene->update(0.0);
     expect_velocity();
+}
+
+TEST(PhysicsContext, velocity_serialization)
+{
+    vierkant::physics_component_t cmp = {.shape = collision::box_t{.half_extents = glm::vec3(.5f)},
+                                         .mass = 1.f,
+                                         .linear_velocity = {1.f, 2.f, 3.f},
+                                         .angular_velocity = {4.f, 5.f, 6.f}};
+
+    auto write = [](const vierkant::physics_component_t &in) {
+        std::stringstream ss;
+        {
+            cereal::JSONOutputArchive archive(ss);
+            archive(cereal::make_nvp("cmp", in));
+        }
+        return ss.str();
+    };
+    auto read = [](const std::string &json) {
+        std::stringstream ss(json);
+        vierkant::physics_component_t out = {};
+        cereal::JSONInputArchive archive(ss);
+        archive(cereal::make_nvp("cmp", out));
+        return out;
+    };
+
+    const std::string json = write(cmp);
+    auto loaded = read(json);
+    EXPECT_EQ(loaded.linear_velocity, cmp.linear_velocity);
+    EXPECT_EQ(loaded.angular_velocity, cmp.angular_velocity);
+
+    // a file written before the velocity-fields loads with zero
+    CEREAL_RAPIDJSON_NAMESPACE::Document doc;
+    doc.Parse(json.c_str());
+    ASSERT_TRUE(doc["cmp"].RemoveMember("linear_velocity"));
+    ASSERT_TRUE(doc["cmp"].RemoveMember("angular_velocity"));
+    CEREAL_RAPIDJSON_NAMESPACE::StringBuffer buffer;
+    CEREAL_RAPIDJSON_NAMESPACE::Writer<CEREAL_RAPIDJSON_NAMESPACE::StringBuffer> writer(buffer);
+    doc.Accept(writer);
+
+    loaded = read(buffer.GetString());
+    EXPECT_EQ(loaded.linear_velocity, glm::vec3(0.f));
+    EXPECT_EQ(loaded.angular_velocity, glm::vec3(0.f));
+    EXPECT_EQ(loaded.mass, cmp.mass);
 }
