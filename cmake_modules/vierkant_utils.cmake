@@ -26,6 +26,21 @@ function(GET_SLANG_RECURSIVE RESULT SLANG_FOLDER)
     set(${RESULT} ${ALL_SOURCES} PARENT_SCOPE)
 endfunction(GET_SLANG_RECURSIVE)
 
+# append a SPIR-V file as std::array blob to a generated header/source pair
+function(EMIT_SPIRV_BLOB SPIRV_FILE SYMBOL OUTPUT_HEADER OUTPUT_SOURCE)
+    file(READ "${SPIRV_FILE}" contents HEX)
+    string(LENGTH "${contents}" contents_length)
+    math(EXPR num_bytes "${contents_length} / 2")
+
+    file(APPEND ${OUTPUT_HEADER} "extern const std::array<unsigned char, ${num_bytes}> ${SYMBOL};\n")
+    file(APPEND ${OUTPUT_SOURCE} "\nconst std::array<unsigned char, ${num_bytes}> ${SYMBOL} = {")
+
+    string(REGEX MATCHALL ".." hex_values "${contents}")
+    string(REPLACE ";" ", 0x" hex_values "${hex_values}")
+
+    file(APPEND ${OUTPUT_SOURCE} "0x${hex_values}};\n")
+endfunction(EMIT_SPIRV_BLOB)
+
 # similar to STRINGIFY_SHADERS but uses slangc and produces a separate header/source pair
 function(STRINGIFY_SLANG_SHADERS SLANG_FOLDER TARGET_NAME SLANG_COMPILER SPIRV_OUT_DIR SOURCE_OUT_DIR SPIRV_DEBUG_SYMBOLS)
 
@@ -97,19 +112,27 @@ function(STRINGIFY_SLANG_SHADERS SLANG_FOLDER TARGET_NAME SLANG_COMPILER SPIRV_O
 
             # only process file if output was generated
             if (EXISTS "${SPIRV}")
-                file(READ "${SPIRV}" contents HEX)
-                string(LENGTH "${contents}" contents_length)
-                math(EXPR num_bytes "${contents_length} / 2")
-
-                file(APPEND ${OUTPUT_HEADER} "extern const std::array<unsigned char, ${num_bytes}> ${NAME};\n")
-                file(APPEND ${OUTPUT_SOURCE} "\nconst std::array<unsigned char, ${num_bytes}> ${NAME} = {")
-
-                string(REGEX MATCHALL ".." hex_values "${contents}")
-                string(REPLACE ";" ", 0x" hex_values "${hex_values}")
-
-                file(APPEND ${OUTPUT_SOURCE} "0x${hex_values}};\n")
+                emit_spirv_blob("${SPIRV}" "${NAME}" ${OUTPUT_HEADER} ${OUTPUT_SOURCE})
             else()
                 message(STATUS "skipping slang source without spirv output: ${SLANG}")
+            endif()
+
+            # raygen-only variant with shader-execution-reordering. the SPIR-V capability is module-scope,
+            # so it cannot be a specialization-constant and needs its own blob
+            if (FILE_NAME STREQUAL "raypipeline.slang")
+                set(SPIRV_SER "${SPIRV_OUT_DIR}/${SLANG_FOLDER}/${DIR_NAME}_${NAME}_ser_raygen.spv")
+                execute_process(
+                        COMMAND ${SLANG_COMPILER} -target ${SLANG_TARGET} -profile spirv_1_6 -DVIERKANT_SER=1
+                        -entry main -stage raygeneration ${SLANG_EXTRA_PARAMS} ${SLANG} -o ${SPIRV_SER}
+                        ERROR_VARIABLE slang_std_err
+                        RESULT_VARIABLE ret
+                )
+                if (NOT "${ret}" STREQUAL "0")
+                    message(WARNING "Failed to compile slang shader (SER raygen): ${slang_std_err}")
+                endif()
+                if (EXISTS "${SPIRV_SER}")
+                    emit_spirv_blob("${SPIRV_SER}" "${NAME}_ser_raygen" ${OUTPUT_HEADER} ${OUTPUT_SOURCE})
+                endif()
             endif()
         endforeach()
 

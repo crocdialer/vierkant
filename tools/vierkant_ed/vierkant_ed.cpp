@@ -189,6 +189,14 @@ void VierkantEd::create_context_and_window()
         device_info.extensions.push_back(VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME);
     }
 
+    // shader-execution-reordering. VIERKANT_NO_SER=1 keeps it out of the device, for a plain-TraceRay baseline
+    if(m_settings.enable_raytracing_pipeline_features && !std::getenv("VIERKANT_NO_SER") &&
+       vierkant::check_device_extension_support(physical_device,
+                                                {VK_EXT_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME}))
+    {
+        device_info.extensions.push_back(VK_EXT_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME);
+    }
+
     // check descriptor-heap support
     m_settings.enable_descriptor_heap =
             m_settings.enable_descriptor_heap &&

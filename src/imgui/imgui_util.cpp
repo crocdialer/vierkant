@@ -555,6 +555,7 @@ void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
     {
         path_tracer->settings.nee_beta_scale = nee_beta_scale;
     }
+    ImGui::Checkbox("shader-execution-reorder", &path_tracer->settings.use_invocation_reorder);
     ImGui::Checkbox("skybox", &path_tracer->settings.draw_skybox);
     ImGui::Checkbox("suspend_trace_when_done", &path_tracer->settings.suspend_trace_when_done);
     ImGui::Checkbox("disable material", &path_tracer->settings.disable_material);

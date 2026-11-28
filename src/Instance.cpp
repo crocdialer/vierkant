@@ -4,6 +4,8 @@
 
 #include "vierkant/Instance.hpp"
 
+#include <vulkan/vk_enum_string_helper.h>
+
 namespace vierkant
 {
 
@@ -120,7 +122,7 @@ bool check_device_extension_support(VkPhysicalDevice device, const std::vector<c
 
 void vkCheck(VkResult res, const std::string &fail_msg)
 {
-    if(res != VK_SUCCESS) { throw std::runtime_error(fail_msg); }
+    if(res != VK_SUCCESS) { throw std::runtime_error(fail_msg + " -> " + string_VkResult(res)); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

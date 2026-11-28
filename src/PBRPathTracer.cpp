@@ -16,6 +16,10 @@ static constexpr uint32_t LIGHT_ENTITY_INDEX_TOP = 0xFFFE;
 //! marks a light that came from no object, such as the sun
 static constexpr uint32_t NO_OBJECT_ID = std::numeric_limits<uint32_t>::max();
 
+//! constant-id of USE_REORDER in shaders/slang/raypipeline.slang
+static constexpr uint32_t USE_REORDER_CONSTANT_ID = 7;
+static_assert(RayBuilder::num_material_features <= USE_REORDER_CONSTANT_ID);
+
 using duration_t = std::chrono::duration<float>;
 
 struct alignas(16) pixel_buffer_t
@@ -160,11 +164,20 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     auto ray_miss_env = rt_shader_stages;
     ray_miss_env.entry_point_name = "miss_environment";
 
-    m_shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, rt_shader_stages},
-                       {VK_SHADER_STAGE_MISS_BIT_KHR, rt_shader_stages}};
+    // shader-execution-reordering only swaps the raygen. hit-groups and miss-shaders stay as they are
+    const bool use_ser = m_device->extension_enabled(VK_EXT_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME);
+    auto ray_gen =
+            use_ser ? vierkant::create_shader_module(vierkant::slang_shaders::slang::raypipeline_slang_ser_raygen)
+                    : rt_shader_stages;
+    spdlog::debug("shader-execution-reordering: {}, reordering-hint: {}", use_ser ? "enabled" : "disabled",
+                  m_device->properties().ray_invocation_reorder.rayTracingInvocationReorderReorderingHint ==
+                                  VK_RAY_TRACING_INVOCATION_REORDER_MODE_REORDER_EXT
+                          ? "reorder"
+                          : "none");
 
-    m_shader_stages_env = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, rt_shader_stages},
-                           {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_env}};
+    m_shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, ray_gen}, {VK_SHADER_STAGE_MISS_BIT_KHR, rt_shader_stages}};
+
+    m_shader_stages_env = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, ray_gen}, {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_env}};
 
     // entry-points are matched by substring, so no hit-group name may contain another's
     auto ray_closest_hit = rt_shader_stages;
@@ -903,6 +916,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_
     {
         specialization.set(bit, VkBool32((material_features >> bit) & 1u));
     }
+    specialization.set(USE_REORDER_CONSTANT_ID, VkBool32(frame_context.settings.use_invocation_reorder));
     frame_context.tracable.pipeline_info.specialization = std::move(specialization);
 
     // different mask, different estimator: accumulated samples are stale

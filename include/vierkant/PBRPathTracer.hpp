@@ -117,6 +117,9 @@ public:
         //! when set, seeds the path-tracer's media-stack so rays start inside this medium.
         std::optional<medium_params_t> camera_medium;
 
+        //! reorder invocations before shading. no effect without VK_EXT_ray_tracing_invocation_reorder
+        bool use_invocation_reorder = true;
+
         //! max number stored timing-values
         uint32_t timing_history_size = 300;
 

@@ -96,6 +96,10 @@ ray::Ray camera_ray(float2 coord, float2 size, float2 Xi)
     return r;
 }
 
+//! reorder before HitObject.Invoke. only read by the SER raygen; constant-id follows the material-features
+[[vk::constant_id(7)]]
+const bool USE_REORDER = true;
+
 trace_result_t trace(uint2 coord, uint2 size)
 {
     trace_result_t result;
@@ -172,10 +176,17 @@ trace_result_t trace(uint2 coord, uint2 size)
             // the traced ray, kept for the primary-ray outputs below (closest_hit updates payload.ray)
             ray::Ray seg_ray = next_ray;
 
-            //let hit = HitObject.TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
-            //ReorderThread(hit);
-            //HitObject.Invoke(topLevelAS, hit, payload);
+#ifdef VIERKANT_SER
+            // VK_EXT_ray_tracing_invocation_reorder, separate raygen blob. no coherence-hint:
+            // the sort-key is the hit-group/instance that was hit. not 'let': Slang 2026.17 then hands
+            // ReorderThread/Invoke fresh, uninitialized hit-objects
+            HitObject hit =
+                    HitObject.TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
+            if(USE_REORDER) { ReorderThread(hit); }
+            HitObject.Invoke(topLevelAS, hit, payload);
+#else
             TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
+#endif
 
             cone = payload.cone;
             next_ray = payload.ray;

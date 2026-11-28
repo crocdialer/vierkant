@@ -115,6 +115,9 @@ public:
         VkPhysicalDeviceOpacityMicromapPropertiesEXT micromap_opacity;
         VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader;
         VkPhysicalDeviceDescriptorHeapPropertiesEXT descriptor_heap;
+
+        //! reordering-hint is 'none' unless the hardware is likely to reorder
+        VkPhysicalDeviceRayTracingInvocationReorderPropertiesEXT ray_invocation_reorder;
     };
 
     struct features_t
@@ -216,6 +219,11 @@ public:
     [[nodiscard]] const properties_t &properties() const { return m_properties; };
 
     /**
+     * @return true if a device-extension was enabled during device-creation
+     */
+    [[nodiscard]] bool extension_enabled(std::string_view ext_name) const;
+
+    /**
      * @return a struct grouping physical-device features
      */
     [[nodiscard]] const features_t &features() const { return m_features; };
@@ -294,6 +302,9 @@ private:
 
     // group physical device properties
     properties_t m_properties = {};
+
+    //! device-extensions as enabled by vkCreateDevice
+    std::vector<std::string> m_extensions;
 
     // group physical device features
     features_t m_features = {};

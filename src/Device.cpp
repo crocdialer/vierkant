@@ -13,6 +13,9 @@ namespace vierkant
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool Device::extension_enabled(std::string_view ext_name) const
+{ return std::find(m_extensions.begin(), m_extensions.end(), ext_name) != m_extensions.end(); }
+
 QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query_count, VkQueryType query_type)
 {
     VkQueryPoolCreateInfo pool_create_info = {};
@@ -182,6 +185,9 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
         m_properties.ray_pipeline.pNext = &m_properties.mesh_shader;
         m_properties.mesh_shader.pNext = &m_properties.micromap_opacity;
         m_properties.micromap_opacity.pNext = &m_properties.descriptor_heap;
+        m_properties.ray_invocation_reorder.sType =
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_INVOCATION_REORDER_PROPERTIES_EXT;
+        m_properties.descriptor_heap.pNext = &m_properties.ray_invocation_reorder;
         vkGetPhysicalDeviceProperties2(create_info.physical_device, &physical_device_properties);
         m_properties.core = physical_device_properties.properties;
     }
@@ -352,6 +358,7 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     device_create_info.ppEnabledExtensionNames = extensions.data();
 
     spdlog::debug("device-extensions: {}", extensions);
+    m_extensions.assign(extensions.begin(), extensions.end());
 
     vkCheck(vkCreateDevice(m_physical_device, &device_create_info, nullptr, &m_device),
             "failed to create logical device!");
