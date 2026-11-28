@@ -177,12 +177,19 @@ trace_result_t trace(uint2 coord, uint2 size)
             ray::Ray seg_ray = next_ray;
 
 #ifdef VIERKANT_SER
-            // VK_EXT_ray_tracing_invocation_reorder, separate raygen blob. no coherence-hint:
-            // the sort-key is the hit-group/instance that was hit. not 'let': Slang 2026.17 then hands
+            // VK_EXT_ray_tracing_invocation_reorder, separate raygen blob. not 'let': Slang 2026.17 then hands
             // ReorderThread/Invoke fresh, uninitialized hit-objects
             HitObject hit =
                     HitObject.TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
-            if(USE_REORDER) { ReorderThread(hit); }
+            if(USE_REORDER)
+            {
+                // material-index as coherence-hint. record 0 is scene-geometry, light-bodies have no entry
+                if(hit.IsHit() && hit.GetShaderTableIndex() == 0)
+                {
+                    ReorderThread(hit, trace_data.entries[hit.GetInstanceIndex()].material_index, 16);
+                }
+                else { ReorderThread(hit); }
+            }
             HitObject.Invoke(topLevelAS, hit, payload);
 #else
             TraceRay(topLevelAS, ray_flags, 0xff, 0, 0, ray::MISS_INDEX_DEFAULT, ray_desc, payload);
