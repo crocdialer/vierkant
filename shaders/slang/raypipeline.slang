@@ -642,7 +642,10 @@ void intersect_light_body()
     // non-area types never intersect
     ray::light_hit_t hit = ray::intersect_light(light, WorldRayOrigin(), WorldRayDirection());
 
-    if(hit.t > RayTMin() && hit.t < RayTCurrent())
+    // workaround slangc/VVL issue in 1.4.368.0 - check is mostly redundant and yields errors wrt.:
+    // (https://vulkan.lunarg.com/doc/view/1.4.368.0/linux/antora/spec/latest/appendices/spirvenv.html#VUID-StandaloneSpirv-VulkanMemoryModel-04678)
+    //if(hit.t > RayTMin() && hit.t < RayTCurrent())
+    if(hit.t > 0.0)
     {
         light_attributes_t attributes = {};
         ReportHit(hit.t, 0, attributes);
