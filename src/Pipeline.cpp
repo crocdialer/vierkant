@@ -266,9 +266,16 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::raytracing_pipeline_inf
     pipeline_create_info.layout = pipeline_layout;
     pipeline_create_info.maxPipelineRayRecursionDepth = raytracing_info.max_recursion;
 
+    // TraceRay into geometry with opacity-micromaps requires this flag (VUID-vkCmdTraceRaysKHR-micromap-11640)
+    const bool micromap = device->features().ray_micromap.micromap;
+    if(micromap) { pipeline_create_info.flags |= VK_PIPELINE_CREATE_RAY_TRACING_OPACITY_MICROMAP_BIT_EXT; }
+
     heap_pipeline_t heap;
     chain_heap_mappings(device, raytracing_info.heap_block_layouts, raytracing_info.push_constant_ranges,
                         shader_layout.stages, heap, pipeline_create_info.pNext);
+
+    // a chained VkPipelineCreateFlags2CreateInfo replaces pipeline_create_info.flags
+    if(micromap) { heap.flags_info.flags |= VK_PIPELINE_CREATE_2_RAY_TRACING_OPACITY_MICROMAP_BIT_EXT; }
 
     VkPipeline pipeline = VK_NULL_HANDLE;
     vkCheck(vkCreateRayTracingPipelinesKHR(device->handle(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &pipeline_create_info,
